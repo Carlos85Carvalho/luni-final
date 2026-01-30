@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/supabase'; // Confirme se o caminho está certo
 import { Calendar as CalendarIcon, User, Clock, Plus, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const AgendaScreen = ({ onClose }) => {
@@ -14,15 +14,16 @@ export const AgendaScreen = ({ onClose }) => {
     return d;
   });
 
-  // Agora o useEffect pode chamar a função com segurança
   useEffect(() => {
-    // --- FUNÇÃO DE BUSCA (Movida para antes do useEffect) ---
     const fetchAgenda = async () => {
       setLoading(true);
       try {
         const dataISO = dataSelecionada.toISOString().split('T')[0];
+        
+        // --- AQUI ESTÁ A MUDANÇA MÁGICA ---
+        // Buscando da VIEW em vez da tabela crua
         const { data, error } = await supabase
-          .from('agendamentos')
+          .from('view_agenda_financeiro') 
           .select('*')
           .eq('data', dataISO)
           .order('horario', { ascending: true });
@@ -39,6 +40,11 @@ export const AgendaScreen = ({ onClose }) => {
   }, [dataSelecionada]);
 
   const formatHora = (h) => h ? h.slice(0, 5) : '--:--';
+
+  // Função para formatar moeda
+  const formatMoeda = (valor) => {
+    return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -77,18 +83,35 @@ export const AgendaScreen = ({ onClose }) => {
         ) : (
           agendamentos.map((item, index) => (
             <div key={index} className="flex gap-4 group">
+              {/* Coluna da Hora */}
               <div className="flex flex-col items-center mt-1 w-12">
                 <div className="text-sm font-bold text-gray-400">{formatHora(item.horario)}</div>
                 <div className="w-0.5 h-full bg-white/10 my-2 group-last:hidden"></div>
               </div>
+
+              {/* Card do Agendamento */}
               <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 relative overflow-hidden hover:bg-white/10 transition-colors">
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${item.status === 'confirmado' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-bold text-lg text-white">{item.cliente_nome}</h3>
+                    {/* Nome do Cliente (Vindo da View) */}
+                    <h3 className="font-bold text-lg text-white">{item.nome_cliente || 'Cliente'}</h3>
+                    
+                    {/* Serviço */}
                     <p className="text-sm text-gray-400">{item.servico}</p>
+                    
+                    {/* NOVO: Nome do Profissional */}
+                    <div className="flex items-center gap-1 mt-1 text-xs text-blue-300">
+                        <User size={12} />
+                        <span>{item.nome_profissional || 'Profissional'}</span>
+                    </div>
                   </div>
-                  <span className="block font-bold text-blue-400">R$ {item.valor}</span>
+
+                  {/* Preço (Vindo da View formatado) */}
+                  <span className="block font-bold text-blue-400">
+                    {formatMoeda(item.valor_final)}
+                  </span>
                 </div>
               </div>
             </div>
