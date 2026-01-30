@@ -5,6 +5,11 @@ import {
   Briefcase, User, Lock, Mail, Store, Phone
 } from 'lucide-react';
 
+// --- IMPORTAÇÃO DO NOVO SPLASH ---
+import { SplashScreen } from './components/ui/SplashScreen';
+// --- IMPORTAÇÃO DO MODAL DE INSTALAÇÃO (PWA) ---
+import { InstallAppModal } from './components/ui/InstallAppModal';
+
 // --- IMPORTAÇÕES DE TELAS ---
 import { FinanceiroScreen } from './screens/financeiro/FinanceiroScreen.jsx';
 import { AgendaScreen } from './screens/agenda/AgendaScreen.jsx';
@@ -104,18 +109,6 @@ const MenuIcon = ({ id, icon, label, activeId, onClick }) => {
     </button>
   );
 };
-
-const SplashLoading = () => (
-  <div className="flex flex-col items-center justify-center h-screen bg-[#050505] z-50 relative overflow-hidden font-sans">
-    <div className="relative flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-1000 ease-out">
-      <img src="/logo-luni.png" alt="LUNI Loading" className="w-64 h-auto object-contain drop-shadow-2xl animate-pulse" style={{ animationDuration: '3s' }} />
-      <div className="flex items-center gap-2 text-purple-400/70 text-sm font-medium tracking-widest uppercase">
-        <Loader2 className="w-6 h-6 animate-spin" />
-        <span>Carregando</span>
-      </div>
-    </div>
-  </div>
-);
 
 // --- TELA DE LOGIN / CADASTRO ---
 const LoginScreen = () => { 
@@ -225,9 +218,9 @@ const LoginScreen = () => {
   );
 };
 
-// --- ADMIN APP (Onde estava o problema) ---
+// --- ADMIN APP ---
 const AdminApp = () => {
-  const { logout, salaoNome, salaoId } = useAuth(); // Agora pegamos também o SALAO ID
+  const { logout, salaoNome, salaoId } = useAuth();
   const [screen, setScreen] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
@@ -253,11 +246,9 @@ const AdminApp = () => {
         {screen === 'clientes' && <ClientesScreen onClose={() => setScreen('dashboard')} />} 
       </div>
 
-      {/* A CORREÇÃO FINAL: Passamos o salaoId para o Modal */}
       <NovoAgendamentoModal isOpen={activeModal === 'agendamento'} onClose={() => setActiveModal(null)} onSuccess={() => { setActiveModal(null); setScreen('agenda'); }} />
       <NovoClienteModal isOpen={activeModal === 'cliente'} onClose={() => setActiveModal(null)} />
       
-      {/* Aqui passamos o ID para o modal não precisar importar App.jsx */}
       <NovoProfissionalModal 
         isOpen={activeModal === 'profissional'} 
         onClose={() => setActiveModal(null)} 
@@ -296,12 +287,34 @@ const AdminApp = () => {
   );
 };
 
+// --- APP CONTENT (AQUI FICA A LÓGICA DO SPLASH E DO INSTALL MODAL) ---
 const AppContent = () => {
-  const { user, role, profissionalData, logout, loading } = useAuth();
-  if (loading) return <SplashLoading />; 
+  const { user, role, profissionalData, logout, loading: authLoading } = useAuth();
+  
+  const [splashFinished, setSplashFinished] = useState(false);
+
+  // 1. SPLASH
+  if (!splashFinished) {
+    return <SplashScreen onFinish={() => setSplashFinished(true)} />;
+  }
+
+  // 2. LOADING AUTH
+  if (authLoading) return null; 
+
+  // 3. LOGIN SCREEN (Se não tiver usuário)
   if (!user) return <LoginScreen />;
-  if (role === 'profissional') return <ProfessionalDashboard profissional={profissionalData} onLogout={logout} />;
-  return <AdminApp />;
+
+  // 4. APP LOGADO (Admin ou Profissional) + MODAL DE INSTALAÇÃO
+  return (
+    <>
+      {role === 'profissional' 
+        ? <ProfessionalDashboard profissional={profissionalData} onLogout={logout} /> 
+        : <AdminApp />
+      }
+      {/* O Modal só aparece se o usuário estiver logado */}
+      <InstallAppModal />
+    </>
+  );
 };
 
 export default function LUNI() { return <AuthProvider><AppContent /></AuthProvider>; }
