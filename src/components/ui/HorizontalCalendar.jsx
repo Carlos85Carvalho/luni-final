@@ -3,13 +3,13 @@ import React, { useEffect, useRef } from 'react';
 export const HorizontalCalendar = ({ selectedDate, onSelectDate }) => {
   const scrollRef = useRef(null);
 
-  // Gera os próximos 14 dias automaticamente
+  // GERA 90 DIAS (3 MESES) AGORA
   const generateDays = () => {
     const days = [];
     const hoje = new Date();
     
-    // Começa de 2 dias atrás para dar contexto
-    for (let i = -2; i < 14; i++) {
+    // Começa de 2 dias atrás e vai até 90 dias no futuro
+    for (let i = -2; i < 90; i++) {
       const d = new Date();
       d.setDate(hoje.getDate() + i);
       days.push(d);
@@ -19,18 +19,15 @@ export const HorizontalCalendar = ({ selectedDate, onSelectDate }) => {
 
   const days = generateDays();
 
-  // Formata dia da semana (SEG, TER...)
   const getWeekDay = (date) => {
     const dia = date.toLocaleDateString('pt-BR', { weekday: 'short' });
     return dia.replace('.', '').toUpperCase().slice(0, 3);
   };
 
-  // Formata dia do mês (01, 02...)
   const getDayNumber = (date) => {
     return date.getDate();
   };
 
-  // Compara datas sem ligar para a hora
   const isSameDay = (d1, d2) => {
     return (
       d1.getDate() === d2.getDate() &&
@@ -51,7 +48,7 @@ export const HorizontalCalendar = ({ selectedDate, onSelectDate }) => {
               key={index}
               onClick={() => onSelectDate(date)}
               className={`
-                flex flex-col items-center justify-center min-w-[64px] h-[84px] rounded-[20px] transition-all duration-300 border
+                flex flex-col items-center justify-center min-w-[64px] h-[84px] rounded-[20px] transition-all duration-300 border flex-shrink-0
                 ${isSelected 
                   ? 'bg-gradient-to-br from-[#5B2EFF] to-cyan-500 border-transparent shadow-[0_8px_16px_rgba(91,46,255,0.4)] transform scale-105' 
                   : 'bg-[#1c1c24] border-white/5 hover:border-white/20'
