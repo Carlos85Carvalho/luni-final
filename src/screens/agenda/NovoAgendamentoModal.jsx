@@ -44,8 +44,9 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
 
       carregarDadosIniciais();
       
-      const hoje = new Date().toLocaleDateString('en-CA');
-      setData(hoje);
+      // Correção da Data: Usar toLocaleDateString com 'en-CA' para YYYY-MM-DD local
+      const hojeLocal = new Date().toLocaleDateString('en-CA');
+      setData(hojeLocal);
       setHorario('09:00');
     }
   }, [isOpen, profissionalId]);
@@ -77,6 +78,7 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
           setShowSuccess(false); 
           onSuccess(); 
           onClose(); 
+          // Reset fields
           setClienteNome('');
           setClienteTelefone('');
           setServico('');
@@ -94,7 +96,7 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-      {/* Container com altura máxima e scroll */}
+      {/* Container com altura máxima e scroll inteligente */}
       <div className="bg-[#18181b] w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl border border-white/10 shadow-2xl relative max-h-[95vh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300">
         
         {/* Success Overlay */}
@@ -119,15 +121,15 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
           </button>
         </div>
 
-        {/* Conteúdo Scrollável */}
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+        {/* Conteúdo Scrollável (Formulário) */}
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4 custom-scrollbar">
           {!profissionalId && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Profissional</label>
               <select 
                 value={selectedProfissional} 
                 onChange={e => setSelectedProfissional(e.target.value)} 
-                className="w-full bg-black/20 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-[#5B2EFF] transition-all"
+                className="w-full bg-black/20 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-[#5B2EFF] transition-all appearance-none"
               >
                 <option value="">Selecionar Profissional</option>
                 {profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -162,24 +164,30 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Valor</label>
-                  <input 
-                    type="number" 
-                    placeholder="0,00" 
-                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-[#5B2EFF] transition-all" 
-                    value={valor} 
-                    onChange={e => setValor(e.target.value)}
-                  />
+                  <div className="relative">
+                    <DollarSign size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500"/>
+                    <input 
+                      type="number" 
+                      placeholder="0,00" 
+                      className="w-full bg-black/20 border border-white/10 rounded-xl p-3.5 pl-9 text-white outline-none focus:border-[#5B2EFF] transition-all" 
+                      value={valor} 
+                      onChange={e => setValor(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Serviço</label>
-                <input 
-                  placeholder="Ex: Corte, Mechas, Hidratação..." 
-                  className="w-full bg-black/20 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-[#5B2EFF] transition-all" 
-                  value={servico} 
-                  onChange={e => setServico(e.target.value)}
-                />
+                <div className="relative">
+                  <Scissors size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500"/>
+                  <input 
+                    placeholder="Ex: Corte, Mechas, Hidratação..." 
+                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3.5 pl-11 text-white outline-none focus:border-[#5B2EFF] transition-all" 
+                    value={servico} 
+                    onChange={e => setServico(e.target.value)}
+                  />
+                </div>
               </div>
             </>
           ) : (
@@ -194,7 +202,7 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 pb-2">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Data</label>
               <input 
@@ -217,7 +225,7 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
         </div>
 
         {/* Footer Fixo com Botão */}
-        <div className="p-6 pt-4 border-t border-white/5 flex-shrink-0">
+        <div className="p-6 pt-4 border-t border-white/5 flex-shrink-0 bg-[#18181b] rounded-b-3xl">
           <button 
             onClick={handleSubmit} 
             disabled={loading} 
