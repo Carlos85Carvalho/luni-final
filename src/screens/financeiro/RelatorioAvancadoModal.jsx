@@ -1,257 +1,184 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
-import { X, Target, TrendingUp, TrendingDown, Calendar, Zap, AlertTriangle, Users, Award, Minus, Clock } from 'lucide-react';
+import { 
+  X, Target, TrendingUp, TrendingDown, Calendar, Zap, 
+  AlertTriangle, Users, Award, Minus, Clock, BrainCircuit,
+  ArrowUpRight, BarChart3, CheckCircle2, Loader2
+} from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid, YAxis } from 'recharts';
 
 export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(true);
-  const [abaAtiva, setAbaAtiva] = useState('visao'); // 'visao' ou 'insights'
+  const [abaAtiva, setAbaAtiva] = useState('visao');
   
-  // Estados de Dados
-  const [grafico, setGrafico] = useState([]);
   const [kpis, setKpis] = useState({});
   const [ranking, setRanking] = useState([]);
-  const [meta, setMeta] = useState(10000);
+  const [meta, setMeta] = useState(15000); 
   const [insights, setInsights] = useState([]);
-  const [ritmoDiario, setRitmoDiario] = useState({ faltamDias: 0, necessarioPorDia: 0 });
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const carregarTudo = async () => {
+    const carregarInteligencia = async () => {
       setLoading(true);
-      
-      // 1. Gráfico Comparativo
-      const { data: graf } = await supabase.from('vw_grafico_comparativo').select('*').order('dia');
-      if (graf) setGrafico(graf);
-
-      // 2. KPIs Avançados (Calculados no SQL)
-      const { data: kpiData } = await supabase.from('vw_kpis_avancados').select('*').single();
-      
-      // 3. Ranking Inteligente
-      const { data: rank } = await supabase.from('vw_ranking_inteligente').select('*').limit(5);
-      if (rank) setRanking(rank);
-
-      // 4. Meta
-      const hojeISO = new Date().toISOString().slice(0, 7);
-      const { data: metaDb } = await supabase.from('metas').select('valor').ilike('mes', `${hojeISO}%`).maybeSingle();
-      const valorMeta = metaDb ? metaDb.valor : 10000;
-      setMeta(valorMeta);
-
-      // --- CÁLCULOS NO FRONTEND (Luni Intelligence) ---
-      
-      if (kpiData) {
-        // Cálculo Taxa No-Show
-        const taxaNoShow = kpiData.total_agendamentos > 0 
-          ? (kpiData.qtd_noshow / kpiData.total_agendamentos) * 100 
-          : 0;
-
-        // Cálculo Receita por Dia Ativo
-        const receitaPorDia = kpiData.dias_ativos > 0 
-          ? kpiData.fat_atual / kpiData.dias_ativos 
-          : 0;
-
-        // Cálculo "Ritmo de Meta" (Quantos dias faltam?)
-        const hoje = new Date();
-        const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-        const diasRestantes = Math.max(0, ultimoDiaMes - hoje.getDate());
-        const faltaParaMeta = Math.max(0, valorMeta - kpiData.fat_atual);
-        const necessarioDia = diasRestantes > 0 ? faltaParaMeta / diasRestantes : 0;
-
-        setRitmoDiario({ faltamDias: diasRestantes, necessarioPorDia: necessarioDia });
-
-        setKpis({
-          ...kpiData,
-          taxaNoShow,
-          receitaPorDia,
-          crescimento: kpiData.fat_anterior > 0 ? ((kpiData.fat_atual - kpiData.fat_anterior) / kpiData.fat_anterior) * 100 : 0
-        });
-
-        // Gerar Insights de Texto
-        const novosInsights = [];
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: usu } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
         
-        // Insight 1: Meta
-        if (kpiData.fat_atual >= valorMeta) {
-          novosInsights.push({ tipo: 'sucesso', texto: 'Incrível! Meta batida com antecedência. 🚀' });
-        } else if (necessarioDia > (receitaPorDia * 1.5)) {
-          novosInsights.push({ tipo: 'alerta', texto: `Atenção: Para bater a meta, você precisa vender R$ ${Math.round(necessarioDia)}/dia (acima da sua média atual).` });
-        } else {
-          novosInsights.push({ tipo: 'aviso', texto: `Ritmo bom! Faltam ${diasRestantes} dias. Mantenha o foco.` });
-        }
+        if (!usu?.salao_id) { setLoading(false); return; }
 
-        // Insight 2: No-Show
-        if (taxaNoShow > 15) {
-          novosInsights.push({ tipo: 'alerta', texto: `Cuidado: Sua taxa de faltas está em ${taxaNoShow.toFixed(1)}%. Tente confirmar agendamentos no WhatsApp.` });
-        }
+        const hoje = new Date();
+        const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+        const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
 
-        setInsights(novosInsights);
+        // Busca dados reais
+        const { data: agendamentos } = await supabase
+          .from('agendamentos')
+          .select('*, profissionais(nome)')
+          .eq('salao_id', usu.salao_id)
+          .gte('data', inicioMes)
+          .lte('data', fimMes);
+
+        if (agendamentos) {
+          // --- CÁLCULOS NO FRONTEND (Sem View) ---
+          const realizado = agendamentos.filter(a => a.status === 'concluido')
+            .reduce((acc, curr) => acc + Number(curr.valor_total || curr.valor || 0), 0);
+          
+          const totalAtendimentos = agendamentos.filter(a => a.status === 'concluido').length;
+          const noShows = agendamentos.filter(a => a.status === 'cancelado').length;
+
+          // Ticket Médio
+          const ticket = totalAtendimentos > 0 ? realizado / totalAtendimentos : 0;
+
+          // Projeção
+          const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+          const diaAtual = hoje.getDate();
+          const mediaPorDia = diaAtual > 0 ? realizado / diaAtual : 0; 
+          const projecaoFinal = mediaPorDia * diasNoMes;
+
+          // Ranking
+          const profEficiencia = {};
+          agendamentos.filter(a => a.status === 'concluido').forEach(a => {
+             const nome = a.profissionais?.nome || 'Equipe';
+             if (!profEficiencia[nome]) profEficiencia[nome] = { total: 0, qtd: 0 };
+             profEficiencia[nome].total += Number(a.valor_total || a.valor || 0);
+             profEficiencia[nome].qtd += 1;
+          });
+
+          const rankingFinal = Object.entries(profEficiencia).map(([nome, v]) => ({
+             servico: nome,
+             valor_atual: v.total,
+             qtd_atual: v.qtd,
+             tendencia: v.qtd > 0 && (v.total / v.qtd) > ticket ? 'up' : 'down'
+          })).sort((a, b) => b.valor_atual - a.valor_atual);
+
+          setKpis({
+            fat_atual: realizado,
+            projecao: projecaoFinal,
+            ticket,
+            taxaNoShow: agendamentos.length > 0 ? (noShows / agendamentos.length) * 100 : 0,
+            qtd_noshow: noShows
+          });
+
+          setRanking(rankingFinal);
+
+          // Insights
+          const listInsights = [];
+          if (projecaoFinal < meta) {
+            listInsights.push({ tipo: 'alerta', texto: `Tendência de queda: Sua projeção final (R$ ${Math.round(projecaoFinal)}) está abaixo da meta.` });
+          } else {
+            listInsights.push({ tipo: 'sucesso', texto: `Excelente ritmo! Sua projeção indica superação da meta.` });
+          }
+          if (noShows > 3) {
+            listInsights.push({ tipo: 'aviso', texto: `Você teve ${noShows} cancelamentos. Isso representa R$ ${Math.round(noShows * ticket)} a menos no caixa.` });
+          }
+
+          setInsights(listInsights);
+        }
+      } catch (e) {
+        console.error("Erro Relatorio:", e);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
-    carregarTudo();
-  }, [isOpen]);
+    carregarInteligencia();
+  }, [isOpen, meta]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#F8F9FC] rounded-[32px] w-full max-w-4xl h-[90vh] overflow-hidden flex flex-col relative animate-in fade-in zoom-in duration-300 shadow-2xl">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-hidden">
+      <div className="bg-[#fcfcfd] rounded-[40px] w-full max-w-5xl h-[92vh] flex flex-col relative animate-in zoom-in-95 duration-300 shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-white/20">
         
-        {/* Header */}
-        <div className="bg-white px-8 py-6 border-b border-gray-100 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <Zap className="text-[#5B2EFF] fill-[#5B2EFF]" size={24}/> Luni Intelligence
-            </h2>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span className="bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded text-xs">Meta: R$ {meta.toLocaleString()}</span>
-              {ritmoDiario.necessarioPorDia > 0 && (
-                <span className="text-orange-500 font-medium text-xs flex items-center gap-1">
-                  <Clock size={12}/> Meta diária necessária: R$ {Math.round(ritmoDiario.necessarioPorDia)}
-                </span>
-              )}
+        <div className="bg-white px-10 py-8 border-b border-gray-100 flex justify-between items-center rounded-t-[40px]">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#5B2EFF] rounded-2xl shadow-lg shadow-purple-500/20"><BrainCircuit className="text-white" size={28}/></div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Luni <span className="text-[#5B2EFF]">Intelligence</span></h2>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><BarChart3 size={12}/> Relatório Analítico Mensal</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"><X size={20}/></button>
+          <button onClick={onClose} className="p-3 bg-gray-50 rounded-2xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all"><X size={24}/></button>
         </div>
 
-        {/* Conteúdo */}
-        <div className="flex-1 overflow-y-auto p-8">
-          
-          <div className="flex gap-4 mb-8">
-            <button onClick={() => setAbaAtiva('visao')} className={`px-6 py-2 rounded-full font-bold text-sm transition-all ${abaAtiva === 'visao' ? 'bg-[#5B2EFF] text-white shadow-lg' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>Visão Geral</button>
-            <button onClick={() => setAbaAtiva('insights')} className={`px-6 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2 ${abaAtiva === 'insights' ? 'bg-[#5B2EFF] text-white shadow-lg' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-              Insights <span className="bg-red-500 text-white text-[10px] px-1.5 rounded-full">{insights.length}</span>
-            </button>
+        <div className="flex-1 overflow-y-auto p-10 bg-[#fcfcfd]">
+          <div className="flex bg-gray-100/50 p-1.5 rounded-2xl w-fit mb-10 border border-gray-200">
+            <button onClick={() => setAbaAtiva('visao')} className={`px-8 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${abaAtiva === 'visao' ? 'bg-white text-[#5B2EFF] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Visão Estratégica</button>
+            <button onClick={() => setAbaAtiva('insights')} className={`px-8 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${abaAtiva === 'insights' ? 'bg-white text-[#5B2EFF] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Insights de IA <span className="bg-[#5B2EFF] text-white text-[10px] px-2 py-0.5 rounded-full">{insights.length}</span></button>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center h-64 text-gray-400">Analisando dados...</div>
+            <div className="flex flex-col items-center justify-center h-96 gap-4"><Loader2 className="animate-spin text-[#5B2EFF]" size={40}/><p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Analisando dados...</p></div>
           ) : (
             <>
-              {/* === ABA VISÃO GERAL === */}
               {abaAtiva === 'visao' && (
-                <div className="space-y-6">
-                  
-                  {/* Cards KPI Eficiência */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Card 1: Faturamento/Dia */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                      <p className="text-gray-400 text-xs font-bold uppercase mb-1">Média Diária</p>
-                      <div className="flex items-center gap-2">
-                        <Award className="text-blue-500"/>
-                        <h3 className="text-2xl font-bold text-blue-600">R$ {Math.round(kpis.receitaPorDia)}</h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2">Em dias ativos</p>
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                    <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm group">
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-tighter mb-4">Projeção Final</p>
+                      <div className="flex items-center justify-between"><h3 className="text-2xl font-bold text-gray-900">R$ {Math.round(kpis.projecao || 0)}</h3><div className="p-2 bg-blue-50 text-blue-500 rounded-xl group-hover:rotate-12 transition-transform"><ArrowUpRight size={20}/></div></div>
+                      <p className="text-[10px] text-blue-500 font-bold mt-2 italic">Expectativa de fechamento</p>
                     </div>
-
-                    {/* Card 2: No-Show */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                      <p className="text-gray-400 text-xs font-bold uppercase mb-1">Taxa de Faltas</p>
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className={kpis.taxaNoShow > 10 ? "text-red-500" : "text-green-500"}/>
-                        <h3 className={`text-2xl font-bold ${kpis.taxaNoShow > 10 ? "text-red-600" : "text-green-600"}`}>
-                          {kpis.taxaNoShow.toFixed(1)}%
-                        </h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2">{kpis.qtd_noshow} agendamentos perdidos</p>
+                    <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm group">
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-tighter mb-4">Perda por No-Show</p>
+                      <div className="flex items-center justify-between"><h3 className="text-2xl font-bold text-red-600">R$ {Math.round(kpis.qtd_noshow * kpis.ticket)}</h3><div className="p-2 bg-red-50 text-red-500 rounded-xl group-hover:shake transition-transform"><AlertTriangle size={20}/></div></div>
+                      <p className="text-[10px] text-red-400 font-bold mt-2 uppercase">{kpis.taxaNoShow?.toFixed(1)}% de evasão</p>
                     </div>
-
-                    {/* Card 3: Crescimento */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                      <p className="text-gray-400 text-xs font-bold uppercase mb-1">Performance (Mês)</p>
-                      <div className="flex items-center gap-2">
-                        {kpis.crescimento >= 0 ? <TrendingUp className="text-green-500"/> : <TrendingDown className="text-red-500"/>}
-                        <h3 className={`text-2xl font-bold ${kpis.crescimento >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {kpis.crescimento.toFixed(1)}%
-                        </h3>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2">Vs. mês passado</p>
+                    <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm group md:col-span-2">
+                       <div className="flex justify-between items-center mb-4"><p className="text-gray-400 text-[10px] font-black uppercase tracking-tighter">Status da Meta</p><span className="text-xs font-black text-[#5B2EFF]">{Math.round((kpis.fat_atual / meta) * 100)}%</span></div>
+                       <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-3"><div className="h-full bg-gradient-to-r from-[#5B2EFF] to-fuchsia-500 transition-all duration-1000" style={{width: `${(kpis.fat_atual / meta) * 100}%`}}></div></div>
+                       <p className="text-[10px] text-gray-400 font-bold">Faltam R$ {Math.max(0, meta - kpis.fat_atual).toLocaleString()} para atingir o objetivo.</p>
                     </div>
                   </div>
-
-                  {/* Gráfico Comparativo */}
-                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="font-bold text-gray-800 flex items-center gap-2"><Calendar size={18} className="text-purple-600"/> Tendência Diária</h3>
-                      <div className="flex gap-4 text-xs font-bold">
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#5B2EFF]"></div> Atual</span>
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gray-300"></div> Anterior</span>
-                      </div>
-                    </div>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={grafico}>
-                          <defs>
-                            <linearGradient id="colorAtual" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#5B2EFF" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#5B2EFF" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                          <XAxis dataKey="dia" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#aaa'}} />
-                          <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
-                          <Area type="monotone" dataKey="valor_anterior" stroke="#E5E7EB" strokeWidth={2} fill="transparent" name="Mês Passado" />
-                          <Area type="monotone" dataKey="valor_atual" stroke="#5B2EFF" strokeWidth={3} fill="url(#colorAtual)" name="Este Mês" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Ranking Inteligente */}
-                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                    <h3 className="font-bold text-gray-800 mb-4">🥇 Serviços Mais Rentáveis</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="text-xs text-gray-400 border-b border-gray-50 uppercase tracking-wider">
-                            <th className="pb-3 pl-2">Serviço</th>
-                            <th className="pb-3 text-center">Tendência</th>
-                            <th className="pb-3 text-right">Qtd</th>
-                            <th className="pb-3 text-right pr-2">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="text-sm">
-                          {ranking.map((r, i) => (
-                            <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                              <td className="py-3 pl-2 font-bold text-gray-700">{r.servico}</td>
-                              <td className="py-3 text-center">
-                                {r.tendencia === 'up' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold inline-flex items-center gap-1"><TrendingUp size={12}/> Sobe</span>}
-                                {r.tendencia === 'down' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs font-bold inline-flex items-center gap-1"><TrendingDown size={12}/> Cai</span>}
-                                {r.tendencia === 'equal' && <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded-md text-xs font-bold inline-flex items-center gap-1"><Minus size={12}/> Igual</span>}
-                              </td>
-                              <td className="py-3 text-right text-gray-500">{r.qtd_atual}</td>
-                              <td className="py-3 pr-2 text-right font-bold text-[#5B2EFF]">R$ {r.valor_atual}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-xl">
+                    <h3 className="text-lg font-black text-gray-900 mb-8 flex items-center gap-2"><Award className="text-amber-500"/> Performance Financeira por Profissional</h3>
+                    <div className="space-y-6">
+                      {ranking.map((r, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-3xl transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-900 flex items-center justify-center text-white font-bold text-lg">{i + 1}</div>
+                            <div><p className="font-black text-gray-800 uppercase text-xs tracking-wider">{r.servico}</p><p className="text-[10px] text-gray-400 font-bold">{r.qtd_atual} atendimentos concluídos</p></div>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-lg font-black text-gray-900">R$ {r.valor_atual.toLocaleString()}</p>
+                             <span className={`text-[10px] font-black uppercase ${r.tendencia === 'up' ? 'text-emerald-500' : 'text-red-400'}`}>{r.tendencia === 'up' ? 'Acima do Ticket Médio' : 'Abaixo do Ticket Médio'}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* === ABA INSIGHTS === */}
               {abaAtiva === 'insights' && (
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-6 rounded-3xl text-white shadow-lg mb-6">
-                    <h3 className="text-xl font-bold mb-2">🧠 Inteligência Artificial</h3>
-                    <p className="opacity-90 text-sm">Analisamos seus números para te dar sugestões práticas.</p>
+                <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+                  <div className="bg-[#5B2EFF] p-10 rounded-[40px] text-white relative overflow-hidden mb-10 shadow-2xl shadow-purple-500/20">
+                     <BrainCircuit className="absolute -right-10 -bottom-10 opacity-10 w-64 h-64 rotate-12"/><h3 className="text-3xl font-black mb-4">Análise de IA</h3><p className="text-purple-100 text-sm max-w-md font-medium leading-relaxed">Sugestões baseadas nos seus dados atuais.</p>
                   </div>
                   {insights.map((insight, index) => (
-                    <div key={index} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex gap-4 items-start">
-                      <div className={`p-3 rounded-xl shrink-0 ${
-                        insight.tipo === 'sucesso' ? 'bg-green-100 text-green-600' :
-                        insight.tipo === 'alerta' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
-                      }`}>
-                        {insight.tipo === 'sucesso' ? <TrendingUp size={24}/> : insight.tipo === 'alerta' ? <AlertTriangle size={24}/> : <Target size={24}/>}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 capitalize mb-1">{insight.tipo}</h4>
-                        <p className="text-gray-500 text-sm leading-relaxed">{insight.texto}</p>
-                      </div>
+                    <div key={index} className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex gap-6 items-start hover:border-[#5B2EFF]/30 transition-all">
+                      <div className={`p-4 rounded-2xl shrink-0 ${insight.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600' : insight.tipo === 'alerta' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{insight.tipo === 'sucesso' ? <CheckCircle2 size={28}/> : <Zap size={28}/>}</div>
+                      <div><h4 className="font-black text-gray-900 uppercase text-xs tracking-widest mb-2">{insight.tipo}</h4><p className="text-gray-500 text-sm font-medium leading-relaxed">{insight.texto}</p></div>
                     </div>
                   ))}
                 </div>
