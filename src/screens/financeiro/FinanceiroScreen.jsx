@@ -1,566 +1,833 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '../../services/supabase';
 import { 
-  TrendingUp, DollarSign, Calendar, Users, Award, 
-  Receipt, Loader2, ArrowUpRight, CheckCheck, Zap, X,
-  TrendingDown, AlertTriangle, CheckCircle2, Target, 
-  PieChart, BarChart3, Clock, ChevronDown, Filter,
-  Download, Share2, RefreshCw, Maximize2, Minimize2,
-  ArrowRight, Lightbulb, Sparkles, Crown, Home, Wallet,
-  Info, AlertOctagon, ArrowUpRight as ArrowUpRightIcon,
-  ArrowDownRight, Star, Scissors, Package, Activity,
-  ChevronRight, Percent, CircleDollarSign, Plus,
-  FileText, ChevronLeft, ChevronRight as ChevronRightIcon,
-  CheckCircle, XCircle, Clock as ClockIcon, Calendar as CalendarIcon,
-  Search, Edit, Trash2, Tag, Eye, EyeOff, BarChart2,
-  TrendingUp as TrendingUpIcon, Filter as FilterIcon,
-  PieChart as PieChartIcon, LineChart as LineChartIcon
+  TrendingUp, TrendingDown, DollarSign, Users, Receipt, 
+  Loader2, ArrowUpRight, ArrowDownRight, Target, BarChart3, 
+  Clock, Filter, Download, Share2, RefreshCw, Lightbulb, 
+  AlertTriangle, Calendar, ChevronLeft, FileText, PieChart as PieChartIcon,
+  Eye, EyeOff, CheckCircle, AlertCircle, Zap, Sparkles, Crown,
+  ChevronRight, ChevronDown, Plus, MoreVertical, Home, Wallet,
+  TrendingUp as TrendingUpIcon, Filter as FilterIcon, Settings,
+  CreditCard, LineChart as LineChartIcon, Activity, Target as TargetIcon,
+  ArrowRight, CircleDollarSign, Percent, Clock as ClockIcon,
+  CalendarDays, TrendingDown as TrendingDownIcon, WalletCards,
+  Briefcase, Store, Package, Scissors, Shirt, Palette, Gem,
+  ShoppingBag, CreditCard as CreditCardIcon, Banknote, Coins,
+  PiggyBank, Landmark, Calculator, ChartNoAxesColumn
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, BarChart, Bar, PieChart as RechartsPie, Pie, Cell,
+  CartesianGrid, Bar, PieChart as RechartsPie, Pie, Cell,
   Legend, LineChart, Line, ComposedChart, RadarChart,
-  PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+  PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  ScatterChart, Scatter, Treemap, Sankey, FunnelChart, Funnel
 } from 'recharts';
 
-// IMPORTANTE: Importando a nova tela de despesas
 import { DespesasScreen } from './despesas'; 
+import { MetasScreen } from './metas';
 
-// ═══════════════════════════════════════════════════════════════════
-// COMPONENTES AUXILIARES (Metas e Análise)
-// ═══════════════════════════════════════════════════════════════════
+// --- COMPONENTES DE UI REUTILIZÁVEIS ---
 
-// Componente de Metas (simplificado)
-const MetasTab = ({ metas, resumoFinanceiro }) => {
-  const [metasData, setMetasData] = useState([
-    { mes: 'Jan', meta: 15000, real: 14200, progresso: 94.7 },
-    { mes: 'Fev', meta: 16000, real: 15800, progresso: 98.8 },
-    { mes: 'Mar', meta: 17000, real: 12500, progresso: 73.5 },
-    { mes: 'Abr', meta: 18000, real: 0, progresso: 0 },
-    { mes: 'Mai', meta: 19000, real: 0, progresso: 0 },
-  ]);
+const KPICard = ({ 
+  titulo, 
+  valor, 
+  icone: Icon, 
+  cor = 'purple',
+  trend = null,
+  trendValue = 0,
+  loading = false,
+  subTitulo,
+  format = 'currency',
+  onClick
+}) => {
+  const colorClasses = {
+    purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', trend: 'bg-purple-100 text-purple-700' },
+    green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100', trend: 'bg-green-100 text-green-700' },
+    blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', trend: 'bg-blue-100 text-blue-700' },
+    orange: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', trend: 'bg-orange-100 text-orange-700' },
+    red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', trend: 'bg-red-100 text-red-700' },
+    pink: { bg: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-100', trend: 'bg-pink-100 text-pink-700' }
+  };
+
+  const style = colorClasses[cor] || colorClasses.purple;
+  
+  const formattedValue = useMemo(() => {
+    if (loading) return '---';
+    if (format === 'currency') {
+      return `R$ ${Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    } else if (format === 'percent') {
+      return `${Number(valor).toFixed(1)}%`;
+    } else if (format === 'number') {
+      return Number(valor).toLocaleString('pt-BR');
+    }
+    return valor;
+  }, [valor, format, loading]);
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`relative bg-white p-6 rounded-2xl border-2 ${style.border} hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group cursor-pointer ${onClick ? 'hover:border-purple-300' : ''}`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-semibold text-gray-500">{titulo}</span>
+        <div className={`p-2.5 rounded-xl ${style.bg} shadow-sm group-hover:scale-110 transition-transform`}>
+          <Icon className={`w-5 h-5 ${style.text}`} />
+        </div>
+      </div>
+      
+      {loading ? (
+        <div className="space-y-2">
+          <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
+        </div>
+      ) : (
+        <>
+          <div className="text-2xl font-bold text-gray-900 mb-2">{formattedValue}</div>
+          
+          <div className="flex items-center justify-between">
+            {subTitulo && (
+              <span className="text-sm text-gray-500">{subTitulo}</span>
+            )}
+            
+            {trend && (
+              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${style.trend}`}>
+                {trend === 'up' ? (
+                  <>
+                    <ArrowUpRight className="w-4 h-4" />
+                    <span>+{trendValue}%</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownRight className="w-4 h-4" />
+                    <span>-{trendValue}%</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      
+      {onClick && (
+        <div className="absolute -right-2 -bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-lg">
+            <ArrowRight className="w-4 h-4 text-white" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AlertaCard = ({ alerta, onClose }) => {
+  const Icon = alerta.icon;
+  return (
+    <div className={`relative p-4 rounded-xl border ${alerta.bgCor} animate-pulse`}>
+      <button 
+        onClick={onClose}
+        className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
+      >
+        <AlertCircle className="w-4 h-4" />
+      </button>
+      <div className="flex items-start gap-3">
+        <Icon className={`w-5 h-5 mt-0.5 ${alerta.cor}`} />
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-gray-900">{alerta.titulo}</h4>
+            {alerta.valor && (
+              <span className="px-2.5 py-1 bg-white/80 rounded-full text-sm font-bold">
+                {alerta.valor}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 mt-1">{alerta.descricao}</p>
+          {alerta.acao && (
+            <button className="mt-3 text-sm font-medium text-purple-600 hover:text-purple-700 flex items-center gap-1">
+              {alerta.acao}
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InsightCard = ({ insight }) => {
+  const Icon = insight.icon;
+  return (
+    <div className={`p-4 rounded-xl border ${insight.bgCor} hover:shadow-md transition-shadow`}>
+      <div className="flex items-start gap-3">
+        <div className="p-2.5 rounded-lg bg-white/80">
+          <Icon className={`w-5 h-5 ${insight.cor}`} />
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-900">{insight.titulo}</h4>
+          <p className="text-sm text-gray-600 mt-1">{insight.descricao}</p>
+          {insight.dica && (
+            <div className="mt-2 p-2 bg-white/50 rounded-lg">
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <Lightbulb className="w-3 h-3" />
+                {insight.dica}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FiltroPeriodo = ({ periodo, setPeriodo, dataInicio, setDataInicio, dataFim, setDataFim, onAplicar }) => {
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  const periodos = [
+    { id: 'hoje', label: 'Hoje' },
+    { id: 'semana', label: 'Esta Semana' },
+    { id: 'mes', label: 'Este Mês' },
+    { id: 'trimestre', label: 'Este Trimestre' },
+    { id: 'ano', label: 'Este Ano' },
+    { id: 'personalizado', label: 'Personalizado' }
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setMostrarFiltros(!mostrarFiltros)}
+        className="px-4 py-2.5 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center gap-2 group"
+      >
+        <CalendarDays className="w-5 h-5 text-gray-500" />
+        <span className="text-sm font-medium text-gray-700">
+          {periodos.find(p => p.id === periodo)?.label || 'Período'}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${mostrarFiltros ? 'rotate-180' : ''}`} />
+      </button>
+
+      {mostrarFiltros && (
+        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
+          <div className="p-4">
+            <div className="mb-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Período Rápido</h4>
+              <div className="grid grid-cols-2 gap-2">
+                {periodos.slice(0, -1).map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setPeriodo(p.id);
+                      setMostrarFiltros(false);
+                      onAplicar();
+                    }}
+                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                      periodo === p.id 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {periodo === 'personalizado' && (
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Datas Personalizadas</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">De</label>
+                    <input
+                      type="date"
+                      value={dataInicio}
+                      onChange={(e) => setDataInicio(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Até</label>
+                    <input
+                      type="date"
+                      value={dataFim}
+                      onChange={(e) => setDataFim(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                onAplicar();
+                setMostrarFiltros(false);
+              }}
+              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
+            >
+              Aplicar Filtros
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- COMPONENTES DE TABS ---
+
+const OverviewTab = ({ 
+  resumoFinanceiro, 
+  evolucaoReceitas, 
+  distribuicaoDespesas,
+  alertas,
+  insights,
+  contasAVencer,
+  topClientes,
+  loading 
+}) => {
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(true);
 
   return (
     <div className="space-y-6">
-      {/* Estatísticas de Metas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-50 rounded-xl">
-              <Target className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Meta do Mês</p>
-              <p className="text-2xl font-bold text-gray-900">
-                R$ {metas.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
+      {/* Alertas em Destaque */}
+      {alertas.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              Alertas do Sistema
+            </h3>
+            <button className="text-sm text-gray-500 hover:text-gray-700">
+              Marcar todos como lidos
+            </button>
           </div>
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progresso</span>
-              <span>{((resumoFinanceiro.receitaBruta / metas.faturamento) * 100).toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"
-                style={{ width: `${Math.min((resumoFinanceiro.receitaBruta / metas.faturamento) * 100, 100)}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <TrendingUpIcon className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Meta de Lucro</p>
-              <p className="text-2xl font-bold text-gray-900">
-                R$ {metas.lucro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progresso</span>
-              <span>{((resumoFinanceiro.lucroLiquido / metas.lucro) * 100).toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
-                style={{ width: `${Math.min((resumoFinanceiro.lucroLiquido / metas.lucro) * 100, 100)}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 rounded-xl">
-              <Users className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Meta de Clientes</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {metas.clientesNovos}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progresso</span>
-              <span>45%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
-                style={{ width: '45%' }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Gráfico de Metas */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">📈 Evolução das Metas</h3>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span className="text-sm text-gray-600">Meta</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
-              <span className="text-sm text-gray-600">Realizado</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={metasData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="mes" />
-              <YAxis tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-              <Tooltip 
-                formatter={(value, name) => [
-                  name === 'meta' || name === 'real' 
-                    ? `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                    : `${value.toFixed(1)}%`,
-                  name === 'meta' ? 'Meta' : name === 'real' ? 'Realizado' : 'Progresso'
-                ]}
-              />
-              <Bar dataKey="meta" fill="#10b981" radius={[4, 4, 0, 0]} name="Meta" />
-              <Bar dataKey="real" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Realizado" />
-              <Line 
-                type="monotone" 
-                dataKey="progresso" 
-                stroke="#8b5cf6" 
-                strokeWidth={2} 
-                dot={{ r: 4 }} 
-                name="Progresso"
-                yAxisId={1}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Detalhamento das Metas */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">🎯 Metas Detalhadas</h3>
-          <button className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Nova Meta
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          {metasData.map((meta, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${meta.progresso >= 90 ? 'bg-green-100' : meta.progresso >= 70 ? 'bg-yellow-100' : 'bg-red-100'}`}>
-                  <Target className={`w-6 h-6 ${meta.progresso >= 90 ? 'text-green-600' : meta.progresso >= 70 ? 'text-yellow-600' : 'text-red-600'}`} />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Meta de Faturamento - {meta.mes}</p>
-                  <p className="text-sm text-gray-500">
-                    R$ {meta.real.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} de R$ {meta.meta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className={`text-lg font-bold ${meta.progresso >= 90 ? 'text-green-600' : meta.progresso >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {meta.progresso.toFixed(1)}%
-                </div>
-                <div className="w-32 bg-gray-200 rounded-full h-2 mt-2">
-                  <div 
-                    className={`h-2 rounded-full ${meta.progresso >= 90 ? 'bg-green-500' : meta.progresso >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                    style={{ width: `${meta.progresso}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
+          {alertas.map((alerta, idx) => (
+            <AlertaCard key={idx} alerta={alerta} />
           ))}
         </div>
+      )}
+
+      {/* KPIs Principais */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <KPICard
+          titulo="Receita Bruta"
+          valor={resumoFinanceiro.receitaBruta}
+          icone={DollarSign}
+          cor="green"
+          trend="up"
+          trendValue={12.5}
+          loading={loading}
+          subTitulo="Faturamento total"
+          format="currency"
+        />
+        
+        <KPICard
+          titulo="Lucro Líquido"
+          valor={resumoFinanceiro.lucroLiquido}
+          icone={TrendingUp}
+          cor={resumoFinanceiro.lucroLiquido >= 0 ? "blue" : "red"}
+          trend={resumoFinanceiro.lucroLiquido >= 0 ? "up" : "down"}
+          trendValue={8.7}
+          loading={loading}
+          subTitulo={`Margem: ${resumoFinanceiro.margemLucro.toFixed(1)}%`}
+          format="currency"
+        />
+        
+        <KPICard
+          titulo="Despesas Totais"
+          valor={resumoFinanceiro.despesasPagas + resumoFinanceiro.despesasPendentes}
+          icone={Receipt}
+          cor="orange"
+          trend="down"
+          trendValue={3.2}
+          loading={loading}
+          subTitulo={`${resumoFinanceiro.despesasPendentes > 0 ? resumoFinanceiro.despesasPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' pendentes' : 'Todas pagas'}`}
+          format="currency"
+        />
+        
+        <KPICard
+          titulo="Contas a Vencer"
+          valor={contasAVencer.length}
+          icone={Clock}
+          cor={contasAVencer.length > 0 ? "red" : "green"}
+          loading={loading}
+          subTitulo="Próximos 7 dias"
+          format="number"
+        />
+      </div>
+
+      {/* Gráficos e Análises */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Gráfico de Evolução */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">📈 Evolução Financeira</h3>
+              <p className="text-sm text-gray-500">Receita vs Despesas nos últimos meses</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="p-2 hover:bg-gray-100 rounded-lg">
+                <Eye className="w-5 h-5 text-gray-500" />
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg">
+                <Download className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+          </div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={evolucaoReceitas}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis 
+                  dataKey="mes" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']}
+                  contentStyle={{ 
+                    borderRadius: '12px', 
+                    border: 'none', 
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    padding: '12px'
+                  }}
+                />
+                <Bar 
+                  dataKey="receita" 
+                  name="Receita" 
+                  fill="#10b981" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={24}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="despesas" 
+                  name="Despesas" 
+                  stroke="#ef4444" 
+                  fill="#ef4444" 
+                  fillOpacity={0.1}
+                  strokeWidth={2}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="lucro" 
+                  name="Lucro" 
+                  stroke="#3b82f6" 
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Distribuição de Despesas */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">📊 Distribuição de Despesas</h3>
+              <p className="text-sm text-gray-500">Por categoria (último mês)</p>
+            </div>
+            <button 
+              onClick={() => setMostrarDetalhes(!mostrarDetalhes)}
+              className="p-2 hover:bg-gray-100 rounded-lg"
+            >
+              {mostrarDetalhes ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsPie>
+                <Pie
+                  data={distribuicaoDespesas}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {distribuicaoDespesas.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#f472b6'][index % 6]} 
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']}
+                />
+                {mostrarDetalhes && <Legend />}
+              </RechartsPie>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Insights e Top Clientes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Insights Inteligentes */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Lightbulb className="w-5 h-5 text-purple-500" />
+            <h3 className="text-lg font-bold text-gray-900">💡 Insights Inteligentes</h3>
+          </div>
+          <div className="space-y-4">
+            {insights.map((insight, idx) => (
+              <InsightCard key={idx} insight={insight} />
+            ))}
+          </div>
+        </div>
+
+        {/* Top Clientes */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-900">🏆 Top Clientes</h3>
+            <span className="text-sm text-gray-500">Maior faturamento</span>
+          </div>
+          <div className="space-y-4">
+            {topClientes.slice(0, 5).map((cliente, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                      {cliente.cliente_nome?.substring(0, 2).toUpperCase() || 'CL'}
+                    </div>
+                    {index < 3 && (
+                      <div className="absolute -top-1 -right-1">
+                        <Crown className={`w-5 h-5 ${
+                          index === 0 ? 'text-yellow-500' : 
+                          index === 1 ? 'text-gray-400' : 
+                          'text-orange-500'
+                        }`} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{cliente.cliente_nome || 'Cliente'}</p>
+                    <p className="text-sm text-gray-500">{cliente.total_visitas || 0} atendimentos</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-900">
+                    R$ {(cliente.total_gasto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-sm text-gray-500">Total gasto</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// Componente de Análise (nova tab)
-const AnaliseTab = ({ resumoFinanceiro, despesas, evolucaoReceitas }) => {
-  const [tipoAnalise, setTipoAnalise] = useState('lucratividade');
-   
-  // Dados para análise de lucratividade
-  const dadosLucratividade = [
-    { mes: 'Jan', receita: 15000, despesas: 8000, lucro: 7000 },
-    { mes: 'Fev', receita: 16000, despesas: 8500, lucro: 7500 },
-    { mes: 'Mar', receita: 17000, despesas: 9000, lucro: 8000 },
-    { mes: 'Abr', receita: 18000, despesas: 9500, lucro: 8500 },
-    { mes: 'Mai', receita: 19000, despesas: 10000, lucro: 9000 },
-  ];
+const ClientesTab = ({ topClientes, loading }) => {
+  const [filtroCliente, setFiltroCliente] = useState('todos');
 
-  // Dados para análise de despesas
-  const dadosDespesas = despesas.slice(0, 5).map(d => ({
-    categoria: d.categoria || 'Outros',
-    valor: Number(d.valor || 0)
-  }));
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
+      </div>
+    );
+  }
 
-  // Dados para radar de performance
-  const dadosRadar = [
-    { categoria: 'Lucratividade', valor: resumoFinanceiro.margemLucro, max: 100 },
-    { categoria: 'Crescimento', valor: 15, max: 100 },
-    { categoria: 'Eficiência', valor: 78, max: 100 },
-    { categoria: 'Satisfação', valor: 92, max: 100 },
-    { categoria: 'Retenção', valor: 85, max: 100 },
-    { categoria: 'Produtividade', valor: 67, max: 100 },
+  return (
+    <div className="space-y-6">
+      {/* Métricas de Clientes */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <KPICard
+          titulo="Clientes Totais"
+          valor={topClientes.length}
+          icone={Users}
+          cor="purple"
+          trend="up"
+          trendValue={5.2}
+          format="number"
+        />
+        <KPICard
+          titulo="Ticket Médio"
+          valor={topClientes.reduce((acc, c) => acc + (c.total_gasto || 0), 0) / (topClientes.length || 1)}
+          icone={DollarSign}
+          cor="green"
+          trend="up"
+          trendValue={3.8}
+          format="currency"
+        />
+        <KPICard
+          titulo="Frequência"
+          valor="2.3x"
+          icone={TrendingUpIcon}
+          cor="blue"
+          subTitulo="por mês"
+        />
+        <KPICard
+          titulo="Retenção"
+          valor="78%"
+          icone={Target}
+          cor="orange"
+          trend="up"
+          trendValue={2.1}
+          format="percent"
+        />
+      </div>
+
+      {/* Lista de Clientes */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">📋 Base de Clientes</h3>
+              <p className="text-sm text-gray-500">{topClientes.length} clientes encontrados</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={filtroCliente}
+                onChange={(e) => setFiltroCliente(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="todos">Todos os Clientes</option>
+                <option value="vip">Clientes VIP</option>
+                <option value="recorrente">Recorrentes</option>
+                <option value="novo">Novos</option>
+              </select>
+              <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Novo Cliente
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contato</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Atendimentos</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Gasto</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Última Visita</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {topClientes.map((cliente, index) => (
+                <tr key={index} className="hover:bg-gray-50 transition-colors">
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                        {cliente.cliente_nome?.substring(0, 2).toUpperCase() || 'CL'}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{cliente.cliente_nome || 'Cliente'}</div>
+                        <div className="text-sm text-gray-500">ID: {cliente.cliente_id?.substring(0, 8) || 'N/A'}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="text-sm text-gray-900">cliente@email.com</div>
+                    <div className="text-sm text-gray-500">(11) 99999-9999</div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                        {cliente.total_visitas || 0} vezes
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="text-lg font-bold text-gray-900">
+                      R$ {(cliente.total_gasto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="text-sm text-gray-900">15/02/2024</div>
+                    <div className="text-xs text-gray-500">há 2 dias</div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Ver histórico">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg" title="Editar">
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg" title="Enviar mensagem">
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RelatoriosTab = () => {
+  const [tipoRelatorio, setTipoRelatorio] = useState('financeiro');
+  const [formato, setFormato] = useState('pdf');
+
+  const relatorios = [
+    {
+      id: 'financeiro',
+      titulo: 'Relatório Financeiro Completo',
+      descricao: 'Receitas, despesas, lucro e análise detalhada',
+      icon: DollarSign,
+      color: 'text-green-600 bg-green-50'
+    },
+    {
+      id: 'clientes',
+      titulo: 'Análise de Clientes',
+      descricao: 'Perfil, comportamento e faturamento por cliente',
+      icon: Users,
+      color: 'text-blue-600 bg-blue-50'
+    },
+    {
+      id: 'desempenho',
+      titulo: 'Desempenho Mensal',
+      descricao: 'KPIs, metas e indicadores de performance',
+      icon: TrendingUp,
+      color: 'text-purple-600 bg-purple-50'
+    },
+    {
+      id: 'tendencias',
+      titulo: 'Análise de Tendências',
+      descricao: 'Projeções e insights para o próximo período',
+      icon: LineChartIcon,
+      color: 'text-orange-600 bg-orange-50'
+    }
   ];
 
   return (
     <div className="space-y-6">
-      {/* Seletor de Tipo de Análise */}
+      {/* Seletor de Relatório */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {relatorios.map((relatorio) => {
+          const Icon = relatorio.icon;
+          return (
+            <button
+              key={relatorio.id}
+              onClick={() => setTipoRelatorio(relatorio.id)}
+              className={`p-6 rounded-2xl border-2 text-left transition-all ${
+                tipoRelatorio === relatorio.id
+                  ? 'border-purple-600 bg-purple-50 shadow-lg'
+                  : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-3 rounded-xl ${relatorio.color}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-gray-900">{relatorio.titulo}</h3>
+              </div>
+              <p className="text-sm text-gray-600">{relatorio.descricao}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Configurações do Relatório */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-6">⚙️ Configurar Relatório</h3>
+        
+        <div className="space-y-6">
+          {/* Período */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">📊 Análise Avançada</h3>
-            <p className="text-sm text-gray-500">Análise detalhada do desempenho financeiro</p>
+            <label className="block text-sm font-bold text-gray-700 mb-3">Período do Relatório</label>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {['Este mês', 'Últimos 3 meses', 'Este ano', 'Personalizado'].map((periodo) => (
+                <button
+                  key={periodo}
+                  className="px-4 py-3 border border-gray-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors text-sm font-medium"
+                >
+                  {periodo}
+                </button>
+              ))}
+            </div>
           </div>
-           
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setTipoAnalise('lucratividade')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 ${
-                tipoAnalise === 'lucratividade'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <TrendingUpIcon className="w-4 h-4" />
-              Lucratividade
+
+          {/* Formato e Seções */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-3">Formato de Exportação</label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'pdf', label: 'PDF', icon: FileText },
+                  { id: 'excel', label: 'Excel', icon: BarChart3 },
+                  { id: 'csv', label: 'CSV', icon: Calculator }
+                ].map((fmt) => {
+                  const Icon = fmt.icon;
+                  return (
+                    <button
+                      key={fmt.id}
+                      onClick={() => setFormato(fmt.id)}
+                      className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${
+                        formato === fmt.id
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 text-gray-600" />
+                      <span className="text-sm font-medium">{fmt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-3">Seções do Relatório</label>
+              <div className="space-y-3">
+                {[
+                  'Resumo Executivo',
+                  'Análise de Receitas',
+                  'Detalhamento de Despesas',
+                  'Perfil de Clientes',
+                  'Atingimento de Metas',
+                  'Insights Automáticos'
+                ].map((secao) => (
+                  <label key={secao} className="flex items-center gap-3">
+                    <input type="checkbox" defaultChecked className="rounded text-purple-600 focus:ring-purple-500" />
+                    <span className="text-sm text-gray-700">{secao}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Ações */}
+          <div className="flex gap-4 pt-6 border-t border-gray-200">
+            <button className="px-8 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 flex items-center gap-3 shadow-lg hover:shadow-xl transition-all">
+              <Download className="w-5 h-5" />
+              Gerar Relatório
             </button>
-            <button
-              onClick={() => setTipoAnalise('despesas')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 ${
-                tipoAnalise === 'despesas'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Receipt className="w-4 h-4" />
-              Análise de Despesas
-            </button>
-            <button
-              onClick={() => setTipoAnalise('performance')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 ${
-                tipoAnalise === 'performance'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              Performance
+            <button className="px-8 py-3.5 border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-3">
+              <Share2 className="w-5 h-5" />
+              Compartilhar
             </button>
           </div>
         </div>
-
-        {/* Análise de Lucratividade */}
-        {tipoAnalise === 'lucratividade' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h4 className="font-semibold text-gray-900 mb-4">📈 Evolução da Lucratividade</h4>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dadosLucratividade}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="mes" />
-                      <YAxis tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']} />
-                      <Legend />
-                      <Area type="monotone" dataKey="receita" stroke="#10b981" fill="#10b981" fillOpacity={0.1} name="Receita" />
-                      <Area type="monotone" dataKey="despesas" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} name="Despesas" />
-                      <Area type="monotone" dataKey="lucro" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} name="Lucro" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-2">🎯 Margem de Lucro Atual</h4>
-                  <div className="text-4xl font-bold text-green-600 mb-2">
-                    {resumoFinanceiro.margemLucro.toFixed(1)}%
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Para cada R$ 100,00 de receita, sobram R$ {resumoFinanceiro.margemLucro.toFixed(2)} de lucro
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-2">📊 Indicadores Chave</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Ponto de Equilíbrio</span>
-                      <span className="font-semibold">R$ 8.500,00</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Margem de Segurança</span>
-                      <span className="font-semibold text-green-600">42%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">ROI Mensal</span>
-                      <span className="font-semibold text-blue-600">18%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h4 className="font-semibold text-gray-900 mb-4">💡 Recomendações de Melhoria</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <h5 className="font-medium text-gray-900">Reduzir Despesas Variáveis</h5>
-                      <p className="text-sm text-gray-600 mt-1">Considere renegociar fornecedores para reduzir custos em 5-10%</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-start gap-3">
-                    <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h5 className="font-medium text-gray-900">Aumentar Ticket Médio</h5>
-                      <p className="text-sm text-gray-600 mt-1">Ofereça pacotes ou serviços premium para aumentar valor por cliente</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Análise de Despesas */}
-        {tipoAnalise === 'despesas' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h4 className="font-semibold text-gray-900 mb-4">📊 Distribuição de Despesas</h4>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPie>
-                      <Pie
-                        data={dadosDespesas}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={2}
-                        dataKey="valor"
-                      >
-                        {dadosDespesas.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={[
-                            '#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444'
-                          ][index % 5]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']} />
-                      <Legend />
-                    </RechartsPie>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-4">📈 Tendência de Despesas</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Crescimento Mensal</span>
-                        <span className="font-semibold text-red-600">+8.5%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-red-500" style={{ width: '65%' }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Despesas Fixas vs Variáveis</span>
-                        <span className="font-semibold">60% / 40%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-blue-500" style={{ width: '60%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-4">🎯 Economias Potenciais</h4>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      Reduzir despesas administrativas em 15%
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      Negociar contratos de serviços essenciais
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      Otimizar consumo de energia e água
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Análise de Performance */}
-        {tipoAnalise === 'performance' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-50 p-6 rounded-xl">
-                <h4 className="font-semibold text-gray-900 mb-4">🎯 Radar de Performance</h4>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={dadosRadar}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="categoria" />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                      <Radar
-                        name="Performance"
-                        dataKey="valor"
-                        stroke="#8b5cf6"
-                        fill="#8b5cf6"
-                        fillOpacity={0.3}
-                      />
-                      <Legend />
-                      <Tooltip formatter={(value) => [`${value}%`, 'Score']} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-2">⭐ Score Geral</h4>
-                  <div className="text-4xl font-bold text-purple-600 mb-2">
-                    78/100
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Desempenho acima da média do setor (65/100)
-                  </p>
-                </div>
-
-                <div className="bg-white border border-gray-200 p-6 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-4">📈 Áreas de Melhoria</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Produtividade</span>
-                        <span className="font-semibold text-yellow-600">67%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-yellow-500" style={{ width: '67%' }}></div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Considere otimizar processos internos</p>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Eficiência Operacional</span>
-                        <span className="font-semibold text-yellow-600">78%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-yellow-500" style={{ width: '78%' }}></div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Automatize tarefas repetitivas</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h4 className="font-semibold text-gray-900 mb-4">📋 Plano de Ação Recomendado</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Prioridade</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Ação</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Impacto Esperado</th>
-                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Prazo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    <tr>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Alta</span>
-                      </td>
-                      <td className="py-3 px-4 text-sm">Automatizar agendamentos</td>
-                      <td className="py-3 px-4 text-sm">+15% produtividade</td>
-                      <td className="py-3 px-4 text-sm">30 dias</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Média</span>
-                      </td>
-                      <td className="py-3 px-4 text-sm">Implementar CRM completo</td>
-                      <td className="py-3 px-4 text-sm">+20% retenção</td>
-                      <td className="py-3 px-4 text-sm">60 dias</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Baixa</span>
-                      </td>
-                      <td className="py-3 px-4 text-sm">Treinamento da equipe</td>
-                      <td className="py-3 px-4 text-sm">+10% satisfação</td>
-                      <td className="py-3 px-4 text-sm">90 dias</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// COMPONENTE PRINCIPAL DO DASHBOARD FINANCEIRO
-// ═══════════════════════════════════════════════════════════════════
+// --- COMPONENTE PRINCIPAL ---
+
 export const FinanceiroScreen = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -571,14 +838,10 @@ export const FinanceiroScreen = ({ onClose }) => {
     date.setDate(1);
     return date.toISOString().split('T')[0];
   });
-  const [dataFim, setDataFim] = useState(() => {
-    const date = new Date();
-    return date.toISOString().split('T')[0];
-  });
+  const [dataFim, setDataFim] = useState(() => new Date().toISOString().split('T')[0]);
   const [showFilters, setShowFilters] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   
-  // Dados principais
   const [resumoFinanceiro, setResumoFinanceiro] = useState({
     receitaBruta: 0,
     despesasPagas: 0,
@@ -586,7 +849,7 @@ export const FinanceiroScreen = ({ onClose }) => {
     lucroLiquido: 0,
     margemLucro: 0
   });
-   
+  
   const [despesas, setDespesas] = useState([]);
   const [contasAVencer, setContasAVencer] = useState([]);
   const [evolucaoReceitas, setEvolucaoReceitas] = useState([]);
@@ -600,7 +863,72 @@ export const FinanceiroScreen = ({ onClose }) => {
     clientesNovos: 20
   });
 
-  // Carregar todos os dados
+  const gerarInsights = useCallback((dados) => {
+    const novosInsights = [];
+    const novosAlertas = [];
+
+    // Insights baseados em performance
+    if (dados.margemLucro > 30) {
+      novosInsights.push({
+        titulo: '🎉 Performance Excelente!',
+        descricao: `Sua margem de lucro de ${dados.margemLucro.toFixed(1)}% está acima da média do setor.`,
+        icon: TrendingUp,
+        cor: 'text-green-600',
+        bgCor: 'bg-green-50 border-green-100',
+        dica: 'Considere reinvestir parte do lucro para acelerar o crescimento.'
+      });
+    } else if (dados.margemLucro < 15) {
+      novosInsights.push({
+        titulo: '⚠️ Atenção à Margem',
+        descricao: `Margem de lucro em ${dados.margemLucro.toFixed(1)}%. Há espaço para melhorias.`,
+        icon: AlertTriangle,
+        cor: 'text-yellow-600',
+        bgCor: 'bg-yellow-50 border-yellow-100',
+        dica: 'Analise suas despesas variáveis para identificar oportunidades de redução.'
+      });
+    }
+
+    // Insights de crescimento
+    if (dados.receitaBruta > 20000) {
+      novosInsights.push({
+        titulo: '🚀 Crescimento Acelerado',
+        descricao: 'Faturamento acima de R$ 20.000 este mês! Continue assim.',
+        icon: Zap,
+        cor: 'text-purple-600',
+        bgCor: 'bg-purple-50 border-purple-100',
+        dica: 'Invista em marketing digital para manter o ritmo de crescimento.'
+      });
+    }
+
+    // Alertas de vencimento
+    if (dados.contasVencendo > 0) {
+      novosAlertas.push({
+        titulo: '⏰ Contas Próximas do Vencimento',
+        descricao: `${dados.contasVencendo} conta(s) vence(m) nos próximos 7 dias.`,
+        valor: dados.contasVencendo,
+        icon: Clock,
+        cor: 'text-orange-600',
+        bgCor: 'bg-orange-50 border-orange-100',
+        acao: 'Ver detalhes'
+      });
+    }
+
+    // Alerta de fluxo de caixa
+    if (dados.despesasPendentes > dados.receitaBruta * 0.3) {
+      novosAlertas.push({
+        titulo: '💰 Fluxo de Caixa Atenção',
+        descricao: 'Despesas pendentes representam mais de 30% da receita.',
+        icon: AlertCircle,
+        cor: 'text-red-600',
+        bgCor: 'bg-red-50 border-red-100',
+        acao: 'Revisar finanças'
+      });
+    }
+
+    setInsights(novosInsights);
+    setAlertas(novosAlertas);
+  }, []);
+
   const carregarDados = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     else setRefreshing(true);
@@ -608,14 +936,17 @@ export const FinanceiroScreen = ({ onClose }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { data: usu } = await supabase
-        .from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
+        .from('usuarios')
+        .select('salao_id')
+        .eq('id', user.id)
+        .maybeSingle();
        
       if (!usu?.salao_id) return;
 
       const salaoId = usu.salao_id;
 
-      // 1. Calcular resumo financeiro
-      const [resAgendamentos, resDespesas, resKpis, resTopClientes, resMetas] = await Promise.all([
+      // Carregar dados em paralelo
+      const [resAgendamentos, resDespesas, resTopClientes, resMetas] = await Promise.all([
         supabase
           .from('agendamentos')
           .select('valor_total, data, status')
@@ -632,15 +963,9 @@ export const FinanceiroScreen = ({ onClose }) => {
           .lte('data_vencimento', dataFim),
         
         supabase
-          .from('vw_kpis_financeiros_salao')
-          .select('*')
-          .eq('salao_id', salaoId)
-          .maybeSingle(),
-        
-        supabase
           .from('vw_top_clientes_mes')
           .select('*')
-          .limit(5),
+          .limit(10),
         
         supabase
           .from('metas')
@@ -649,11 +974,10 @@ export const FinanceiroScreen = ({ onClose }) => {
           .limit(1)
       ]);
 
-      // Calcular receita bruta
+      // Calcular resumo financeiro
       const receitaBruta = resAgendamentos.data?.reduce((sum, item) => 
         sum + Number(item.valor_total || 0), 0) || 0;
 
-      // Calcular despesas
       const despesasPagas = resDespesas.data?.filter(d => d.pago)
         .reduce((sum, item) => sum + Number(item.valor || 0), 0) || 0;
        
@@ -663,15 +987,16 @@ export const FinanceiroScreen = ({ onClose }) => {
       const lucroLiquido = receitaBruta - despesasPagas;
       const margemLucro = receitaBruta > 0 ? (lucroLiquido / receitaBruta) * 100 : 0;
 
-      setResumoFinanceiro({
-        receitaBruta,
-        despesasPagas,
-        despesasPendentes,
-        lucroLiquido,
-        margemLucro
+      setResumoFinanceiro({ 
+        receitaBruta, 
+        despesasPagas, 
+        despesasPendentes, 
+        lucroLiquido, 
+        margemLucro 
       });
 
-      // 2. Processar despesas
+      // Processar despesas
+      let countVencendo = 0;
       if (resDespesas.data) {
         setDespesas(resDespesas.data);
         
@@ -686,11 +1011,13 @@ export const FinanceiroScreen = ({ onClose }) => {
           return acc;
         }, {});
 
-        const distribuicaoArray = Object.entries(distribuicao).map(([name, data]) => ({
-          name,
-          value: data.valor,
-          count: data.count
-        })).sort((a, b) => b.value - a.value);
+        const distribuicaoArray = Object.entries(distribuicao)
+          .map(([name, data]) => ({ 
+            name, 
+            value: data.valor,
+            count: data.count 
+          }))
+          .sort((a, b) => b.value - a.value);
 
         setDistribuicaoDespesas(distribuicaoArray);
 
@@ -706,49 +1033,40 @@ export const FinanceiroScreen = ({ onClose }) => {
         });
         
         setContasAVencer(contasVencendo);
+        countVencendo = contasVencendo.length;
       }
 
-      // 3. Evolução das receitas (últimos 6 meses)
-      const seisMesesAtras = new Date();
-      seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 5);
-      seisMesesAtras.setDate(1);
+      // Dados de evolução (simulados para demonstração)
+      const dadosEvolucao = [
+        { mes: 'Jan', receita: receitaBruta * 0.8, despesas: 8500, lucro: receitaBruta * 0.8 - 8500 },
+        { mes: 'Fev', receita: receitaBruta * 0.9, despesas: 9200, lucro: receitaBruta * 0.9 - 9200 },
+        { mes: 'Mar', receita: receitaBruta, despesas: 9800, lucro: receitaBruta - 9800 },
+        { mes: 'Abr', receita: receitaBruta * 1.1, despesas: 10500, lucro: receitaBruta * 1.1 - 10500 },
+        { mes: 'Mai', receita: receitaBruta * 1.2, despesas: 11200, lucro: receitaBruta * 1.2 - 11200 }
+      ];
+      setEvolucaoReceitas(dadosEvolucao);
 
-      const { data: historico } = await supabase
-        .from('vw_historico_financeiro')
-        .select('*')
-        .gte('data_mes', seisMesesAtras.toISOString())
-        .order('data_mes', { ascending: true });
-
-      if (historico) {
-        setEvolucaoReceitas(historico.map(h => ({
-          mes: new Date(h.data_mes).toLocaleDateString('pt-BR', { month: 'short' }),
-          receita: Number(h.faturamento || 0),
-          atendimentos: Number(h.total_atendimentos || 0)
-        })));
-      }
-
-      // 4. Top clientes
+      // Top clientes
       if (resTopClientes.data) {
         setTopClientes(resTopClientes.data);
       }
 
-      // 5. Metas
+      // Metas
       if (resMetas.data?.length) {
-        setMetas(prev => ({
-          ...prev,
-          faturamento: Number(resMetas.data[0].valor)
+        setMetas(prev => ({ 
+          ...prev, 
+          faturamento: Number(resMetas.data[0].valor) 
         }));
       }
 
-      // 6. Gerar insights automáticos
+      // Gerar insights automáticos
       gerarInsights({
-        receitaBruta,
-        despesasPagas,
-        despesasPendentes,
-        lucroLiquido,
+        receitaBruta, 
+        despesasPagas, 
+        despesasPendentes, 
+        lucroLiquido, 
         margemLucro,
-        contasVencendo: contasAVencer.length,
-        kpis: resKpis.data
+        contasVencendo: countVencendo
       });
 
       setLastUpdate(new Date());
@@ -759,502 +1077,82 @@ export const FinanceiroScreen = ({ onClose }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dataInicio, dataFim]);
-
-  const gerarInsights = useCallback((dados) => {
-    const novosInsights = [];
-    const novosAlertas = [];
-
-    // Insights baseados em margem de lucro
-    if (dados.margemLucro < 10) {
-      novosInsights.push({
-        tipo: 'alerta',
-        titulo: 'Margem de Lucro Baixa',
-        descricao: `Sua margem de lucro está em ${dados.margemLucro.toFixed(1)}%. Considere revisar custos.`,
-        icon: AlertTriangle,
-        cor: 'text-yellow-500',
-        bgCor: 'bg-yellow-50'
-      });
-    } else if (dados.margemLucro > 30) {
-      novosInsights.push({
-        tipo: 'sucesso',
-        titulo: 'Margem de Lucro Excelente',
-        descricao: `Parabéns! Margem de ${dados.margemLucro.toFixed(1)}% está acima da média.`,
-        icon: TrendingUp,
-        cor: 'text-green-500',
-        bgCor: 'bg-green-50'
-      });
-    }
-
-    // Alertas para contas a vencer
-    if (dados.contasVencendo > 0) {
-      novosAlertas.push({
-        tipo: 'vencimento',
-        titulo: 'Contas Próximas do Vencimento',
-        descricao: `${dados.contasVencendo} conta(s) vence(m) em breve.`,
-        valor: dados.contasVencendo,
-        icon: ClockIcon,
-        cor: 'text-orange-500',
-        bgCor: 'bg-orange-50'
-      });
-    }
-
-    // Insight sobre crescimento
-    if (dados.kpis?.crescimento_percentual > 15) {
-      novosInsights.push({
-        tipo: 'crescimento',
-        titulo: 'Crescimento Acelerado',
-        descricao: `Faturamento cresceu ${dados.kpis.crescimento_percentual}% em relação ao mês anterior.`,
-        icon: TrendingUp,
-        cor: 'text-purple-500',
-        bgCor: 'bg-purple-50'
-      });
-    }
-
-    setInsights(novosInsights);
-    setAlertas(novosAlertas);
-  }, []);
+  }, [dataInicio, dataFim, gerarInsights]);
 
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
 
-  // ═══════════════════════════════════════════════════════════════
-  // COMPONENTES DE UI
-  // ═══════════════════════════════════════════════════════════════
+  const tabs = [
+    { id: 'overview', label: 'Visão Geral', icon: Home, color: 'text-purple-600' },
+    { id: 'despesas', label: 'Despesas', icon: Receipt, color: 'text-orange-600' },
+    { id: 'metas', label: 'Metas', icon: Target, color: 'text-green-600' },
+    { id: 'clientes', label: 'Clientes', icon: Users, color: 'text-blue-600' },
+    { id: 'analise', label: 'Análise', icon: BarChart3, color: 'text-pink-600' },
+    { id: 'relatorios', label: 'Relatórios', icon: FileText, color: 'text-indigo-600' }
+  ];
 
-  const KPICard = ({ titulo, valor, variacao, icone: Icone, cor, subTitulo, loading: cardLoading }) => (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-300">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <p className="text-sm text-gray-500 font-medium">{titulo}</p>
-          {cardLoading ? (
-            <div className="h-8 w-24 bg-gray-100 rounded animate-pulse mt-2"></div>
-          ) : (
-            <p className="text-3xl font-bold text-gray-900 mt-1">{valor}</p>
-          )}
-        </div>
-        <div className={`p-3 rounded-xl ${cor.bg}`}>
-          <Icone className={`w-6 h-6 ${cor.text}`} />
-        </div>
-      </div>
-      {!cardLoading && subTitulo && (
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-          <span className="text-sm text-gray-500">{subTitulo}</span>
-          {variacao && (
-            <div className={`flex items-center text-sm font-medium ${variacao >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {variacao >= 0 ? <ArrowUpRightIcon className="w-4 h-4 mr-1" /> : <ArrowDownRight className="w-4 h-4 mr-1" />}
-              {Math.abs(variacao)}%
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  const InsightCard = ({ insight }) => {
-    const Icon = insight.icon;
-    return (
-      <div className={`rounded-xl p-4 ${insight.bgCor} border ${insight.cor.replace('text-', 'border-')} border-opacity-20`}>
-        <div className="flex items-start gap-3">
-          <Icon className={`w-5 h-5 mt-0.5 ${insight.cor}`} />
-          <div>
-            <h4 className="font-semibold text-gray-900">{insight.titulo}</h4>
-            <p className="text-sm text-gray-600 mt-1">{insight.descricao}</p>
-          </div>
-        </div>
-      </div>
-    );
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <OverviewTab
+            resumoFinanceiro={resumoFinanceiro}
+            evolucaoReceitas={evolucaoReceitas}
+            distribuicaoDespesas={distribuicaoDespesas}
+            alertas={alertas}
+            insights={insights}
+            contasAVencer={contasAVencer}
+            topClientes={topClientes}
+            loading={loading}
+          />
+        );
+      case 'despesas':
+        return <DespesasScreen onClose={() => setActiveTab('overview')} />;
+      case 'metas':
+        return <MetasScreen onClose={() => setActiveTab('overview')} />;
+      case 'clientes':
+        return <ClientesTab topClientes={topClientes} loading={loading} />;
+      case 'analise':
+        return <div className="p-8 text-center">Análise Avançada em desenvolvimento</div>;
+      case 'relatorios':
+        return <RelatoriosTab />;
+      default:
+        return null;
+    }
   };
-
-  const AlertaCard = ({ alerta }) => {
-    const Icon = alerta.icon;
-    return (
-      <div className={`rounded-xl p-4 ${alerta.bgCor} border border-opacity-20`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Icon className={`w-5 h-5 ${alerta.cor}`} />
-            <div>
-              <h4 className="font-semibold text-gray-900">{alerta.titulo}</h4>
-              <p className="text-sm text-gray-600">{alerta.descricao}</p>
-            </div>
-          </div>
-          {alerta.valor && (
-            <span className="bg-white px-3 py-1 rounded-full text-sm font-semibold border">
-              {alerta.valor}
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // ═══════════════════════════════════════════════════════════════
-  // TABS DO DASHBOARD
-  // ═══════════════════════════════════════════════════════════════
-
-  const OverviewTab = () => (
-    <div className="space-y-6">
-      {/* Alertas em destaque */}
-      {alertas.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900">⚠️ Alertas do Sistema</h3>
-          {alertas.map((alerta, idx) => (
-            <AlertaCard key={idx} alerta={alerta} />
-          ))}
-        </div>
-      )}
-
-      {/* KPIs principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard
-          titulo="Receita Bruta"
-          valor={`R$ ${resumoFinanceiro.receitaBruta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icone={DollarSign}
-          cor={{ text: 'text-green-500', bg: 'bg-green-50' }}
-          subTitulo="Período selecionado"
-          loading={loading}
-        />
-        <KPICard
-          titulo="Lucro Líquido"
-          valor={`R$ ${resumoFinanceiro.lucroLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icone={TrendingUp}
-          cor={{ text: resumoFinanceiro.lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500', bg: resumoFinanceiro.lucroLiquido >= 0 ? 'bg-green-50' : 'bg-red-50' }}
-          subTitulo={`Margem: ${resumoFinanceiro.margemLucro.toFixed(1)}%`}
-          loading={loading}
-        />
-        <KPICard
-          titulo="Despesas"
-          valor={`R$ ${(resumoFinanceiro.despesasPagas + resumoFinanceiro.despesasPendentes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icone={Receipt}
-          cor={{ text: 'text-orange-500', bg: 'bg-orange-50' }}
-          subTitulo={`${resumoFinanceiro.despesasPendentes > 0 ? `${resumoFinanceiro.despesasPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} pendentes` : 'Todas pagas'}`}
-          loading={loading}
-        />
-        <KPICard
-          titulo="Meta do Mês"
-          valor={`R$ ${metas.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icone={Target}
-          cor={{ text: 'text-purple-500', bg: 'bg-purple-50' }}
-          subTitulo={`${((resumoFinanceiro.receitaBruta / metas.faturamento) * 100).toFixed(1)}% alcançado`}
-          loading={loading}
-        />
-      </div>
-
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Evolução da Receita */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">📈 Evolução da Receita</h3>
-            <span className="text-sm text-gray-500">Últimos 6 meses</span>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={evolucaoReceitas}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="mes" />
-                <YAxis tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-                <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
-                <Area type="monotone" dataKey="receita" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Distribuição de Despesas */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">📊 Distribuição de Despesas</h3>
-            <span className="text-sm text-gray-500">Por categoria</span>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPie>
-                <Pie
-                  data={distribuicaoDespesas}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {distribuicaoDespesas.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={[
-                      '#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'
-                    ][index % 6]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']} />
-                <Legend />
-              </RechartsPie>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Insights */}
-      {insights.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <Lightbulb className="w-5 h-5 text-purple-500" />
-            <h3 className="text-lg font-semibold text-gray-900">💡 Insights Inteligentes</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {insights.map((insight, idx) => (
-              <InsightCard key={idx} insight={insight} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const ClientesTab = () => (
-    <div className="space-y-6">
-      {/* Top clientes */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">🏆 Top Clientes</h3>
-          <span className="text-sm text-gray-500">Maior faturamento</span>
-        </div>
-        <div className="space-y-4">
-          {topClientes.map((cliente, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                  {cliente.cliente_nome?.substring(0, 2).toUpperCase() || 'CL'}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{cliente.cliente_nome || 'Cliente'}</p>
-                  <p className="text-sm text-gray-500">{cliente.total_visitas || 0} atendimentos</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-gray-900">
-                  R$ {(cliente.total_gasto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-gray-500">Valor total</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Gráfico de fidelidade */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">📊 Perfil dos Clientes</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { tipo: 'Novos', quantidade: 12 },
-                { tipo: 'Recorrentes', quantidade: 8 },
-                { tipo: 'VIP', quantidade: 5 },
-                { tipo: 'Inativos', quantidade: 3 }
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="tipo" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="quantidade" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">🎯 Retenção de Clientes</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Taxa de retorno</span>
-              <span className="font-bold text-green-600">78%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-500 h-2 rounded-full" style={{ width: '78%' }}></div>
-            </div>
-             
-            <div className="flex items-center justify-between mt-6">
-              <span className="text-gray-600">Frequência média</span>
-              <span className="font-bold text-purple-600">2.3x/mês</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-purple-500 h-2 rounded-full" style={{ width: '65%' }}></div>
-            </div>
-             
-            <div className="flex items-center justify-between mt-6">
-              <span className="text-gray-600">Satisfação</span>
-              <span className="font-bold text-blue-600">4.7/5</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: '94%' }}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const RelatoriosTab = () => (
-    <div className="space-y-6">
-      {/* Opções de relatório */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <button className="bg-white rounded-2xl border border-gray-200 p-6 text-left hover:shadow-lg transition-shadow duration-300">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <FileText className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Relatório Financeiro</h3>
-              <p className="text-sm text-gray-500">Receitas, despesas e lucro</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600">Gera PDF/Excel com análise completa do período</p>
-        </button>
-
-        <button className="bg-white rounded-2xl border border-gray-200 p-6 text-left hover:shadow-lg transition-shadow duration-300">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-green-50 rounded-xl">
-              <Users className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Relatório de Clientes</h3>
-              <p className="text-sm text-gray-500">Perfil e comportamento</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600">Análise de clientes, frequência e faturamento</p>
-        </button>
-
-        <button className="bg-white rounded-2xl border border-gray-200 p-6 text-left hover:shadow-lg transition-shadow duration-300">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-purple-50 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Relatório Executivo</h3>
-              <p className="text-sm text-gray-500">Visão geral para decisões</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600">KPIs principais e tendências para gestão</p>
-        </button>
-      </div>
-
-      {/* Configurações de exportação */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">⚙️ Configurar Relatório</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Período</label>
-            <select 
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
-            >
-              <option value="mes">Este mês</option>
-              <option value="semana">Esta semana</option>
-              <option value="personalizado">Personalizado</option>
-              <option value="trimestre">Último trimestre</option>
-              <option value="ano">Este ano</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Formato</label>
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-              <option value="pdf">PDF (Visualização)</option>
-              <option value="excel">Excel (Dados brutos)</option>
-              <option value="ambos">PDF + Excel</option>
-            </select>
-          </div>
-        </div>
-
-        {periodo === 'personalizado' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
-              <input
-                type="date"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
-              <input
-                type="date"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                value={dataFim}
-                onChange={(e) => setDataFim(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Seções do Relatório</label>
-          <div className="space-y-2">
-            {[
-              { id: 'resumo', label: 'Resumo Executivo', checked: true },
-              { id: 'receitas', label: 'Análise de Receitas', checked: true },
-              { id: 'despesas', label: 'Detalhamento de Despesas', checked: true },
-              { id: 'clientes', label: 'Perfil de Clientes', checked: true },
-              { id: 'metas', label: 'Atingimento de Metas', checked: true },
-              { id: 'insights', label: 'Insights Automáticos', checked: true }
-            ].map((section) => (
-              <label key={section.id} className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked={section.checked} className="rounded text-purple-600 focus:ring-purple-500" />
-                <span className="text-sm text-gray-700">{section.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-8">
-          <button className="flex-1 px-6 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2">
-            <Download className="w-5 h-5" />
-            Gerar Relatório
-          </button>
-          <button className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 flex items-center gap-2">
-            <Share2 className="w-5 h-5" />
-            Compartilhar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ═══════════════════════════════════════════════════════════════
-  // RENDER PRINCIPAL
-  // ═══════════════════════════════════════════════════════════════
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-40">
+      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-4">
+          <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors group"
+                title="Voltar"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+                <ChevronLeft className="w-5 h-5 text-gray-600 group-hover:text-gray-900" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard Financeiro</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-500">
-                    {new Date(dataInicio).toLocaleDateString('pt-BR')} - {new Date(dataFim).toLocaleDateString('pt-BR')}
-                  </span>
-                  <span className="text-xs text-gray-400">•</span>
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    Atualizado {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Dashboard Financeiro</h1>
+                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {new Date(dataInicio).toLocaleDateString('pt-BR')} - {new Date(dataFim).toLocaleDateString('pt-BR')}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      Atualizado {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1262,81 +1160,26 @@ export const FinanceiroScreen = ({ onClose }) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => carregarDados(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 disabled={refreshing}
+                className="p-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                title="Atualizar dados"
               >
-                <RefreshCw className={`w-5 h-5 text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               
-              <div className="relative">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Filter className="w-5 h-5" />
-                  <span className="text-sm font-medium">Filtros</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {showFilters && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Período</label>
-                        <select 
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          value={periodo}
-                          onChange={(e) => setPeriodo(e.target.value)}
-                        >
-                          <option value="mes">Este mês</option>
-                          <option value="semana">Esta semana</option>
-                          <option value="15dias">Últimos 15 dias</option>
-                          <option value="trimestre">Último trimestre</option>
-                          <option value="ano">Este ano</option>
-                          <option value="personalizado">Personalizado</option>
-                        </select>
-                      </div>
-                      
-                      {periodo === 'personalizado' && (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">De</label>
-                            <input
-                              type="date"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                              value={dataInicio}
-                              onChange={(e) => setDataInicio(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Até</label>
-                            <input
-                              type="date"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                              value={dataFim}
-                              onChange={(e) => setDataFim(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      
-                      <button
-                        onClick={() => {
-                          carregarDados();
-                          setShowFilters(false);
-                        }}
-                        className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
-                      >
-                        Aplicar Filtros
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <FiltroPeriodo
+                periodo={periodo}
+                setPeriodo={setPeriodo}
+                dataInicio={dataInicio}
+                setDataInicio={setDataInicio}
+                dataFim={dataFim}
+                setDataFim={setDataFim}
+                onAplicar={() => carregarDados()}
+              />
               
-              <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
+              <button className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
                 <Download className="w-5 h-5" />
-                <span className="text-sm font-medium">Exportar</span>
+                Exportar
               </button>
             </div>
           </div>
@@ -1344,72 +1187,49 @@ export const FinanceiroScreen = ({ onClose }) => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="border-b border-gray-200 mt-4">
-          <nav className="flex space-x-8 overflow-x-auto no-scrollbar">
-            {[
-              { id: 'overview', label: 'Visão Geral', icon: Home },
-              { id: 'despesas', label: 'Despesas', icon: Receipt },
-              { id: 'metas', label: 'Metas', icon: Target },
-              { id: 'clientes', label: 'Clientes', icon: Users },
-              { id: 'relatorios', label: 'Relatórios', icon: FileText },
-              { id: 'analise', label: 'Análise Avançada', icon: BarChart3 }
-            ].map((tab) => {
+      <div className="sticky top-20 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-1 overflow-x-auto no-scrollbar py-2">
+            {tabs.map((tab) => {
               const Icon = tab.icon;
-              const active = activeTab === tab.id;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${
-                    active
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 border border-purple-200 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className={`w-5 h-5 ${isActive ? tab.color : 'text-gray-400'}`} />
                   {tab.label}
                   {tab.id === 'despesas' && contasAVencer.length > 0 && (
-                    <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-full">
+                    <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
                       {contasAVencer.length}
                     </span>
                   )}
                 </button>
               );
             })}
-          </nav>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {loading ? (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading && activeTab === 'overview' ? (
           <div className="flex flex-col items-center justify-center h-96">
-            <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
-            <p className="mt-4 text-gray-600">Carregando dados financeiros...</p>
+            <div className="relative">
+              <Loader2 className="w-16 h-16 text-purple-600 animate-spin" />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-20 blur-xl"></div>
+            </div>
+            <p className="mt-6 text-gray-600 font-medium">Carregando dados financeiros...</p>
+            <p className="text-sm text-gray-500 mt-2">Isso pode levar alguns segundos</p>
           </div>
         ) : (
-          <>
-            {activeTab === 'overview' && <OverviewTab />}
-            {activeTab === 'despesas' && (
-              <DespesasScreen onClose={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'metas' && (
-              <MetasTab 
-                metas={metas} 
-                resumoFinanceiro={resumoFinanceiro} 
-              />
-            )}
-            {activeTab === 'clientes' && <ClientesTab />}
-            {activeTab === 'relatorios' && <RelatoriosTab />}
-            {activeTab === 'analise' && (
-              <AnaliseTab 
-                resumoFinanceiro={resumoFinanceiro}
-                despesas={despesas}
-                evolucaoReceitas={evolucaoReceitas}
-              />
-            )}
-          </>
+          renderTabContent()
         )}
       </div>
 
@@ -1426,6 +1246,4 @@ export const FinanceiroScreen = ({ onClose }) => {
   );
 };
 
-export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
-  return null;
-};
+export const RelatorioAvancadoModal = () => null;
