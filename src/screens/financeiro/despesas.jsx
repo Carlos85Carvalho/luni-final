@@ -449,18 +449,28 @@ export const DespesasScreen = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Modal Nova Despesa (Mantido igual, apenas ajuste visual leve se necessário) */}
+      {/* Modal Nova Despesa (AJUSTADO) */}
       {showNovaDespesa && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in"
+          onClick={() => setShowNovaDespesa(false)} // Fecha ao clicar fora
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200 relative"
+            onClick={(e) => e.stopPropagation()} // Evita fechar ao clicar dentro
+          >
+            {/* Header com X Ajustável (Posicionamento Absoluto) */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 relative">
               <h2 className="text-xl font-bold text-gray-900">Nova Despesa</h2>
-              <button onClick={() => setShowNovaDespesa(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <X className="w-5 h-5 text-gray-500" />
+              <button 
+                onClick={() => setShowNovaDespesa(false)} 
+                className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
+              >
+                <X className="w-6 h-6" /> {/* Ícone maior */}
               </button>
             </div>
+
             <form onSubmit={handleNovaDespesa} className="p-6 space-y-4">
-              {/* ... Campos do formulário (mantidos os mesmos do seu código original) ... */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Descrição *</label>
                 <input
@@ -511,7 +521,7 @@ export const DespesasScreen = ({ onClose }) => {
                     />
                  </div>
                  <div className="flex items-end pb-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
                         <input
                             type="checkbox"
                             className="rounded text-purple-600 focus:ring-purple-500 w-5 h-5 border-gray-300"
