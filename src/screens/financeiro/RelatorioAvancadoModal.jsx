@@ -14,7 +14,7 @@ import {
   Legend
 } from 'recharts';
 
-// ─── Tokens do sistema Luni ───────────────────────────────────────
+// ... (Tokens e Formatadores mantidos) ...
 const PURPLE = '#5B2EFF';
 const FUCHSIA = '#d946ef';
 const EMERALD = '#10b981';
@@ -25,7 +25,6 @@ const INDIGO = '#6366f1';
 
 const PIE_COLORS = [PURPLE, FUCHSIA, EMERALD, AMBER, BLUE, '#ec4899', '#8b5cf6', '#06b6d4'];
 
-// ─── Formatadores ────────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
 const fmtR = (n) => `R$ ${fmt(n)}`;
 const fmtPct = (n) => `${Number(n || 0).toFixed(1)}%`;
@@ -35,35 +34,21 @@ const fmtShort = (n) => {
   return fmtR(n);
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// COMPONENTE PRINCIPAL
-// ═══════════════════════════════════════════════════════════════════
+
 export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(true);
-  const [mobileView, setMobileView] = useState(false);
-  const [tabletView, setTabletView] = useState(false);
+  // Removido estado JS para responsividade (mobileView, tabletView)
+  // Utilizaremos classes CSS para controle de layout
 
-  // ─── Estado dos dados ──────────────────────────────────────────
+  // ... (Estado dos dados mantidos) ...
   const [kpis, setKpis] = useState({});
   const [historico, setHistorico] = useState([]);
   const [porServico, setPorServico] = useState([]);
   const [porProf, setPorProf] = useState([]);
   const [meta, setMeta] = useState(15000);
 
-  // ─── Detectar tamanho da tela RESPONSIVO ───────────────────────
-  useEffect(() => {
-    const checkViewport = () => {
-      const width = window.innerWidth;
-      setMobileView(width < 768);  // md: <768px
-      setTabletView(width >= 768 && width < 1024); // lg: 768-1024px
-    };
-    
-    checkViewport();
-    window.addEventListener('resize', checkViewport);
-    return () => window.removeEventListener('resize', checkViewport);
-  }, []);
 
-  // ─── Busca de dados ────────────────────────────────────────────
+  // ... (Busca de dados mantida - useEffect) ...
   useEffect(() => {
     if (!isOpen) return;
 
@@ -108,12 +93,12 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
           margem: Number(s.margem || 40)
         })).sort((a, b) => b.value - a.value));
         if (resProfMes.data) setPorProf(resProfMes.data.map(p => ({
-          nome: p.profissional_nome || 'Sem nome',
-          valor: Number(p.total_faturado || 0),
+          name: p.profissional_nome || 'Sem nome',
+          value: Number(p.total_faturado || 0), // Padronizado para 'value'
           atendimentos: Number(p.total_atendimentos || 0),
           ticket: Number(p.ticket_medio || 0),
           satisfacao: Number(p.media_satisfacao || 0)
-        })).sort((a, b) => b.valor - a.valor));
+        })).sort((a, b) => b.value - a.value)); // Ordenar por valor
         if (resMeta.data?.length) setMeta(Number(resMeta.data[0].valor));
 
       } catch (e) {
@@ -126,11 +111,12 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
     carregar();
   }, [isOpen]);
 
-  // ─── Componentes de UI Responsivos (DENTRO DO COMPONENTE PRINCIPAL) ──
+
+  // ─── Componentes de UI Responsivos (CSS Classes) ──
   const SectionTitle = ({ icon: Icon, children, color = PURPLE }) => (
     <div className="flex items-center gap-2 md:gap-3 mb-4">
       <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl" style={{ background: `${color}15` }}>
-        <Icon size={mobileView ? 16 : 20} color={color} />
+        <Icon className="w-4 h-4 md:w-5 md:h-5" color={color} />
       </div>
       <h3 className="text-xs md:text-sm font-bold text-gray-900 uppercase tracking-wider">{children}</h3>
     </div>
@@ -152,25 +138,25 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
             {label}
           </span>
           <div className="p-1.5 md:p-2 rounded-lg" style={{ background: `${accent}10` }}>
-            <Icon size={mobileView ? 16 : 18} color={accent} />
+            <Icon className="w-4 h-4 md:w-[18px] md:h-[18px]" color={accent} />
           </div>
         </div>
         {cardLoading ? (
           <div className="h-7 md:h-8 bg-gray-100 rounded animate-pulse" />
         ) : (
           <>
-            <p className={`${mobileView ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 mb-1`}>
+            <p className="text-xl md:text-2xl font-bold text-gray-900 mb-1">
               {value}
             </p>
             {sub && (
               <div className="flex items-center gap-1 md:gap-1.5 mt-1">
                 {trend && TrendIcon && (
-                  <div className={`flex items-center gap-1 ${mobileView ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-sm'} rounded-full`} 
-                    style={{ 
+                  <div className="flex items-center gap-1 px-2 py-1 text-xs md:text-sm rounded-full"
+                    style={{
                       background: `${trendConfig[trend].color}10`,
                       color: trendConfig[trend].color
                     }}>
-                    <TrendIcon size={mobileView ? 12 : 14} />
+                    <TrendIcon className="w-3 h-3 md:w-3.5 md:h-3.5" />
                     <span className="font-semibold">{sub}</span>
                   </div>
                 )}
@@ -185,8 +171,8 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
 
   // ─── COMPONENTE: ORDEM DO MÊS ─────────────────────────
   const OrdemDoMes = () => {
-    // Lógica para gerar ORDEM direta e impositiva
-    const gerarOrdem = () => {
+      // ... (Lógica de gerarOrdem mantida) ...
+      const gerarOrdem = () => {
       const faturamentoAtual = Number(kpis.faturamento_mes_atual || 0);
       const projecao = faturamentoAtual * (1 + (Number(kpis.crescimento_percentual || 0) / 100));
       const ticketMedio = Number(kpis.ticket_medio || 0);
@@ -197,8 +183,7 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
       const servicoTop = porServico[0]?.name || 'serviço premium';
       const servicoTopValor = porServico[0]?.value || 0;
       const totalServicos = porServico.reduce((sum, s) => sum + s.value, 0);
-      const concentracaoTop = totalServicos > 0 ? (servicoTopValor / totalServicos) * 100 : 0;
-
+      
       let ordemPrincipal = '';
       let motivoUrgente = '';
       let consequencia = '';
@@ -243,30 +228,23 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
 
     return (
       <div className="mb-4 md:mb-6">
-        <div className={`
-          bg-gradient-to-br from-red-700 via-red-600 to-rose-700 
-          ${mobileView ? 'rounded-lg' : 'rounded-xl'} 
-          ${mobileView ? 'p-4' : 'p-5 md:p-6'} 
-          text-white shadow-lg border border-red-400 relative overflow-hidden
-        `}>
+        <div className="bg-gradient-to-br from-red-700 via-red-600 to-rose-700 rounded-lg md:rounded-xl p-4 md:p-6 text-white shadow-lg border border-red-400 relative overflow-hidden">
           
-          {/* Elemento de urgência */}
-          {!mobileView && (
-            <div className="absolute top-3 right-3">
-              <div className="animate-pulse">
-                <AlertOctagon size={20} className="text-red-300" />
-              </div>
+          {/* Elemento de urgência - visível em telas md+ */}
+          <div className="hidden md:block absolute top-3 right-3">
+            <div className="animate-pulse">
+              <AlertOctagon size={20} className="text-red-300" />
             </div>
-          )}
+          </div>
 
           <div className="flex items-start gap-3 md:gap-4 mb-3 md:mb-4 relative z-10">
-            <div className={`${mobileView ? 'p-2' : 'p-2.5'} bg-white/20 rounded-lg backdrop-blur-sm flex-shrink-0`}>
-              <Target size={mobileView ? 18 : 20} className="text-white" />
+            <div className="p-2 md:p-2.5 bg-white/20 rounded-lg backdrop-blur-sm flex-shrink-0">
+              <Target className="w-[18px] h-[18px] md:w-5 md:h-5" className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <div className="px-2 md:px-3 py-0.5 bg-white/30 rounded-full">
-                  <h3 className={`${mobileView ? 'text-sm' : 'text-base'} font-bold tracking-tight`}>🔴 ORDEM DO MÊS</h3>
+                  <h3 className="text-sm md:text-base font-bold tracking-tight">🔴 ORDEM DO MÊS</h3>
                 </div>
                 <span className="text-[10px] md:text-[11px] font-bold bg-red-600 px-2 py-0.5 rounded-full uppercase">
                   EXECUTE AGORA
@@ -281,13 +259,13 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
           {/* Ordem Principal */}
           <div className="bg-white/10 rounded-lg p-3 md:p-4 mb-3 md:mb-4 backdrop-blur-sm border border-white/20 relative">
             <div className="absolute -left-1 top-1/2 transform -translate-y-1/2 w-1 h-3/4 bg-red-500 rounded-full" />
-            <p className={`${mobileView ? 'text-base' : 'text-lg'} font-bold leading-tight pl-3`}>
+            <p className="text-base md:text-lg font-bold leading-tight pl-3">
               {ordemPrincipal}
             </p>
           </div>
           
-          {/* Grid de Urgência - Responsivo */}
-          <div className={`grid ${mobileView ? 'grid-cols-1 gap-2' : 'grid-cols-1 md:grid-cols-2 gap-3'} mb-3 md:mb-4`}>
+          {/* Grid de Urgência - Responsivo via Grid CSS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 mb-3 md:mb-4">
             <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm border border-red-400/20">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle size={14} className="text-red-300" />
@@ -310,7 +288,7 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-bold text-amber-200 uppercase">RESULTADO FINANCEIRO</p>
-                <p className={`${mobileView ? 'text-base' : 'text-lg'} font-bold text-white`}>
+                <p className="text-base md:text-lg font-bold text-white">
                   {resultadoFinanceiro}
                 </p>
               </div>
@@ -327,6 +305,7 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
 
   // ─── Cálculos derivados ────────────────────────────────────────
   const totalDespesas = useMemo(() => Number(kpis.total_despesas || 0), [kpis]);
+  // eslint-disable-next-line no-unused-vars
   const lucroLiquido = useMemo(() => 
     Number(kpis.faturamento_mes_atual || 0) - totalDespesas, [kpis, totalDespesas]);
 
@@ -406,11 +385,11 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="mes" 
-                  tick={{ fontSize: mobileView ? 10 : 12 }} 
+                  tick={{ fontSize: 10 }} 
                 />
                 <YAxis 
                   tickFormatter={(v) => `R$${v/1000}k`} 
-                  tick={{ fontSize: mobileView ? 10 : 12 }} 
+                  tick={{ fontSize: 10 }} 
                 />
                 <Tooltip formatter={(value) => [fmtR(value), 'Faturamento']} />
                 <Area type="monotone" dataKey="valor" stroke={PURPLE} strokeWidth={2} fill="url(#colorValor)" />
@@ -427,13 +406,13 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
           {porServico.length > 0 ? (
             <div className="space-y-3 md:space-y-4">
               <div className="text-center p-3 md:p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-100">
-                <div className={`${mobileView ? 'w-10 h-10' : 'w-12 h-12'} inline-flex items-center justify-center rounded-full bg-amber-100 mb-2 md:mb-3`}>
-                  <Scissors size={mobileView ? 16 : 20} className="text-amber-600" />
+                <div className="w-10 h-10 md:w-12 md:h-12 inline-flex items-center justify-center rounded-full bg-amber-100 mb-2 md:mb-3">
+                  <Scissors className="w-4 h-4 md:w-5 md:h-5 text-amber-600" />
                 </div>
-                <h4 className={`${mobileView ? 'text-base' : 'text-lg'} font-bold text-gray-900 mb-1 truncate px-2`}>
+                <h4 className="text-base md:text-lg font-bold text-gray-900 mb-1 truncate px-2">
                   {porServico[0].name}
                 </h4>
-                <p className={`${mobileView ? 'text-xl' : 'text-2xl'} font-bold text-amber-600 mb-2`}>
+                <p className="text-xl md:text-2xl font-bold text-amber-600 mb-2">
                   {fmtShort(porServico[0].value)}
                 </p>
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -450,7 +429,7 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
               
               <div className="space-y-1.5 md:space-y-2">
                 <p className="text-sm font-semibold text-gray-700">Outros serviços:</p>
-                {porServico.slice(1, mobileView ? 3 : 4).map((servico, index) => (
+                {porServico.slice(1, 4).map((servico, index) => (
                   <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
                     <span className="text-xs md:text-sm font-medium text-gray-700 truncate pr-2">
                       {servico.name}
@@ -482,22 +461,19 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-2 pl-4 md:pl-0 text-xs font-semibold text-gray-500 uppercase">Profissional</th>
                   <th className="text-right py-2 pr-4 md:pr-0 text-xs font-semibold text-gray-500 uppercase">Faturamento</th>
-                  {!mobileView && (
-                    <>
-                      <th className="text-right py-2 text-xs font-semibold text-gray-500 uppercase">Ticket</th>
-                      <th className="text-right py-2 text-xs font-semibold text-gray-500 uppercase">Capacidade</th>
-                    </>
-                  )}
+                  {/* Colunas extras apenas em telas maiores (hidden no mobile) */}
+                  <th className="hidden md:table-cell text-right py-2 text-xs font-semibold text-gray-500 uppercase">Ticket</th>
+                  <th className="hidden md:table-cell text-right py-2 text-xs font-semibold text-gray-500 uppercase">Capacidade</th>
                 </tr>
               </thead>
               <tbody>
-                {porProf.slice(0, mobileView ? 3 : 5).map((prof, index) => (
+                {porProf.slice(0, 5).map((prof, index) => (
                   <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-2 pl-4 md:pl-0">
                       <div className="flex items-center gap-2 md:gap-3">
-                        <div className={`${mobileView ? 'w-6 h-6' : 'w-8 h-8'} rounded-md flex items-center justify-center ${index === 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+                        <div className={`w-6 h-6 md:w-8 md:h-8 rounded-md flex items-center justify-center ${index === 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
                           {index === 0 ? (
-                            <Target size={mobileView ? 10 : 12} />
+                            <Target className="w-[10px] h-[10px] md:w-3 md:h-3" />
                           ) : (
                             <span className="text-xs font-bold">#{index + 1}</span>
                           )}
@@ -506,8 +482,8 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
                           <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">
                             {prof.nome}
                           </p>
-                          {index === 0 && mobileView && (
-                            <span className="text-[8px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">
+                          {index === 0 && (
+                            <span className="md:hidden text-[8px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">
                               RESP
                             </span>
                           )}
@@ -515,34 +491,31 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
                       </div>
                     </td>
                     <td className="text-right py-2 pr-4 md:pr-0">
-                      <p className="text-xs md:text-sm font-bold text-gray-900">{fmtShort(prof.valor)}</p>
+                      <p className="text-xs md:text-sm font-bold text-gray-900">{fmtShort(prof.value)}</p>
                     </td>
-                    {!mobileView && (
-                      <>
-                        <td className="text-right py-2">
-                          <p className="text-xs md:text-sm font-medium text-gray-700">{fmtShort(prof.ticket)}</p>
-                        </td>
-                        <td className="text-right py-2">
-                          <div className="inline-flex items-center gap-1 md:gap-2">
-                            <div className="w-16 md:w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-emerald-500 rounded-full" 
-                                style={{ width: `${Math.min(prof.atendimentos * 2, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-semibold text-gray-600">{prof.atendimentos}</span>
-                          </div>
-                        </td>
-                      </>
-                    )}
+                    {/* Células extras apenas em telas maiores */}
+                    <td className="hidden md:table-cell text-right py-2">
+                      <p className="text-xs md:text-sm font-medium text-gray-700">{fmtShort(prof.ticket)}</p>
+                    </td>
+                    <td className="hidden md:table-cell text-right py-2">
+                      <div className="inline-flex items-center gap-1 md:gap-2">
+                        <div className="w-16 md:w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-emerald-500 rounded-full" 
+                            style={{ width: `${Math.min(prof.atendimentos * 2, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-gray-600">{prof.atendimentos}</span>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-        {mobileView && porProf.length > 3 && (
-          <p className="text-xs text-gray-500 text-center mt-2">
+        {porProf.length > 3 && (
+          <p className="md:hidden text-xs text-gray-500 text-center mt-2">
             + {porProf.length - 3} profissionais
           </p>
         )}
@@ -552,7 +525,7 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
 
   // ─── Menu Mobile ────────────────────────────────────────────────
   const MobileMenu = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 md:p-3 z-50 lg:hidden shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
       <div className="flex justify-around">
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -584,43 +557,19 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-2 md:p-4 overflow-hidden">
-      <div className={`
-        bg-white 
-        ${mobileView ? 'rounded-lg' : 'rounded-xl md:rounded-2xl'} 
-        w-full h-full 
-        ${mobileView ? '' : 'md:max-w-3xl lg:max-w-5xl'} 
-        ${mobileView ? '' : 'md:h-[90vh] lg:h-[95vh]'} 
-        flex flex-col relative shadow-xl
-      `}>
+      <div className="bg-white rounded-lg md:rounded-xl w-full h-full md:max-w-3xl lg:max-w-5xl md:h-[90vh] lg:h-[95vh] flex flex-col relative shadow-xl">
         
         {/* Header Responsivo */}
-        <div className={`
-          bg-white px-3 md:px-4 lg:px-6 py-3 md:py-4 
-          border-b border-gray-200 
-          flex justify-between items-center 
-          shrink-0
-          ${mobileView ? '' : 'rounded-t-xl md:rounded-t-2xl'}
-        `}>
+        <div className="bg-white px-3 md:px-4 lg:px-6 py-3 md:py-4 border-b border-gray-200 flex justify-between items-center shrink-0 rounded-t-lg md:rounded-t-xl">
           <div className="flex items-center gap-2 md:gap-3">
-            <div className={`
-              ${mobileView ? 'p-1.5' : 'p-2'} 
-              rounded-md md:rounded-lg 
-              shadow
-            `} style={{ background: RED }}>
-              <Target size={mobileView ? 18 : 20} color="#fff" />
+            <div className="p-1.5 md:p-2 rounded-md md:rounded-lg shadow" style={{ background: RED }}>
+              <Target className="w-[18px] h-[18px] md:w-5 md:h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h2 className={`
-                ${mobileView ? 'text-base' : 'text-lg md:text-xl'} 
-                font-bold text-gray-900
-              `}>
+              <h2 className="text-base md:text-lg lg:text-xl font-bold text-gray-900">
                 <span style={{ color: RED }}>COMANDO</span> OPERACIONAL
               </h2>
-              <p className={`
-                ${mobileView ? 'text-[10px]' : 'text-xs'} 
-                font-semibold text-gray-500 uppercase tracking-wider 
-                flex items-center gap-1
-              `}>
+              <p className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
                 <AlertOctagon size={10} /> Ordem de Ação Mensal
               </p>
             </div>
@@ -629,17 +578,12 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
             onClick={onClose}
             className="p-1.5 md:p-2 bg-gray-100 rounded-md md:rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors"
           >
-            <X size={mobileView ? 18 : 20} />
+            <X className="w-[18px] h-[18px] md:w-5 md:h-5" />
           </button>
         </div>
 
         {/* Corpo Principal */}
-        <div className={`
-          flex-1 overflow-y-auto 
-          px-3 md:px-4 lg:px-6 
-          ${mobileView ? 'pb-14' : 'pb-4'} 
-          bg-gray-50
-        `}>
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 lg:px-6 pb-14 md:pb-4 bg-gray-50">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-3">
               <div className="relative">
@@ -676,22 +620,13 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
               </div>
 
               {/* Banner Final de Urgência - Responsivo */}
-              <div className={`
-                mt-4 md:mt-6 
-                p-3 md:p-4 
-                bg-gradient-to-r from-red-50 to-orange-50 
-                rounded-lg md:rounded-xl 
-                border border-red-200
-              `}>
+              <div className="mt-4 md:mt-6 p-3 md:p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg md:rounded-xl border border-red-200">
                 <div className="flex items-center gap-2 md:gap-3">
-                  <div className={`${mobileView ? 'p-1.5' : 'p-2'} bg-red-100 rounded-md flex-shrink-0`}>
-                    <Zap size={mobileView ? 16 : 18} className="text-red-600" />
+                  <div className="p-1.5 md:p-2 bg-red-100 rounded-md flex-shrink-0">
+                    <Zap className="w-4 h-4 md:w-[18px] md:h-[18px] text-red-600" />
                   </div>
                   <div className="min-w-0">
-                    <h4 className={`
-                      ${mobileView ? 'text-sm' : 'text-base'} 
-                      font-bold text-gray-900 mb-0.5
-                    `}>
+                    <h4 className="text-sm md:text-base font-bold text-gray-900 mb-0.5">
                       ⏳ TEMPO ESTOURANDO
                     </h4>
                     <p className="text-xs text-gray-600">
@@ -704,8 +639,10 @@ export const RelatorioAvancadoModal = ({ isOpen, onClose }) => {
           )}
         </div>
 
-        {/* Menu Mobile (apenas mobile e tablet) */}
-        {(mobileView || tabletView) && <MobileMenu />}
+        {/* Menu Mobile (apenas telas pequenas, hidden em lg) */}
+        <div className="lg:hidden">
+            <MobileMenu />
+        </div>
       </div>
     </div>
   );
