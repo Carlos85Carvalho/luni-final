@@ -40,3 +40,19 @@
 .read-the-docs {
   color: #888;
 }
+/* --- CORREÇÃO DE SOBREPOSIÇÃO (Z-INDEX) --- */
+
+/* 1. O Rodapé (Menu inferior) */
+/* Coloque aqui a classe que você usa no seu rodapé. 
+   Se não for .footer-navbar, troque pelo nome correto (ex: .navbar, .menu-bottom) */
+.footer-navbar, .navbar, footer {
+  z-index: 10 !important; /* Camada baixa */
+  position: fixed; /* Garante que ele fique preso na tela */
+}
+
+/* 2. O Modal (A janela de Nova Meta) */
+/* Coloque aqui a classe principal dos seus modais.
+   Geralmente é o container que faz o fundo escuro */
+.modal-overlay, .modal-backdrop, .dialog-content, .MuiModal-root {
+  z-index: 9999 !important; /* Camada altíssima, acima de tudo */
+}

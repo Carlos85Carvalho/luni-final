@@ -41,7 +41,7 @@ const KPICard = ({
   };
 
   const style = colorClasses[cor] || colorClasses.purple;
-  
+   
   const formattedValue = useMemo(() => {
     if (loading) return '---';
     if (format === 'currency') {
@@ -57,15 +57,15 @@ const KPICard = ({
   return (
     <div 
       onClick={onClick}
-      className={`relative bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border ${style.border} hover:bg-gray-800/70 transition-all duration-300 hover:scale-[1.02] ${onClick ? 'cursor-pointer' : ''}`}
+      className={`relative bg-gray-800/50 backdrop-blur-sm p-5 sm:p-6 rounded-2xl border ${style.border} hover:bg-gray-800/70 transition-all duration-300 hover:scale-[1.02] ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-semibold text-gray-400">{titulo}</span>
-        <div className={`p-2.5 rounded-xl ${style.bg}`}>
+        <span className="text-sm font-semibold text-gray-400 truncate pr-2">{titulo}</span>
+        <div className={`p-2.5 rounded-xl ${style.bg} shrink-0`}>
           <Icon className={`w-5 h-5 ${style.text}`} />
         </div>
       </div>
-      
+       
       {loading ? (
         <div className="space-y-2">
           <div className="h-8 bg-gray-700/50 rounded animate-pulse"></div>
@@ -73,15 +73,15 @@ const KPICard = ({
         </div>
       ) : (
         <>
-          <div className="text-2xl font-bold text-white mb-2">{formattedValue}</div>
-          
-          <div className="flex items-center justify-between">
+          <div className="text-xl sm:text-2xl font-bold text-white mb-2 truncate">{formattedValue}</div>
+           
+          <div className="flex flex-wrap items-center justify-between gap-2">
             {subTitulo && (
-              <span className="text-sm text-gray-400">{subTitulo}</span>
+              <span className="text-xs sm:text-sm text-gray-400 truncate max-w-[60%]">{subTitulo}</span>
             )}
             
             {trend && trendValue > 0 && (
-              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+              <div className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                 trend === 'up' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
               }`}>
                 {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
@@ -113,22 +113,24 @@ const FiltroPeriodo = ({ periodo, setPeriodo, dataInicio, setDataInicio, dataFim
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-full sm:w-auto">
       <button
         onClick={() => setMostrarFiltros(!mostrarFiltros)}
-        className="px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl hover:bg-gray-800/70 flex items-center gap-2 transition-all"
+        className="w-full sm:w-auto px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl hover:bg-gray-800/70 flex items-center justify-between sm:justify-start gap-2 transition-all"
       >
-        <CalendarDays className="w-5 h-5 text-gray-400" />
-        <span className="text-sm font-medium text-white">
-          {periodos.find(p => p.id === periodo)?.label || 'Período'}
-        </span>
+        <div className="flex items-center gap-2">
+          <CalendarDays className="w-5 h-5 text-gray-400" />
+          <span className="text-sm font-medium text-white">
+            {periodos.find(p => p.id === periodo)?.label || 'Período'}
+          </span>
+        </div>
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${mostrarFiltros ? 'rotate-180' : ''}`} />
       </button>
 
       {mostrarFiltros && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setMostrarFiltros(false)}></div>
-          <div className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+          <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent" onClick={() => setMostrarFiltros(false)}></div>
+          <div className="absolute right-0 left-0 sm:left-auto mt-2 w-full sm:w-80 bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
             <div className="p-4">
               <div className="mb-4">
                 <h4 className="text-sm font-semibold text-white mb-3">Período Rápido</h4>
@@ -202,7 +204,7 @@ const VisaoGeralTab = ({
 }) => {
   return (
     <div className="space-y-6">
-      {/* KPIs Principais */}
+      {/* KPIs Principais - Responsivo: 1 col mobile, 2 tablet, 4 desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           titulo="Receita Bruta"
@@ -253,8 +255,8 @@ const VisaoGeralTab = ({
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Gráfico de Evolução */}
-        <div className="lg:col-span-2 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="lg:col-span-2 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-purple-400" />
@@ -262,25 +264,26 @@ const VisaoGeralTab = ({
               </h3>
               <p className="text-sm text-gray-400 mt-1">Receita vs Despesas (últimos meses)</p>
             </div>
-            <button className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors">
+            <button className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors self-end sm:self-auto">
               <Download className="w-5 h-5 text-gray-400" />
             </button>
           </div>
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={evolucaoReceitas}>
+              <ComposedChart data={evolucaoReceitas} margin={{ left: -20, right: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis 
                   dataKey="mes" 
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  interval="preserveStartEnd"
                 />
                 <YAxis 
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#9ca3af', fontSize: 12 }}
-                  tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`}
+                  tick={{ fill: '#9ca3af', fontSize: 10 }}
+                  tickFormatter={(value) => `R$${(value/1000).toFixed(0)}k`}
                 />
                 <Tooltip 
                   formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
@@ -297,8 +300,8 @@ const VisaoGeralTab = ({
                   dataKey="receita" 
                   name="Receita" 
                   fill="#10b981" 
-                  radius={[8, 8, 0, 0]}
-                  barSize={32}
+                  radius={[4, 4, 0, 0]}
+                  barSize={24}
                 />
                 <Area 
                   type="monotone" 
@@ -315,8 +318,8 @@ const VisaoGeralTab = ({
                   name="Lucro" 
                   stroke="#3b82f6" 
                   strokeWidth={3}
-                  dot={{ r: 5, strokeWidth: 2, fill: '#3b82f6' }}
-                  activeDot={{ r: 7 }}
+                  dot={{ r: 4, strokeWidth: 2, fill: '#3b82f6' }}
+                  activeDot={{ r: 6 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -324,7 +327,7 @@ const VisaoGeralTab = ({
         </div>
 
         {/* Distribuição de Despesas */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -334,7 +337,7 @@ const VisaoGeralTab = ({
               <p className="text-sm text-gray-400 mt-1">Despesas por categoria</p>
             </div>
           </div>
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             {distribuicaoDespesas.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
@@ -343,10 +346,10 @@ const VisaoGeralTab = ({
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
-                    outerRadius={100}
+                    outerRadius={80}
                     paddingAngle={3}
                     dataKey="total"
-                    label={({ categoria, percent }) => `${categoria}: ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
                   >
                     {distribuicaoDespesas.map((entry, index) => (
                       <Cell 
@@ -467,7 +470,7 @@ const DespesasTab = ({ onRefresh }) => {
       const { error } = await supabase
         .from('despesas')
         .update({ 
-          pago: true,
+          pago: true, 
           data_pagamento: new Date().toISOString()
         })
         .eq('id', despesa.id);
@@ -543,52 +546,52 @@ const DespesasTab = ({ onRefresh }) => {
 
   return (
     <div className="space-y-6">
-      {/* Resumo */}
+      {/* Resumo - Stack vertical no mobile */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="truncate pr-2">
               <p className="text-sm text-gray-400">Total</p>
-              <p className="text-2xl font-bold text-white mt-1">
+              <p className="text-xl sm:text-2xl font-bold text-white mt-1 truncate">
                 R$ {totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
-            <Receipt className="w-8 h-8 text-purple-400" />
+            <Receipt className="w-8 h-8 text-purple-400 shrink-0" />
           </div>
         </div>
         <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="truncate pr-2">
               <p className="text-sm text-gray-400">Pagas</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">
+              <p className="text-xl sm:text-2xl font-bold text-green-400 mt-1 truncate">
                 R$ {totalPagas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-400" />
+            <CheckCircle className="w-8 h-8 text-green-400 shrink-0" />
           </div>
         </div>
         <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="truncate pr-2">
               <p className="text-sm text-gray-400">Pendentes</p>
-              <p className="text-2xl font-bold text-orange-400 mt-1">
+              <p className="text-xl sm:text-2xl font-bold text-orange-400 mt-1 truncate">
                 R$ {totalPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
-            <Clock className="w-8 h-8 text-orange-400" />
+            <Clock className="w-8 h-8 text-orange-400 shrink-0" />
           </div>
         </div>
       </div>
 
-      {/* Filtros e Ações */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+      {/* Filtros e Ações - Responsivo */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
             {['todas', 'pagas', 'pendentes'].map(f => (
               <button
                 key={f}
                 onClick={() => setFiltro(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all text-center ${
                   filtro === f 
                     ? 'bg-purple-500 text-white' 
                     : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
@@ -614,7 +617,7 @@ const DespesasTab = ({ onRefresh }) => {
             <select
               value={categoriaFiltro}
               onChange={(e) => setCategoriaFiltro(e.target.value)}
-              className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none text-sm"
+              className="w-full sm:w-auto px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none text-sm"
             >
               <option value="todas">Todas Categorias</option>
               {categorias.map(cat => (
@@ -628,10 +631,10 @@ const DespesasTab = ({ onRefresh }) => {
                 resetForm();
                 setModalAberto(true);
               }}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-2 font-medium transition-all"
             >
               <Plus className="w-4 h-4" />
-              Nova Despesa
+              <span className="whitespace-nowrap">Nova Despesa</span>
             </button>
           </div>
         </div>
@@ -644,13 +647,13 @@ const DespesasTab = ({ onRefresh }) => {
             <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
           </div>
         ) : despesasFiltradas.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-4">
             <Receipt className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400">Nenhuma despesa encontrada</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-gray-700/50 border-b border-gray-600">
                 <tr>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Descrição</th>
@@ -668,17 +671,17 @@ const DespesasTab = ({ onRefresh }) => {
                       <p className="font-medium text-white">{despesa.descricao}</p>
                     </td>
                     <td className="py-4 px-6">
-                      <span className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-medium">
+                      <span className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-medium whitespace-nowrap">
                         {despesa.categoria}
                       </span>
                     </td>
                     <td className="py-4 px-6">
-                      <p className="font-bold text-white">
+                      <p className="font-bold text-white whitespace-nowrap">
                         R$ {(despesa.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </td>
                     <td className="py-4 px-6">
-                      <p className="text-sm text-gray-300">
+                      <p className="text-sm text-gray-300 whitespace-nowrap">
                         {new Date(despesa.data_vencimento).toLocaleDateString('pt-BR')}
                       </p>
                     </td>
@@ -698,7 +701,7 @@ const DespesasTab = ({ onRefresh }) => {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
                         {!despesa.pago && (
-                          <button
+                          <button 
                             onClick={() => marcarComoPaga(despesa)}
                             className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
                             title="Marcar como paga"
@@ -706,14 +709,14 @@ const DespesasTab = ({ onRefresh }) => {
                             <Check className="w-4 h-4" />
                           </button>
                         )}
-                        <button
+                        <button 
                           onClick={() => editarDespesa(despesa)}
                           className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                           title="Editar"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
+                        <button 
                           onClick={() => excluirDespesa(despesa.id)}
                           className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                           title="Excluir"
@@ -730,11 +733,12 @@ const DespesasTab = ({ onRefresh }) => {
         )}
       </div>
 
-      {/* Modal de Criar/Editar */}
+      {/* Modal de Criar/Editar Despesa - CORRIGIDO */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-800">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[85vh] flex flex-col">
+            {/* Header Fixo */}
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between shrink-0">
               <h3 className="text-xl font-bold text-white">
                 {despesaEditando ? 'Editar Despesa' : 'Nova Despesa'}
               </h3>
@@ -750,73 +754,79 @@ const DespesasTab = ({ onRefresh }) => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  placeholder="Ex: Conta de luz"
-                />
-              </div>
+            {/* Conteúdo com Scroll - ALTURA CONTROLADA */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                    placeholder="Ex: Conta de luz"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Categoria</label>
-                <select
-                  required
-                  value={formData.categoria}
-                  onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="">Selecione...</option>
-                  {categorias.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Categoria</label>
+                  <select
+                    required
+                    value={formData.categoria}
+                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  >
+                    <option value="">Selecione...</option>
+                    {categorias.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Valor (R$)</label>
-                <input
-                  type="number"
-                  required
-                  step="0.01"
-                  min="0"
-                  value={formData.valor}
-                  onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  placeholder="0,00"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Valor (R$)</label>
+                  <input
+                    type="number"
+                    required
+                    step="0.01"
+                    min="0"
+                    value={formData.valor}
+                    onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                    placeholder="0,00"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Data de Vencimento</label>
-                <input
-                  type="date"
-                  required
-                  value={formData.data_vencimento}
-                  onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Data de Vencimento</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.data_vencimento}
+                    onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
 
-              <div className="flex items-center gap-3 p-4 bg-gray-700/30 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="pago"
-                  checked={formData.pago}
-                  onChange={(e) => setFormData({ ...formData, pago: e.target.checked })}
-                  className="w-5 h-5 rounded border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-800"
-                />
-                <label htmlFor="pago" className="text-sm font-medium text-gray-300 cursor-pointer">
-                  Marcar como paga
-                </label>
+                <div className="flex items-center gap-3 p-4 bg-gray-700/30 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="pago"
+                    checked={formData.pago}
+                    onChange={(e) => setFormData({ ...formData, pago: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-800"
+                  />
+                  <label htmlFor="pago" className="text-sm font-medium text-gray-300 cursor-pointer">
+                    Marcar como paga
+                  </label>
+                </div>
               </div>
+            </div>
 
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+            {/* Footer Fixo - SEMPRE VISÍVEL */}
+            <div className="p-6 border-t border-gray-700 shrink-0">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -829,7 +839,7 @@ const DespesasTab = ({ onRefresh }) => {
                   Cancelar
                 </button>
                 <button
-                  type="submit"
+                  onClick={handleSubmit}
                   disabled={salvando}
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
@@ -841,12 +851,12 @@ const DespesasTab = ({ onRefresh }) => {
                   ) : (
                     <>
                       <Save className="w-5 h-5" />
-                      SALVAR DESPESA
+                      SALVAR
                     </>
                   )}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -924,7 +934,7 @@ const MetasTab = ({ resumoFinanceiro }) => {
 
   const salvarMeta = () => {
     console.log('Salvando meta:', formMeta);
-    
+     
     if (!formMeta.titulo || !formMeta.valorMeta) {
       alert('Preencha todos os campos');
       return;
@@ -980,22 +990,22 @@ const MetasTab = ({ resumoFinanceiro }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Metas Financeiras</h2>
-          <p className="text-gray-400 mt-1">Acompanhe o progresso das suas metas</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Metas Financeiras</h2>
+          <p className="text-sm sm:text-base text-gray-400 mt-1">Acompanhe o progresso das suas metas</p>
         </div>
         <button
           onClick={abrirModalNovaMeta}
-          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+          className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-2 font-medium transition-all"
         >
           <Plus className="w-4 h-4" />
           Nova Meta
         </button>
       </div>
 
-      {/* Cards de Metas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Cards de Metas - Responsivo: 1 col mobile, 2 tablet, 3 desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {metas.map((meta) => {
           const Icon = meta.icon;
           const progresso = calcularProgresso(meta);
@@ -1098,11 +1108,12 @@ const MetasTab = ({ resumoFinanceiro }) => {
         })}
       </div>
 
-      {/* Modal de Criar/Editar Meta */}
+      {/* Modal de Criar/Editar Meta - CORRIGIDO */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md">
-            <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[85vh] flex flex-col">
+            {/* Header Fixo */}
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between shrink-0">
               <h3 className="text-xl font-bold text-white">
                 {metaEditando ? 'Editar Meta' : 'Nova Meta'}
               </h3>
@@ -1114,60 +1125,66 @@ const MetasTab = ({ resumoFinanceiro }) => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Meta</label>
-                <select
-                  value={formMeta.tipo}
-                  onChange={(e) => setFormMeta({ ...formMeta, tipo: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="faturamento">Faturamento</option>
-                  <option value="lucro">Lucro</option>
-                  <option value="despesas">Limite de Despesas</option>
-                </select>
-              </div>
+            {/* Conteúdo com Scroll - ALTURA CONTROLADA */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Meta</label>
+                  <select
+                    value={formMeta.tipo}
+                    onChange={(e) => setFormMeta({ ...formMeta, tipo: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  >
+                    <option value="faturamento">Faturamento</option>
+                    <option value="lucro">Lucro</option>
+                    <option value="despesas">Limite de Despesas</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Título da Meta</label>
-                <input
-                  type="text"
-                  value={formMeta.titulo}
-                  onChange={(e) => setFormMeta({ ...formMeta, titulo: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  placeholder="Ex: Meta de Faturamento Mensal"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Título da Meta</label>
+                  <input
+                    type="text"
+                    value={formMeta.titulo}
+                    onChange={(e) => setFormMeta({ ...formMeta, titulo: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                    placeholder="Ex: Meta de Faturamento Mensal"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Valor da Meta (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formMeta.valorMeta}
-                  onChange={(e) => setFormMeta({ ...formMeta, valorMeta: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  placeholder="0,00"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Valor da Meta (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formMeta.valorMeta}
+                    onChange={(e) => setFormMeta({ ...formMeta, valorMeta: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                    placeholder="0,00"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Período</label>
-                <select
-                  value={formMeta.periodo}
-                  onChange={(e) => setFormMeta({ ...formMeta, periodo: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="Diário">Diário</option>
-                  <option value="Semanal">Semanal</option>
-                  <option value="Mensal">Mensal</option>
-                  <option value="Trimestral">Trimestral</option>
-                  <option value="Anual">Anual</option>
-                </select>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Período</label>
+                  <select
+                    value={formMeta.periodo}
+                    onChange={(e) => setFormMeta({ ...formMeta, periodo: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  >
+                    <option value="Diário">Diário</option>
+                    <option value="Semanal">Semanal</option>
+                    <option value="Mensal">Mensal</option>
+                    <option value="Trimestral">Trimestral</option>
+                    <option value="Anual">Anual</option>
+                  </select>
+                </div>
               </div>
+            </div>
 
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+            {/* Footer Fixo - SEMPRE VISÍVEL */}
+            <div className="p-6 border-t border-gray-700 shrink-0">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setModalAberto(false)}
                   className="flex-1 px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 font-medium transition-all"
@@ -1179,7 +1196,7 @@ const MetasTab = ({ resumoFinanceiro }) => {
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
                   <Save className="w-5 h-5" />
-                  SALVAR META
+                  SALVAR
                 </button>
               </div>
             </div>
@@ -1249,7 +1266,7 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
 
   const gerarRelatorio = () => {
     setGerando(true);
-    
+     
     // Simular geração de relatório
     setTimeout(() => {
       const relatorioSelecionado = relatorios.find(r => r.id === tipoRelatorio);
@@ -1274,7 +1291,7 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
     csvContent += `Despesas Totais,R$ ${((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
     csvContent += `Lucro Líquido,R$ ${(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
     csvContent += `Margem de Lucro,${(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%\n\n`;
-    
+     
     csvContent += "Evolução Mensal\n";
     csvContent += "Mês,Receita,Despesas,Lucro\n";
     evolucaoReceitas.forEach(item => {
@@ -1288,7 +1305,7 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+     
     alert('Relatório CSV gerado com sucesso!');
   };
 
@@ -1344,7 +1361,7 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+     
     alert('Relatório gerado com sucesso!\n\nNota: Para PDF real com formatação profissional, instale as bibliotecas:\n- npm install jspdf\n- npm install jspdf-autotable');
   };
 
@@ -1374,8 +1391,8 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
 
   return (
     <div className="space-y-6">
-      {/* Seletor de Relatório */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Seletor de Relatório - Grid responsivo */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {relatorios.map((relatorio) => {
           const Icon = relatorio.icon;
           return (
@@ -1399,19 +1416,19 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
       </div>
 
       {/* Configurações */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
         <h3 className="text-lg font-bold text-white mb-6">Configurar Relatório</h3>
         
         <div className="space-y-6">
           {/* Período */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">Período</label>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {['Este mês', 'Últimos 3 meses', 'Este ano', 'Personalizado'].map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriodo(p.toLowerCase().replace(/ /g, '_'))}
-                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  className={`px-3 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                     periodo === p.toLowerCase().replace(/ /g, '_')
                       ? 'bg-purple-500 text-white'
                       : 'border border-gray-700 text-gray-300 hover:bg-gray-700/50'
@@ -1426,7 +1443,7 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
           {/* Formato */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">Formato de Exportação</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
                 { id: 'pdf', label: 'PDF', icon: FileText },
                 { id: 'excel', label: 'Excel', icon: BarChart3 },
@@ -1454,8 +1471,8 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
           {/* Preview dos Dados */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">Preview do Relatório</label>
-            <div className="bg-gray-700/30 border border-gray-700 rounded-xl p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-700/30 border border-gray-700 rounded-xl p-4 sm:p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Receita Total</p>
                   <p className="text-xl font-bold text-green-400">
@@ -1488,7 +1505,7 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
           </div>
 
           {/* Ações */}
-          <div className="flex gap-4 pt-6 border-t border-gray-700">
+          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-700">
             <button
               onClick={gerarRelatorio}
               disabled={gerando}
@@ -1506,7 +1523,7 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
                 </>
               )}
             </button>
-            <button className="px-6 py-3.5 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700/50 transition-all flex items-center gap-3">
+            <button className="px-6 py-3.5 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700/50 transition-all flex items-center justify-center gap-3">
               <Share2 className="w-5 h-5" />
               Compartilhar
             </button>
@@ -1530,7 +1547,7 @@ export const FinanceiroScreen = ({ onClose }) => {
     return date.toISOString().split('T')[0];
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().split('T')[0]);
-  
+   
   const [resumoFinanceiro, setResumoFinanceiro] = useState({
     receita_bruta: 0,
     despesas_pagas: 0,
@@ -1538,7 +1555,7 @@ export const FinanceiroScreen = ({ onClose }) => {
     lucro_liquido: 0,
     margem_lucro: 0
   });
-  
+   
   const [evolucaoReceitas, setEvolucaoReceitas] = useState([]);
   const [distribuicaoDespesas, setDistribuicaoDespesas] = useState([]);
 
@@ -1602,7 +1619,7 @@ export const FinanceiroScreen = ({ onClose }) => {
     switch (activeTab) {
       case 'visao-geral':
         return (
-          <VisaoGeralTab
+          <VisaoGeralTab 
             resumoFinanceiro={resumoFinanceiro}
             evolucaoReceitas={evolucaoReceitas}
             distribuicaoDespesas={distribuicaoDespesas}
@@ -1615,7 +1632,7 @@ export const FinanceiroScreen = ({ onClose }) => {
         return <MetasTab resumoFinanceiro={resumoFinanceiro} />;
       case 'relatorios':
         return (
-          <RelatoriosTab
+          <RelatoriosTab 
             resumoFinanceiro={resumoFinanceiro}
             evolucaoReceitas={evolucaoReceitas}
             distribuicaoDespesas={distribuicaoDespesas}
@@ -1627,12 +1644,12 @@ export const FinanceiroScreen = ({ onClose }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-x-hidden">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-xl border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between py-4 md:h-20 gap-4">
+            <div className="flex items-center gap-4 w-full md:w-auto">
               <button
                 onClick={onClose}
                 className="p-2.5 hover:bg-gray-800/50 rounded-xl transition-colors"
@@ -1644,15 +1661,15 @@ export const FinanceiroScreen = ({ onClose }) => {
                   <DollarSign className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">Finanças</h1>
-                  <p className="text-sm text-gray-400">
+                  <h1 className="text-xl sm:text-2xl font-bold text-white">Finanças</h1>
+                  <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">
                     {new Date(dataInicio).toLocaleDateString('pt-BR')} - {new Date(dataFim).toLocaleDateString('pt-BR')}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <button
                 onClick={() => carregarDados(false)}
                 disabled={refreshing}
@@ -1661,8 +1678,8 @@ export const FinanceiroScreen = ({ onClose }) => {
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               
-              <FiltroPeriodo
-                periodo={periodo}
+              <FiltroPeriodo 
+                periodo={periodo} 
                 setPeriodo={setPeriodo}
                 dataInicio={dataInicio}
                 setDataInicio={setDataInicio}
@@ -1676,9 +1693,9 @@ export const FinanceiroScreen = ({ onClose }) => {
       </div>
 
       {/* Tabs */}
-      <div className="sticky top-20 z-40 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
+      <div className="sticky top-[84px] md:top-20 z-40 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-1 overflow-x-auto py-2">
+          <div className="flex space-x-1 overflow-x-auto py-2 no-scrollbar">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1702,7 +1719,7 @@ export const FinanceiroScreen = ({ onClose }) => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 mb-10">
         {loading && activeTab === 'visao-geral' ? (
           <div className="flex flex-col items-center justify-center h-96">
             <Loader2 className="w-16 h-16 text-purple-500 animate-spin mb-4" />

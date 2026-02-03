@@ -218,100 +218,128 @@ const LoginScreen = () => {
   );
 };
 
-// --- ADMIN APP ---
+// --- ADMIN APP ATUALIZADO (CORREÇÃO: Esconder Menus quando modal abre) ---
 const AdminApp = () => {
   const { logout, salaoNome, salaoId } = useAuth();
   const [screen, setScreen] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
+  
+  // NOVO: Estado para controlar se os menus (header/footer) devem sumir
+  const [hideMenus, setHideMenus] = useState(false);
+
   const larguraContainer = 'max-w-7xl'; 
 
+  // Efeito para os modais do próprio AdminApp (botão +)
+  useEffect(() => {
+    if (activeModal) {
+      setHideMenus(true);
+    } else {
+      // Se fechou um modal do menu principal e não está no financeiro
+      if (screen !== 'financeiro') {
+        setHideMenus(false);
+      }
+    }
+  }, [activeModal, screen]);
+
   return (
-    <div className="min-h-screen pb-28 font-sans bg-[#0a0a0f] text-white selection:bg-purple-500 selection:text-white">
+    // 'flex flex-col' garante que o conteudo ocupe 100% da altura
+    <div className="min-h-screen font-sans bg-[#0a0a0f] text-white selection:bg-purple-500 selection:text-white flex flex-col">
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 z-20 backdrop-blur-sm transition-opacity duration-300" onClick={() => setIsMenuOpen(false)} />}
       
-      <div className="bg-[#0a0a0f]/80 backdrop-blur-md px-6 py-4 sticky top-0 z-10 flex justify-between items-center border-b border-white/5">
-        <div className="flex items-center gap-3">
-            <img src="/logo-luni.png" alt="LUNI" className="h-8 object-contain" />
-            <div className="hidden md:block w-px h-6 bg-white/10"></div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">{salaoNome || 'Gestão'}</p>
+      {/* HEADER: Só renderiza se hideMenus for false */}
+      {!hideMenus && (
+        <div className="bg-[#0a0a0f]/80 backdrop-blur-md px-6 py-4 sticky top-0 z-10 flex justify-between items-center border-b border-white/5 transition-all duration-300">
+          <div className="flex items-center gap-3">
+              <img src="/logo-luni.png" alt="LUNI" className="h-8 object-contain" />
+              <div className="hidden md:block w-px h-6 bg-white/10"></div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">{salaoNome || 'Gestão'}</p>
+          </div>
+          <button onClick={logout} className="text-gray-500 hover:text-red-400 transition-colors"><LogOut size={20} /></button>
         </div>
-        <button onClick={logout} className="text-gray-500 hover:text-red-400 transition-colors"><LogOut size={20} /></button>
-      </div>
+      )}
 
-      <div className={`mx-auto p-4 md:p-8 relative z-0 ${larguraContainer}`}>
+      {/* ÁREA DE CONTEÚDO */}
+      {/* flex-1: faz ocupar o espaço todo. Se hideMenus=true, remove padding para o modal ter espaço total */}
+      <div className={`mx-auto w-full relative z-0 flex-1 ${!hideMenus ? 'pb-28 p-4 md:p-8' : 'p-0'} ${larguraContainer}`}>
+        
         {screen === 'dashboard' && <DashboardAdmin onNavigate={setScreen} />}
-        {screen === 'financeiro' && <FinanceiroScreen onClose={() => setScreen('dashboard')} />} 
+        
+        {/* IMPORTANTE: Passamos onToggleModal para o FinanceiroScreen */}
+        {screen === 'financeiro' && (
+          <FinanceiroScreen 
+            onClose={() => {
+                setScreen('dashboard');
+                setHideMenus(false); // Garante que reaparece ao sair
+            }}
+            onToggleModal={(isOpen) => setHideMenus(isOpen)} // O Financeiro vai chamar isso
+          />
+        )} 
+        
         {screen === 'agenda' && <AgendaScreen onClose={() => setScreen('dashboard')} />} 
         {screen === 'clientes' && <ClientesScreen onClose={() => setScreen('dashboard')} />} 
       </div>
 
+      {/* MODAIS GERAIS */}
       <NovoAgendamentoModal isOpen={activeModal === 'agendamento'} onClose={() => setActiveModal(null)} onSuccess={() => { setActiveModal(null); setScreen('agenda'); }} />
       <NovoClienteModal isOpen={activeModal === 'cliente'} onClose={() => setActiveModal(null)} />
-      
-      <NovoProfissionalModal 
-        isOpen={activeModal === 'profissional'} 
-        onClose={() => setActiveModal(null)} 
-        salaoId={salaoId} 
-      />
+      <NovoProfissionalModal isOpen={activeModal === 'profissional'} onClose={() => setActiveModal(null)} salaoId={salaoId} />
 
-      <div className="fixed bottom-0 left-0 w-full bg-[#0a0a0f]/90 backdrop-blur-lg border-t border-white/5 py-4 px-6 shadow-2xl z-30">
-        <div className={`flex justify-between items-end mx-auto relative ${larguraContainer}`}>
-          <MenuIcon id="dashboard" icon={Home} label="Início" activeId={screen} onClick={setScreen} />
-          <MenuIcon id="agenda" icon={Calendar} label="Agenda" activeId={screen} onClick={setScreen} />
-          
-          <div className="relative -top-8 flex flex-col items-center">
-            {isMenuOpen && (
-              <div className="absolute bottom-24 flex flex-col gap-3 mb-2 items-center w-52 animate-in slide-in-from-bottom-4">
-                <button onClick={() => { setActiveModal('profissional'); setIsMenuOpen(false); }} className="flex items-center gap-3 bg-[#18181b] border border-white/10 text-white px-5 py-3 rounded-2xl shadow-xl hover:bg-white/5 active:scale-95 transition-all w-full">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center"><Briefcase size={18}/></div>
-                  <span className="text-sm font-bold">Profissional</span>
-                </button>
-                <button onClick={() => { setActiveModal('cliente'); setIsMenuOpen(false); }} className="flex items-center gap-3 bg-[#18181b] border border-white/10 text-white px-5 py-3 rounded-2xl shadow-xl hover:bg-white/5 active:scale-95 transition-all w-full">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center"><UserPlus size={18}/></div>
-                  <span className="text-sm font-bold">Cliente</span>
-                </button>
-                <button onClick={() => { setActiveModal('agendamento'); setIsMenuOpen(false); }} className="flex items-center gap-3 bg-[#18181b] border border-white/10 text-white px-5 py-3 rounded-2xl shadow-xl hover:bg-white/5 active:scale-95 transition-all w-full">
-                  <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center"><CalendarPlus size={18}/></div>
-                  <span className="text-sm font-bold">Agendamento</span>
-                </button>
-              </div>
-            )}
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-purple-500/30 hover:scale-105 transition-all duration-300 z-40 ${isMenuOpen ? 'bg-zinc-800 rotate-45' : 'bg-gradient-to-r from-purple-600 to-pink-600'}`}><Plus size={32} /></button>
+      {/* MENU INFERIOR: Só renderiza se hideMenus for false */}
+      {!hideMenus && (
+        <div className="fixed bottom-0 left-0 w-full bg-[#0a0a0f]/90 backdrop-blur-lg border-t border-white/5 py-4 px-6 shadow-2xl z-30 transition-all duration-300">
+          <div className={`flex justify-between items-end mx-auto relative ${larguraContainer}`}>
+            <MenuIcon id="dashboard" icon={Home} label="Início" activeId={screen} onClick={setScreen} />
+            <MenuIcon id="agenda" icon={Calendar} label="Agenda" activeId={screen} onClick={setScreen} />
+            
+            <div className="relative -top-8 flex flex-col items-center">
+              {isMenuOpen && (
+                <div className="absolute bottom-24 flex flex-col gap-3 mb-2 items-center w-52 animate-in slide-in-from-bottom-4">
+                  <button onClick={() => { setActiveModal('profissional'); setIsMenuOpen(false); }} className="flex items-center gap-3 bg-[#18181b] border border-white/10 text-white px-5 py-3 rounded-2xl shadow-xl hover:bg-white/5 active:scale-95 transition-all w-full">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center"><Briefcase size={18}/></div>
+                    <span className="text-sm font-bold">Profissional</span>
+                  </button>
+                  <button onClick={() => { setActiveModal('cliente'); setIsMenuOpen(false); }} className="flex items-center gap-3 bg-[#18181b] border border-white/10 text-white px-5 py-3 rounded-2xl shadow-xl hover:bg-white/5 active:scale-95 transition-all w-full">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center"><UserPlus size={18}/></div>
+                    <span className="text-sm font-bold">Cliente</span>
+                  </button>
+                  <button onClick={() => { setActiveModal('agendamento'); setIsMenuOpen(false); }} className="flex items-center gap-3 bg-[#18181b] border border-white/10 text-white px-5 py-3 rounded-2xl shadow-xl hover:bg-white/5 active:scale-95 transition-all w-full">
+                    <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center"><CalendarPlus size={18}/></div>
+                    <span className="text-sm font-bold">Agendamento</span>
+                  </button>
+                </div>
+              )}
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-purple-500/30 hover:scale-105 transition-all duration-300 z-40 ${isMenuOpen ? 'bg-zinc-800 rotate-45' : 'bg-gradient-to-r from-purple-600 to-pink-600'}`}><Plus size={32} /></button>
+            </div>
+            <MenuIcon id="financeiro" icon={Wallet} label="Finanças" activeId={screen} onClick={setScreen} />
+            <MenuIcon id="clientes" icon={Users} label="Clientes" activeId={screen} onClick={setScreen} />
           </div>
-          <MenuIcon id="financeiro" icon={Wallet} label="Finanças" activeId={screen} onClick={setScreen} />
-          <MenuIcon id="clientes" icon={Users} label="Clientes" activeId={screen} onClick={setScreen} />
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-// --- APP CONTENT (AQUI FICA A LÓGICA DO SPLASH E DO INSTALL MODAL) ---
+// --- APP CONTENT ---
 const AppContent = () => {
   const { user, role, profissionalData, logout, loading: authLoading } = useAuth();
   
   const [splashFinished, setSplashFinished] = useState(false);
 
-  // 1. SPLASH
   if (!splashFinished) {
     return <SplashScreen onFinish={() => setSplashFinished(true)} />;
   }
 
-  // 2. LOADING AUTH
   if (authLoading) return null; 
 
-  // 3. LOGIN SCREEN (Se não tiver usuário)
   if (!user) return <LoginScreen />;
 
-  // 4. APP LOGADO (Admin ou Profissional) + MODAL DE INSTALAÇÃO
   return (
     <>
       {role === 'profissional' 
         ? <ProfessionalDashboard profissional={profissionalData} onLogout={logout} /> 
         : <AdminApp />
       }
-      {/* O Modal só aparece se o usuário estiver logado */}
       <InstallAppModal />
     </>
   );
