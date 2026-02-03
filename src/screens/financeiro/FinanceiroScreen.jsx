@@ -1,32 +1,24 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '../../services/supabase';
 import { 
-  TrendingUp, TrendingDown, DollarSign, Users, Receipt, 
-  Loader2, ArrowUpRight, ArrowDownRight, Target, BarChart3, 
-  Clock, Filter, Download, Share2, RefreshCw, Lightbulb, 
-  AlertTriangle, Calendar, ChevronLeft, FileText, PieChart as PieChartIcon,
-  Eye, EyeOff, CheckCircle, AlertCircle, Zap, Sparkles, Crown,
-  ChevronRight, ChevronDown, Plus, MoreVertical, Home, Wallet,
-  TrendingUp as TrendingUpIcon, Filter as FilterIcon, Settings,
-  CreditCard, LineChart as LineChartIcon, Activity, Target as TargetIcon,
-  ArrowRight, CircleDollarSign, Percent, Clock as ClockIcon,
-  CalendarDays, TrendingDown as TrendingDownIcon, WalletCards,
-  Briefcase, Store, Package, Scissors, Shirt, Palette, Gem,
-  ShoppingBag, CreditCard as CreditCardIcon, Banknote, Coins,
-  PiggyBank, Landmark, Calculator, ChartNoAxesColumn
+  TrendingUp, TrendingDown, DollarSign, Receipt, 
+  Loader2, ArrowUpRight, ArrowDownRight, Target, 
+  Clock, Download, Share2, RefreshCw, 
+  AlertTriangle, Calendar, ChevronLeft, FileText,
+  Eye, CheckCircle, AlertCircle, Zap,
+  ChevronRight, ChevronDown, Plus, MoreVertical,
+  CalendarDays, WalletCards, Edit2, Trash2, X,
+  TrendingUp as TrendingUpIcon, Filter, Search,
+  BarChart3, PieChart as PieChartIcon, Activity,
+  Check, Save, Home
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Bar, PieChart as RechartsPie, Pie, Cell,
-  Legend, LineChart, Line, ComposedChart, RadarChart,
-  PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ScatterChart, Scatter, Treemap, Sankey, FunnelChart, Funnel
+  ComposedChart, Line
 } from 'recharts';
 
-import { DespesasScreen } from './despesas'; 
-import { MetasScreen } from './metas';
-
-// --- COMPONENTES DE UI REUTILIZÁVEIS ---
+// ==================== COMPONENTES REUTILIZÁVEIS ====================
 
 const KPICard = ({ 
   titulo, 
@@ -41,12 +33,11 @@ const KPICard = ({
   onClick
 }) => {
   const colorClasses = {
-    purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', trend: 'bg-purple-100 text-purple-700' },
-    green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100', trend: 'bg-green-100 text-green-700' },
-    blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', trend: 'bg-blue-100 text-blue-700' },
-    orange: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', trend: 'bg-orange-100 text-orange-700' },
-    red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', trend: 'bg-red-100 text-red-700' },
-    pink: { bg: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-100', trend: 'bg-pink-100 text-pink-700' }
+    purple: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' },
+    green: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/20' },
+    blue: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
+    orange: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
+    red: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
   };
 
   const style = colorClasses[cor] || colorClasses.purple;
@@ -54,126 +45,52 @@ const KPICard = ({
   const formattedValue = useMemo(() => {
     if (loading) return '---';
     if (format === 'currency') {
-      return `R$ ${Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     } else if (format === 'percent') {
-      return `${Number(valor).toFixed(1)}%`;
+      return `${Number(valor || 0).toFixed(1)}%`;
     } else if (format === 'number') {
-      return Number(valor).toLocaleString('pt-BR');
+      return Number(valor || 0).toLocaleString('pt-BR');
     }
-    return valor;
+    return valor || '0';
   }, [valor, format, loading]);
 
   return (
     <div 
       onClick={onClick}
-      className={`relative bg-white p-6 rounded-2xl border-2 ${style.border} hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group cursor-pointer ${onClick ? 'hover:border-purple-300' : ''}`}
+      className={`relative bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border ${style.border} hover:bg-gray-800/70 transition-all duration-300 hover:scale-[1.02] ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-semibold text-gray-500">{titulo}</span>
-        <div className={`p-2.5 rounded-xl ${style.bg} shadow-sm group-hover:scale-110 transition-transform`}>
+        <span className="text-sm font-semibold text-gray-400">{titulo}</span>
+        <div className={`p-2.5 rounded-xl ${style.bg}`}>
           <Icon className={`w-5 h-5 ${style.text}`} />
         </div>
       </div>
       
       {loading ? (
         <div className="space-y-2">
-          <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
+          <div className="h-8 bg-gray-700/50 rounded animate-pulse"></div>
+          <div className="h-4 bg-gray-700/30 rounded animate-pulse w-2/3"></div>
         </div>
       ) : (
         <>
-          <div className="text-2xl font-bold text-gray-900 mb-2">{formattedValue}</div>
+          <div className="text-2xl font-bold text-white mb-2">{formattedValue}</div>
           
           <div className="flex items-center justify-between">
             {subTitulo && (
-              <span className="text-sm text-gray-500">{subTitulo}</span>
+              <span className="text-sm text-gray-400">{subTitulo}</span>
             )}
             
-            {trend && (
-              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${style.trend}`}>
-                {trend === 'up' ? (
-                  <>
-                    <ArrowUpRight className="w-4 h-4" />
-                    <span>+{trendValue}%</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownRight className="w-4 h-4" />
-                    <span>-{trendValue}%</span>
-                  </>
-                )}
+            {trend && trendValue > 0 && (
+              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                trend === 'up' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+              }`}>
+                {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                <span>{trend === 'up' ? '+' : '-'}{trendValue}%</span>
               </div>
             )}
           </div>
         </>
       )}
-      
-      {onClick && (
-        <div className="absolute -right-2 -bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full shadow-lg">
-            <ArrowRight className="w-4 h-4 text-white" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const AlertaCard = ({ alerta, onClose }) => {
-  const Icon = alerta.icon;
-  return (
-    <div className={`relative p-4 rounded-xl border ${alerta.bgCor} animate-pulse`}>
-      <button 
-        onClick={onClose}
-        className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
-      >
-        <AlertCircle className="w-4 h-4" />
-      </button>
-      <div className="flex items-start gap-3">
-        <Icon className={`w-5 h-5 mt-0.5 ${alerta.cor}`} />
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-gray-900">{alerta.titulo}</h4>
-            {alerta.valor && (
-              <span className="px-2.5 py-1 bg-white/80 rounded-full text-sm font-bold">
-                {alerta.valor}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-gray-600 mt-1">{alerta.descricao}</p>
-          {alerta.acao && (
-            <button className="mt-3 text-sm font-medium text-purple-600 hover:text-purple-700 flex items-center gap-1">
-              {alerta.acao}
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const InsightCard = ({ insight }) => {
-  const Icon = insight.icon;
-  return (
-    <div className={`p-4 rounded-xl border ${insight.bgCor} hover:shadow-md transition-shadow`}>
-      <div className="flex items-start gap-3">
-        <div className="p-2.5 rounded-lg bg-white/80">
-          <Icon className={`w-5 h-5 ${insight.cor}`} />
-        </div>
-        <div>
-          <h4 className="font-semibold text-gray-900">{insight.titulo}</h4>
-          <p className="text-sm text-gray-600 mt-1">{insight.descricao}</p>
-          {insight.dica && (
-            <div className="mt-2 p-2 bg-white/50 rounded-lg">
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <Lightbulb className="w-3 h-3" />
-                {insight.dica}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
@@ -185,131 +102,111 @@ const FiltroPeriodo = ({ periodo, setPeriodo, dataInicio, setDataInicio, dataFim
     { id: 'hoje', label: 'Hoje' },
     { id: 'semana', label: 'Esta Semana' },
     { id: 'mes', label: 'Este Mês' },
-    { id: 'trimestre', label: 'Este Trimestre' },
     { id: 'ano', label: 'Este Ano' },
     { id: 'personalizado', label: 'Personalizado' }
   ];
+
+  const handlePeriodoClick = (periodoId) => {
+    setPeriodo(periodoId);
+    setMostrarFiltros(false);
+    onAplicar();
+  };
 
   return (
     <div className="relative">
       <button
         onClick={() => setMostrarFiltros(!mostrarFiltros)}
-        className="px-4 py-2.5 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center gap-2 group"
+        className="px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl hover:bg-gray-800/70 flex items-center gap-2 transition-all"
       >
-        <CalendarDays className="w-5 h-5 text-gray-500" />
-        <span className="text-sm font-medium text-gray-700">
+        <CalendarDays className="w-5 h-5 text-gray-400" />
+        <span className="text-sm font-medium text-white">
           {periodos.find(p => p.id === periodo)?.label || 'Período'}
         </span>
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${mostrarFiltros ? 'rotate-180' : ''}`} />
       </button>
 
       {mostrarFiltros && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
-          <div className="p-4">
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Período Rápido</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {periodos.slice(0, -1).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      setPeriodo(p.id);
-                      setMostrarFiltros(false);
-                      onAplicar();
-                    }}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                      periodo === p.id 
-                        ? 'bg-purple-600 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {periodo === 'personalizado' && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMostrarFiltros(false)}></div>
+          <div className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+            <div className="p-4">
               <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">Datas Personalizadas</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">De</label>
-                    <input
-                      type="date"
-                      value={dataInicio}
-                      onChange={(e) => setDataInicio(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Até</label>
-                    <input
-                      type="date"
-                      value={dataFim}
-                      onChange={(e) => setDataFim(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    />
-                  </div>
+                <h4 className="text-sm font-semibold text-white mb-3">Período Rápido</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {periodos.slice(0, -1).map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => handlePeriodoClick(p.id)}
+                      className={`px-3 py-2 text-sm rounded-lg transition-all ${
+                        periodo === p.id 
+                          ? 'bg-purple-500 text-white' 
+                          : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
 
-            <button
-              onClick={() => {
-                onAplicar();
-                setMostrarFiltros(false);
-              }}
-              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
-            >
-              Aplicar Filtros
-            </button>
+              {periodo === 'personalizado' && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-white mb-3">Datas Personalizadas</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">De</label>
+                      <input
+                        type="date"
+                        value={dataInicio}
+                        onChange={(e) => setDataInicio(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-sm text-white focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Até</label>
+                      <input
+                        type="date"
+                        value={dataFim}
+                        onChange={(e) => setDataFim(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-sm text-white focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  onAplicar();
+                  setMostrarFiltros(false);
+                }}
+                className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all"
+              >
+                Aplicar Filtros
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
 };
 
-// --- COMPONENTES DE TABS ---
+// ==================== 1. VISÃO GERAL ====================
 
-const OverviewTab = ({ 
+const VisaoGeralTab = ({ 
   resumoFinanceiro, 
   evolucaoReceitas, 
   distribuicaoDespesas,
-  alertas,
-  insights,
-  contasAVencer,
-  topClientes,
   loading 
 }) => {
-  const [mostrarDetalhes, setMostrarDetalhes] = useState(true);
-
   return (
     <div className="space-y-6">
-      {/* Alertas em Destaque */}
-      {alertas.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-orange-500" />
-              Alertas do Sistema
-            </h3>
-            <button className="text-sm text-gray-500 hover:text-gray-700">
-              Marcar todos como lidos
-            </button>
-          </div>
-          {alertas.map((alerta, idx) => (
-            <AlertaCard key={idx} alerta={alerta} />
-          ))}
-        </div>
-      )}
-
       {/* KPIs Principais */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           titulo="Receita Bruta"
-          valor={resumoFinanceiro.receitaBruta}
+          valor={resumoFinanceiro.receita_bruta || 0}
           icone={DollarSign}
           cor="green"
           trend="up"
@@ -320,62 +217,59 @@ const OverviewTab = ({
         />
         
         <KPICard
-          titulo="Lucro Líquido"
-          valor={resumoFinanceiro.lucroLiquido}
-          icone={TrendingUp}
-          cor={resumoFinanceiro.lucroLiquido >= 0 ? "blue" : "red"}
-          trend={resumoFinanceiro.lucroLiquido >= 0 ? "up" : "down"}
-          trendValue={8.7}
-          loading={loading}
-          subTitulo={`Margem: ${resumoFinanceiro.margemLucro.toFixed(1)}%`}
-          format="currency"
-        />
-        
-        <KPICard
-          titulo="Despesas Totais"
-          valor={resumoFinanceiro.despesasPagas + resumoFinanceiro.despesasPendentes}
+          titulo="Despesas"
+          valor={(resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)}
           icone={Receipt}
           cor="orange"
           trend="down"
           trendValue={3.2}
           loading={loading}
-          subTitulo={`${resumoFinanceiro.despesasPendentes > 0 ? resumoFinanceiro.despesasPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' pendentes' : 'Todas pagas'}`}
+          subTitulo={`${resumoFinanceiro.despesas_pendentes > 0 ? 'R$ ' + (resumoFinanceiro.despesas_pendentes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' pendentes' : 'Todas pagas'}`}
           format="currency"
         />
         
         <KPICard
-          titulo="Contas a Vencer"
-          valor={contasAVencer.length}
-          icone={Clock}
-          cor={contasAVencer.length > 0 ? "red" : "green"}
+          titulo="Lucro Líquido"
+          valor={resumoFinanceiro.lucro_liquido || 0}
+          icone={TrendingUp}
+          cor={(resumoFinanceiro.lucro_liquido || 0) >= 0 ? "blue" : "red"}
+          trend={(resumoFinanceiro.lucro_liquido || 0) >= 0 ? "up" : "down"}
+          trendValue={8.7}
           loading={loading}
-          subTitulo="Próximos 7 dias"
-          format="number"
+          format="currency"
+        />
+        
+        <KPICard
+          titulo="Margem de Lucro"
+          valor={resumoFinanceiro.margem_lucro || 0}
+          icone={Activity}
+          cor={(resumoFinanceiro.margem_lucro || 0) >= 20 ? "green" : (resumoFinanceiro.margem_lucro || 0) >= 10 ? "blue" : "red"}
+          loading={loading}
+          subTitulo="Rentabilidade"
+          format="percent"
         />
       </div>
 
-      {/* Gráficos e Análises */}
+      {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Gráfico de Evolução */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="lg:col-span-2 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">📈 Evolução Financeira</h3>
-              <p className="text-sm text-gray-500">Receita vs Despesas nos últimos meses</p>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-purple-400" />
+                Evolução Financeira
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">Receita vs Despesas (últimos meses)</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-lg">
-                <Eye className="w-5 h-5 text-gray-500" />
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-lg">
-                <Download className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+            <button className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors">
+              <Download className="w-5 h-5 text-gray-400" />
+            </button>
           </div>
-          <div className="h-72">
+          <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={evolucaoReceitas}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis 
                   dataKey="mes" 
                   axisLine={false}
@@ -389,20 +283,22 @@ const OverviewTab = ({
                   tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`}
                 />
                 <Tooltip 
-                  formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']}
+                  formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
                   contentStyle={{ 
+                    backgroundColor: '#1f2937',
                     borderRadius: '12px', 
-                    border: 'none', 
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
                     padding: '12px'
                   }}
+                  labelStyle={{ color: '#fff' }}
                 />
                 <Bar 
                   dataKey="receita" 
                   name="Receita" 
                   fill="#10b981" 
-                  radius={[4, 4, 0, 0]}
-                  barSize={24}
+                  radius={[8, 8, 0, 0]}
+                  barSize={32}
                 />
                 <Area 
                   type="monotone" 
@@ -419,8 +315,8 @@ const OverviewTab = ({
                   name="Lucro" 
                   stroke="#3b82f6" 
                   strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
+                  dot={{ r: 5, strokeWidth: 2, fill: '#3b82f6' }}
+                  activeDot={{ r: 7 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -428,101 +324,54 @@ const OverviewTab = ({
         </div>
 
         {/* Distribuição de Despesas */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">📊 Distribuição de Despesas</h3>
-              <p className="text-sm text-gray-500">Por categoria (último mês)</p>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <PieChartIcon className="w-5 h-5 text-purple-400" />
+                Distribuição
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">Despesas por categoria</p>
             </div>
-            <button 
-              onClick={() => setMostrarDetalhes(!mostrarDetalhes)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              {mostrarDetalhes ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPie>
-                <Pie
-                  data={distribuicaoDespesas}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {distribuicaoDespesas.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#f472b6'][index % 6]} 
-                    />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']}
-                />
-                {mostrarDetalhes && <Legend />}
-              </RechartsPie>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Insights e Top Clientes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Insights Inteligentes */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <Lightbulb className="w-5 h-5 text-purple-500" />
-            <h3 className="text-lg font-bold text-gray-900">💡 Insights Inteligentes</h3>
-          </div>
-          <div className="space-y-4">
-            {insights.map((insight, idx) => (
-              <InsightCard key={idx} insight={insight} />
-            ))}
-          </div>
-        </div>
-
-        {/* Top Clientes */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900">🏆 Top Clientes</h3>
-            <span className="text-sm text-gray-500">Maior faturamento</span>
-          </div>
-          <div className="space-y-4">
-            {topClientes.slice(0, 5).map((cliente, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                      {cliente.cliente_nome?.substring(0, 2).toUpperCase() || 'CL'}
-                    </div>
-                    {index < 3 && (
-                      <div className="absolute -top-1 -right-1">
-                        <Crown className={`w-5 h-5 ${
-                          index === 0 ? 'text-yellow-500' : 
-                          index === 1 ? 'text-gray-400' : 
-                          'text-orange-500'
-                        }`} />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{cliente.cliente_nome || 'Cliente'}</p>
-                    <p className="text-sm text-gray-500">{cliente.total_visitas || 0} atendimentos</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-900">
-                    R$ {(cliente.total_gasto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-sm text-gray-500">Total gasto</p>
-                </div>
+          <div className="h-80">
+            {distribuicaoDespesas.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPie>
+                  <Pie
+                    data={distribuicaoDespesas}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={3}
+                    dataKey="total"
+                    label={({ categoria, percent }) => `${categoria}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {distribuicaoDespesas.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#f472b6'][index % 6]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937',
+                      borderRadius: '12px', 
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '12px'
+                    }}
+                    labelStyle={{ color: '#fff' }}
+                  />
+                </RechartsPie>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-gray-500 text-sm">Nenhuma despesa registrada</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -530,292 +379,1134 @@ const OverviewTab = ({
   );
 };
 
-const ClientesTab = ({ topClientes, loading }) => {
-  const [filtroCliente, setFiltroCliente] = useState('todos');
+// ==================== 2. DESPESAS ====================
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
-      </div>
-    );
-  }
+const DespesasTab = ({ onRefresh }) => {
+  const [despesas, setDespesas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtro, setFiltro] = useState('todas');
+  const [categoriaFiltro, setCategoriaFiltro] = useState('todas');
+  const [busca, setBusca] = useState('');
+  const [modalAberto, setModalAberto] = useState(false);
+  const [despesaEditando, setDespesaEditando] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+
+  const categorias = ['Aluguel', 'Energia', 'Água', 'Produtos', 'Salários', 'Marketing', 'Manutenção', 'Outros'];
+
+  const [formData, setFormData] = useState({
+    descricao: '',
+    categoria: '',
+    valor: '',
+    data_vencimento: new Date().toISOString().split('T')[0],
+    pago: false,
+    data_pagamento: null
+  });
+
+  const carregarDespesas = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('despesas')
+        .select('*')
+        .order('data_vencimento', { ascending: false });
+
+      if (error) throw error;
+      setDespesas(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar despesas:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarDespesas();
+  }, [carregarDespesas]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSalvando(true);
+
+    try {
+      const despesaData = {
+        ...formData,
+        valor: parseFloat(formData.valor),
+        data_pagamento: formData.pago ? (formData.data_pagamento || new Date().toISOString()) : null
+      };
+
+      if (despesaEditando) {
+        const { error } = await supabase
+          .from('despesas')
+          .update(despesaData)
+          .eq('id', despesaEditando.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('despesas')
+          .insert([despesaData]);
+        
+        if (error) throw error;
+      }
+
+      setModalAberto(false);
+      setDespesaEditando(null);
+      resetForm();
+      carregarDespesas();
+      onRefresh();
+    } catch (error) {
+      console.error('Erro ao salvar despesa:', error);
+      alert('Erro ao salvar despesa. Tente novamente.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const marcarComoPaga = async (despesa) => {
+    try {
+      const { error } = await supabase
+        .from('despesas')
+        .update({ 
+          pago: true,
+          data_pagamento: new Date().toISOString()
+        })
+        .eq('id', despesa.id);
+
+      if (error) throw error;
+      carregarDespesas();
+      onRefresh();
+    } catch (error) {
+      console.error('Erro ao marcar como paga:', error);
+    }
+  };
+
+  const excluirDespesa = async (id) => {
+    if (!confirm('Deseja realmente excluir esta despesa?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('despesas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      carregarDespesas();
+      onRefresh();
+    } catch (error) {
+      console.error('Erro ao excluir despesa:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      descricao: '',
+      categoria: '',
+      valor: '',
+      data_vencimento: new Date().toISOString().split('T')[0],
+      pago: false,
+      data_pagamento: null
+    });
+  };
+
+  const editarDespesa = (despesa) => {
+    setDespesaEditando(despesa);
+    setFormData({
+      descricao: despesa.descricao,
+      categoria: despesa.categoria,
+      valor: despesa.valor.toString(),
+      data_vencimento: despesa.data_vencimento,
+      pago: despesa.pago,
+      data_pagamento: despesa.data_pagamento
+    });
+    setModalAberto(true);
+  };
+
+  const despesasFiltradas = useMemo(() => {
+    return despesas.filter(d => {
+      const matchFiltro = filtro === 'todas' || 
+        (filtro === 'pagas' && d.pago) || 
+        (filtro === 'pendentes' && !d.pago);
+      
+      const matchCategoria = categoriaFiltro === 'todas' || d.categoria === categoriaFiltro;
+      
+      const matchBusca = busca === '' || 
+        d.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
+        d.categoria?.toLowerCase().includes(busca.toLowerCase());
+
+      return matchFiltro && matchCategoria && matchBusca;
+    });
+  }, [despesas, filtro, categoriaFiltro, busca]);
+
+  const totalDespesas = despesasFiltradas.reduce((acc, d) => acc + (d.valor || 0), 0);
+  const totalPagas = despesasFiltradas.filter(d => d.pago).reduce((acc, d) => acc + (d.valor || 0), 0);
+  const totalPendentes = despesasFiltradas.filter(d => !d.pago).reduce((acc, d) => acc + (d.valor || 0), 0);
 
   return (
     <div className="space-y-6">
-      {/* Métricas de Clientes */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard
-          titulo="Clientes Totais"
-          valor={topClientes.length}
-          icone={Users}
-          cor="purple"
-          trend="up"
-          trendValue={5.2}
-          format="number"
-        />
-        <KPICard
-          titulo="Ticket Médio"
-          valor={topClientes.reduce((acc, c) => acc + (c.total_gasto || 0), 0) / (topClientes.length || 1)}
-          icone={DollarSign}
-          cor="green"
-          trend="up"
-          trendValue={3.8}
-          format="currency"
-        />
-        <KPICard
-          titulo="Frequência"
-          valor="2.3x"
-          icone={TrendingUpIcon}
-          cor="blue"
-          subTitulo="por mês"
-        />
-        <KPICard
-          titulo="Retenção"
-          valor="78%"
-          icone={Target}
-          cor="orange"
-          trend="up"
-          trendValue={2.1}
-          format="percent"
-        />
+      {/* Resumo */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-400">Total</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                R$ {totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <Receipt className="w-8 h-8 text-purple-400" />
+          </div>
+        </div>
+        <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-400">Pagas</p>
+              <p className="text-2xl font-bold text-green-400 mt-1">
+                R$ {totalPagas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-green-400" />
+          </div>
+        </div>
+        <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-400">Pendentes</p>
+              <p className="text-2xl font-bold text-orange-400 mt-1">
+                R$ {totalPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <Clock className="w-8 h-8 text-orange-400" />
+          </div>
+        </div>
       </div>
 
-      {/* Lista de Clientes */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">📋 Base de Clientes</h3>
-              <p className="text-sm text-gray-500">{topClientes.length} clientes encontrados</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={filtroCliente}
-                onChange={(e) => setFiltroCliente(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+      {/* Filtros e Ações */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {['todas', 'pagas', 'pendentes'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFiltro(f)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  filtro === f 
+                    ? 'bg-purple-500 text-white' 
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                }`}
               >
-                <option value="todos">Todos os Clientes</option>
-                <option value="vip">Clientes VIP</option>
-                <option value="recorrente">Recorrentes</option>
-                <option value="novo">Novos</option>
-              </select>
-              <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Novo Cliente
+                {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 lg:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar despesa..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none text-sm"
+              />
+            </div>
+
+            <select
+              value={categoriaFiltro}
+              onChange={(e) => setCategoriaFiltro(e.target.value)}
+              className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none text-sm"
+            >
+              <option value="todas">Todas Categorias</option>
+              {categorias.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => {
+                setDespesaEditando(null);
+                resetForm();
+                setModalAberto(true);
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Despesa
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Despesas */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          </div>
+        ) : despesasFiltradas.length === 0 ? (
+          <div className="text-center py-12">
+            <Receipt className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400">Nenhuma despesa encontrada</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-700/50 border-b border-gray-600">
+                <tr>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Descrição</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Categoria</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Valor</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Vencimento</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700/50">
+                {despesasFiltradas.map((despesa) => (
+                  <tr key={despesa.id} className="hover:bg-gray-700/30 transition-colors">
+                    <td className="py-4 px-6">
+                      <p className="font-medium text-white">{despesa.descricao}</p>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-medium">
+                        {despesa.categoria}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <p className="font-bold text-white">
+                        R$ {(despesa.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </td>
+                    <td className="py-4 px-6">
+                      <p className="text-sm text-gray-300">
+                        {new Date(despesa.data_vencimento).toLocaleDateString('pt-BR')}
+                      </p>
+                    </td>
+                    <td className="py-4 px-6">
+                      {despesa.pago ? (
+                        <span className="flex items-center gap-2 text-green-400 text-sm">
+                          <CheckCircle className="w-4 h-4" />
+                          Paga
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2 text-orange-400 text-sm">
+                          <Clock className="w-4 h-4" />
+                          Pendente
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        {!despesa.pago && (
+                          <button
+                            onClick={() => marcarComoPaga(despesa)}
+                            className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                            title="Marcar como paga"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => editarDespesa(despesa)}
+                          className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => excluirDespesa(despesa.id)}
+                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal de Criar/Editar */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-800">
+              <h3 className="text-xl font-bold text-white">
+                {despesaEditando ? 'Editar Despesa' : 'Nova Despesa'}
+              </h3>
+              <button
+                onClick={() => {
+                  setModalAberto(false);
+                  setDespesaEditando(null);
+                  resetForm();
+                }}
+                className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.descricao}
+                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  placeholder="Ex: Conta de luz"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Categoria</label>
+                <select
+                  required
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="">Selecione...</option>
+                  {categorias.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Valor (R$)</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  min="0"
+                  value={formData.valor}
+                  onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  placeholder="0,00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Data de Vencimento</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.data_vencimento}
+                  onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-gray-700/30 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="pago"
+                  checked={formData.pago}
+                  onChange={(e) => setFormData({ ...formData, pago: e.target.checked })}
+                  className="w-5 h-5 rounded border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-800"
+                />
+                <label htmlFor="pago" className="text-sm font-medium text-gray-300 cursor-pointer">
+                  Marcar como paga
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalAberto(false);
+                    setDespesaEditando(null);
+                    resetForm();
+                  }}
+                  className="flex-1 px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  {salvando ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      SALVAR DESPESA
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== 3. METAS ====================
+
+const MetasTab = ({ resumoFinanceiro }) => {
+  const [metas, setMetas] = useState([
+    {
+      id: 1,
+      tipo: 'faturamento',
+      titulo: 'Meta de Faturamento',
+      valorMeta: 50000,
+      valorAtual: resumoFinanceiro.receita_bruta || 0,
+      periodo: 'Mensal',
+      icon: DollarSign,
+      color: 'green'
+    },
+    {
+      id: 2,
+      tipo: 'lucro',
+      titulo: 'Meta de Lucro',
+      valorMeta: 15000,
+      valorAtual: resumoFinanceiro.lucro_liquido || 0,
+      periodo: 'Mensal',
+      icon: TrendingUp,
+      color: 'blue'
+    },
+    {
+      id: 3,
+      tipo: 'despesas',
+      titulo: 'Limite de Despesas',
+      valorMeta: 35000,
+      valorAtual: (resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0),
+      periodo: 'Mensal',
+      icon: Receipt,
+      color: 'orange',
+      inverso: true
+    }
+  ]);
+
+  const [modalAberto, setModalAberto] = useState(false);
+  const [metaEditando, setMetaEditando] = useState(null);
+  const [formMeta, setFormMeta] = useState({
+    titulo: '',
+    valorMeta: '',
+    periodo: 'Mensal',
+    tipo: 'faturamento'
+  });
+
+  const abrirModalNovaMeta = () => {
+    setMetaEditando(null);
+    setFormMeta({
+      titulo: '',
+      valorMeta: '',
+      periodo: 'Mensal',
+      tipo: 'faturamento'
+    });
+    setModalAberto(true);
+  };
+
+  const abrirModalEditarMeta = (meta) => {
+    setMetaEditando(meta);
+    setFormMeta({
+      titulo: meta.titulo,
+      valorMeta: meta.valorMeta.toString(),
+      periodo: meta.periodo,
+      tipo: meta.tipo
+    });
+    setModalAberto(true);
+  };
+
+  const salvarMeta = () => {
+    console.log('Salvando meta:', formMeta);
+    
+    if (!formMeta.titulo || !formMeta.valorMeta) {
+      alert('Preencha todos os campos');
+      return;
+    }
+
+    if (metaEditando) {
+      // Editar meta existente
+      setMetas(metas.map(m => 
+        m.id === metaEditando.id 
+          ? { ...m, ...formMeta, valorMeta: parseFloat(formMeta.valorMeta) }
+          : m
+      ));
+      alert('Meta atualizada com sucesso!');
+    } else {
+      // Criar nova meta
+      const novaMeta = {
+        id: Date.now(),
+        ...formMeta,
+        valorMeta: parseFloat(formMeta.valorMeta),
+        valorAtual: 0,
+        icon: formMeta.tipo === 'faturamento' ? DollarSign : formMeta.tipo === 'lucro' ? TrendingUp : Receipt,
+        color: formMeta.tipo === 'faturamento' ? 'green' : formMeta.tipo === 'lucro' ? 'blue' : 'orange',
+        inverso: formMeta.tipo === 'despesas'
+      };
+      setMetas([...metas, novaMeta]);
+      alert('Meta criada com sucesso!');
+    }
+
+    setModalAberto(false);
+    setFormMeta({ titulo: '', valorMeta: '', periodo: 'Mensal', tipo: 'faturamento' });
+  };
+
+  const calcularProgresso = (meta) => {
+    if (meta.inverso) {
+      return meta.valorAtual <= meta.valorMeta 
+        ? 100 
+        : Math.max(0, 100 - ((meta.valorAtual - meta.valorMeta) / meta.valorMeta * 100));
+    }
+    return Math.min(100, (meta.valorAtual / meta.valorMeta) * 100);
+  };
+
+  const getStatusMeta = (progresso, inverso) => {
+    if (inverso) {
+      if (progresso >= 90) return { label: 'Dentro do Limite', color: 'text-green-400', bg: 'bg-green-500/20' };
+      if (progresso >= 70) return { label: 'Atenção', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
+      return { label: 'Acima do Limite', color: 'text-red-400', bg: 'bg-red-500/20' };
+    }
+    if (progresso >= 100) return { label: 'Atingida', color: 'text-green-400', bg: 'bg-green-500/20' };
+    if (progresso >= 70) return { label: 'Em Progresso', color: 'text-blue-400', bg: 'bg-blue-500/20' };
+    return { label: 'Em Risco', color: 'text-red-400', bg: 'bg-red-500/20' };
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Metas Financeiras</h2>
+          <p className="text-gray-400 mt-1">Acompanhe o progresso das suas metas</p>
+        </div>
+        <button
+          onClick={abrirModalNovaMeta}
+          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          Nova Meta
+        </button>
+      </div>
+
+      {/* Cards de Metas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {metas.map((meta) => {
+          const Icon = meta.icon;
+          const progresso = calcularProgresso(meta);
+          const status = getStatusMeta(progresso, meta.inverso);
+
+          return (
+            <div key={meta.id} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-3 rounded-xl bg-${meta.color}-500/10`}>
+                  <Icon className={`w-6 h-6 text-${meta.color}-400`} />
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
+                  {status.label}
+                </span>
+              </div>
+
+              <h3 className="text-lg font-bold text-white mb-2">{meta.titulo}</h3>
+              <p className="text-sm text-gray-400 mb-4">{meta.periodo}</p>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Atual</span>
+                  <span className="font-bold text-white">
+                    R$ {meta.valorAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Meta</span>
+                  <span className="font-bold text-white">
+                    R$ {meta.valorMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                {/* Barra de Progresso */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-400">Progresso</span>
+                    <span className="text-xs font-bold text-white">{progresso.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-3 bg-gray-700/50 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full bg-gradient-to-r transition-all duration-500 ${
+                        meta.color === 'green' ? 'from-green-500 to-green-600' :
+                        meta.color === 'blue' ? 'from-blue-500 to-blue-600' :
+                        'from-orange-500 to-orange-600'
+                      }`}
+                      style={{ width: `${Math.min(100, progresso)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Faltante/Excedente */}
+                <div className="pt-2 border-t border-gray-700">
+                  <p className="text-xs text-gray-400">
+                    {meta.inverso ? (
+                      meta.valorAtual <= meta.valorMeta ? (
+                        <>
+                          <span className="text-green-400 font-medium">
+                            R$ {(meta.valorMeta - meta.valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                          {' '}disponível no orçamento
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-red-400 font-medium">
+                            R$ {(meta.valorAtual - meta.valorMeta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                          {' '}acima do limite
+                        </>
+                      )
+                    ) : (
+                      progresso >= 100 ? (
+                        <>
+                          Meta atingida! 
+                          <span className="text-green-400 font-medium">
+                            {' '}+R$ {(meta.valorAtual - meta.valorMeta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Faltam{' '}
+                          <span className="text-orange-400 font-medium">
+                            R$ {(meta.valorMeta - meta.valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </>
+                      )
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => abrirModalEditarMeta(meta)}
+                className="w-full mt-4 py-2 text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
+              >
+                Editar Meta
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal de Criar/Editar Meta */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md">
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">
+                {metaEditando ? 'Editar Meta' : 'Nova Meta'}
+              </h3>
+              <button
+                onClick={() => setModalAberto(false)}
+                className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Meta</label>
+                <select
+                  value={formMeta.tipo}
+                  onChange={(e) => setFormMeta({ ...formMeta, tipo: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="faturamento">Faturamento</option>
+                  <option value="lucro">Lucro</option>
+                  <option value="despesas">Limite de Despesas</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Título da Meta</label>
+                <input
+                  type="text"
+                  value={formMeta.titulo}
+                  onChange={(e) => setFormMeta({ ...formMeta, titulo: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  placeholder="Ex: Meta de Faturamento Mensal"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Valor da Meta (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formMeta.valorMeta}
+                  onChange={(e) => setFormMeta({ ...formMeta, valorMeta: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                  placeholder="0,00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Período</label>
+                <select
+                  value={formMeta.periodo}
+                  onChange={(e) => setFormMeta({ ...formMeta, periodo: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="Diário">Diário</option>
+                  <option value="Semanal">Semanal</option>
+                  <option value="Mensal">Mensal</option>
+                  <option value="Trimestral">Trimestral</option>
+                  <option value="Anual">Anual</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-gray-700">
+                <button
+                  onClick={() => setModalAberto(false)}
+                  className="flex-1 px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={salvarMeta}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Save className="w-5 h-5" />
+                  SALVAR META
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contato</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Atendimentos</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Gasto</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Última Visita</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {topClientes.map((cliente, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                        {cliente.cliente_nome?.substring(0, 2).toUpperCase() || 'CL'}
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{cliente.cliente_nome || 'Cliente'}</div>
-                        <div className="text-sm text-gray-500">ID: {cliente.cliente_id?.substring(0, 8) || 'N/A'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="text-sm text-gray-900">cliente@email.com</div>
-                    <div className="text-sm text-gray-500">(11) 99999-9999</div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                        {cliente.total_visitas || 0} vezes
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="text-lg font-bold text-gray-900">
-                      R$ {(cliente.total_gasto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="text-sm text-gray-900">15/02/2024</div>
-                    <div className="text-xs text-gray-500">há 2 dias</div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Ver histórico">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg" title="Editar">
-                        <FileText className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg" title="Enviar mensagem">
-                        <Share2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Insights */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <Zap className="w-5 h-5 text-purple-400" />
+          Insights sobre Metas
+        </h3>
+        <div className="space-y-3">
+          {metas.map((meta) => {
+            const progresso = calcularProgresso(meta);
+            if (meta.inverso) {
+              if (progresso < 70) {
+                return (
+                  <div key={meta.id} className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                    <p className="text-sm text-red-300">
+                      <AlertTriangle className="w-4 h-4 inline mr-2" />
+                      <strong>{meta.titulo}:</strong> Você está {(((meta.valorAtual / meta.valorMeta) - 1) * 100).toFixed(1)}% 
+                      acima do limite estabelecido. Considere revisar suas despesas.
+                    </p>
+                  </div>
+                );
+              }
+            } else {
+              if (progresso >= 100) {
+                return (
+                  <div key={meta.id} className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                    <p className="text-sm text-green-300">
+                      <CheckCircle className="w-4 h-4 inline mr-2" />
+                      <strong>{meta.titulo}:</strong> Parabéns! Você atingiu {progresso.toFixed(1)}% da meta. 
+                      Continue com o ótimo trabalho!
+                    </p>
+                  </div>
+                );
+              } else if (progresso < 50) {
+                return (
+                  <div key={meta.id} className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                    <p className="text-sm text-orange-300">
+                      <AlertCircle className="w-4 h-4 inline mr-2" />
+                      <strong>{meta.titulo}:</strong> Você está em {progresso.toFixed(1)}% da meta. 
+                      Faltam R$ {(meta.valorMeta - meta.valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para atingir o objetivo.
+                    </p>
+                  </div>
+                );
+              }
+            }
+            return null;
+          }).filter(Boolean)}
         </div>
       </div>
     </div>
   );
 };
 
-const RelatoriosTab = () => {
+// ==================== 4. RELATÓRIOS ====================
+
+const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesas }) => {
   const [tipoRelatorio, setTipoRelatorio] = useState('financeiro');
   const [formato, setFormato] = useState('pdf');
+  const [periodo, setPeriodo] = useState('mes');
+  const [gerando, setGerando] = useState(false);
+
+  const gerarRelatorio = () => {
+    setGerando(true);
+    
+    // Simular geração de relatório
+    setTimeout(() => {
+      const relatorioSelecionado = relatorios.find(r => r.id === tipoRelatorio);
+      
+      if (formato === 'csv') {
+        gerarCSV();
+      } else if (formato === 'excel') {
+        gerarExcel();
+      } else {
+        gerarPDF();
+      }
+      
+      setGerando(false);
+    }, 1500);
+  };
+
+  const gerarCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Relatório Financeiro\n\n";
+    csvContent += "Indicador,Valor\n";
+    csvContent += `Receita Bruta,R$ ${(resumoFinanceiro.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+    csvContent += `Despesas Totais,R$ ${((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+    csvContent += `Lucro Líquido,R$ ${(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+    csvContent += `Margem de Lucro,${(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%\n\n`;
+    
+    csvContent += "Evolução Mensal\n";
+    csvContent += "Mês,Receita,Despesas,Lucro\n";
+    evolucaoReceitas.forEach(item => {
+      csvContent += `${item.mes},${item.receita},${item.despesas},${item.lucro}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert('Relatório CSV gerado com sucesso!');
+  };
+
+  const gerarExcel = () => {
+    // Para Excel real, você precisaria de uma biblioteca como xlsx
+    alert('Para gerar Excel real, instale: npm install xlsx\n\nPor enquanto, gerando CSV...');
+    gerarCSV();
+  };
+
+  const gerarPDF = () => {
+    // Para PDF real, você precisaria de uma biblioteca como jsPDF
+    const content = `
+RELATÓRIO FINANCEIRO
+Data: ${new Date().toLocaleDateString('pt-BR')}
+Período: ${periodo}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RESUMO FINANCEIRO
+
+Receita Bruta:        R$ ${(resumoFinanceiro.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Despesas Totais:      R$ ${((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Lucro Líquido:        R$ ${(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Margem de Lucro:      ${(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EVOLUÇÃO MENSAL
+
+${evolucaoReceitas.map(item => 
+  `${item.mes}: Receita R$ ${item.receita.toFixed(2)} | Despesas R$ ${item.despesas.toFixed(2)} | Lucro R$ ${item.lucro.toFixed(2)}`
+).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DESPESAS POR CATEGORIA
+
+${distribuicaoDespesas.map(item => 
+  `${item.categoria}: R$ ${item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
+    `.trim();
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    alert('Relatório gerado com sucesso!\n\nNota: Para PDF real com formatação profissional, instale as bibliotecas:\n- npm install jspdf\n- npm install jspdf-autotable');
+  };
 
   const relatorios = [
     {
       id: 'financeiro',
-      titulo: 'Relatório Financeiro Completo',
-      descricao: 'Receitas, despesas, lucro e análise detalhada',
+      titulo: 'Relatório Financeiro',
+      descricao: 'Receitas, despesas e lucro detalhado',
       icon: DollarSign,
-      color: 'text-green-600 bg-green-50'
+      color: 'text-green-400 bg-green-500/10'
     },
     {
-      id: 'clientes',
-      titulo: 'Análise de Clientes',
-      descricao: 'Perfil, comportamento e faturamento por cliente',
-      icon: Users,
-      color: 'text-blue-600 bg-blue-50'
+      id: 'despesas',
+      titulo: 'Análise de Despesas',
+      descricao: 'Despesas por categoria e período',
+      icon: Receipt,
+      color: 'text-orange-400 bg-orange-500/10'
     },
     {
       id: 'desempenho',
-      titulo: 'Desempenho Mensal',
-      descricao: 'KPIs, metas e indicadores de performance',
+      titulo: 'Desempenho',
+      descricao: 'KPIs e indicadores de performance',
       icon: TrendingUp,
-      color: 'text-purple-600 bg-purple-50'
-    },
-    {
-      id: 'tendencias',
-      titulo: 'Análise de Tendências',
-      descricao: 'Projeções e insights para o próximo período',
-      icon: LineChartIcon,
-      color: 'text-orange-600 bg-orange-50'
+      color: 'text-purple-400 bg-purple-500/10'
     }
   ];
 
   return (
     <div className="space-y-6">
       {/* Seletor de Relatório */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {relatorios.map((relatorio) => {
           const Icon = relatorio.icon;
           return (
             <button
               key={relatorio.id}
               onClick={() => setTipoRelatorio(relatorio.id)}
-              className={`p-6 rounded-2xl border-2 text-left transition-all ${
+              className={`p-6 rounded-2xl border text-left transition-all ${
                 tipoRelatorio === relatorio.id
-                  ? 'border-purple-600 bg-purple-50 shadow-lg'
-                  : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                  ? 'border-purple-500 bg-purple-500/10'
+                  : 'border-gray-700 bg-gray-800/50 hover:bg-gray-800/70'
               }`}
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-3 rounded-xl ${relatorio.color}`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-                <h3 className="font-bold text-gray-900">{relatorio.titulo}</h3>
+              <div className={`p-3 rounded-xl ${relatorio.color} w-fit mb-4`}>
+                <Icon className="w-6 h-6" />
               </div>
-              <p className="text-sm text-gray-600">{relatorio.descricao}</p>
+              <h3 className="font-bold text-white mb-2">{relatorio.titulo}</h3>
+              <p className="text-sm text-gray-400">{relatorio.descricao}</p>
             </button>
           );
         })}
       </div>
 
-      {/* Configurações do Relatório */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">⚙️ Configurar Relatório</h3>
+      {/* Configurações */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+        <h3 className="text-lg font-bold text-white mb-6">Configurar Relatório</h3>
         
         <div className="space-y-6">
           {/* Período */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">Período do Relatório</label>
+            <label className="block text-sm font-medium text-gray-300 mb-3">Período</label>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {['Este mês', 'Últimos 3 meses', 'Este ano', 'Personalizado'].map((periodo) => (
+              {['Este mês', 'Últimos 3 meses', 'Este ano', 'Personalizado'].map((p) => (
                 <button
-                  key={periodo}
-                  className="px-4 py-3 border border-gray-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors text-sm font-medium"
+                  key={p}
+                  onClick={() => setPeriodo(p.toLowerCase().replace(/ /g, '_'))}
+                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                    periodo === p.toLowerCase().replace(/ /g, '_')
+                      ? 'bg-purple-500 text-white'
+                      : 'border border-gray-700 text-gray-300 hover:bg-gray-700/50'
+                  }`}
                 >
-                  {periodo}
+                  {p}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Formato e Seções */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">Formato de Exportação</label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: 'pdf', label: 'PDF', icon: FileText },
-                  { id: 'excel', label: 'Excel', icon: BarChart3 },
-                  { id: 'csv', label: 'CSV', icon: Calculator }
-                ].map((fmt) => {
-                  const Icon = fmt.icon;
-                  return (
-                    <button
-                      key={fmt.id}
-                      onClick={() => setFormato(fmt.id)}
-                      className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${
-                        formato === fmt.id
-                          ? 'border-purple-600 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5 text-gray-600" />
-                      <span className="text-sm font-medium">{fmt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Formato */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-3">Formato de Exportação</label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: 'pdf', label: 'PDF', icon: FileText },
+                { id: 'excel', label: 'Excel', icon: BarChart3 },
+                { id: 'csv', label: 'CSV', icon: Download }
+              ].map((fmt) => {
+                const Icon = fmt.icon;
+                return (
+                  <button
+                    key={fmt.id}
+                    onClick={() => setFormato(fmt.id)}
+                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                      formato === fmt.id
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : 'border-gray-700 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm font-medium text-white">{fmt.label}</span>
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">Seções do Relatório</label>
-              <div className="space-y-3">
-                {[
-                  'Resumo Executivo',
-                  'Análise de Receitas',
-                  'Detalhamento de Despesas',
-                  'Perfil de Clientes',
-                  'Atingimento de Metas',
-                  'Insights Automáticos'
-                ].map((secao) => (
-                  <label key={secao} className="flex items-center gap-3">
-                    <input type="checkbox" defaultChecked className="rounded text-purple-600 focus:ring-purple-500" />
-                    <span className="text-sm text-gray-700">{secao}</span>
-                  </label>
-                ))}
+          {/* Preview dos Dados */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-3">Preview do Relatório</label>
+            <div className="bg-gray-700/30 border border-gray-700 rounded-xl p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Receita Total</p>
+                  <p className="text-xl font-bold text-green-400">
+                    R$ {(resumoFinanceiro.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Despesas Total</p>
+                  <p className="text-xl font-bold text-orange-400">
+                    R$ {((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Lucro Líquido</p>
+                  <p className={`text-xl font-bold ${(resumoFinanceiro.lucro_liquido || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                    R$ {(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Margem</p>
+                  <p className="text-xl font-bold text-purple-400">
+                    {(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%
+                  </p>
+                </div>
               </div>
+              <p className="text-xs text-gray-500 text-center pt-4 border-t border-gray-700">
+                {distribuicaoDespesas.length} categorias de despesas • {evolucaoReceitas.length} meses de histórico
+              </p>
             </div>
           </div>
 
           {/* Ações */}
-          <div className="flex gap-4 pt-6 border-t border-gray-200">
-            <button className="px-8 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 flex items-center gap-3 shadow-lg hover:shadow-xl transition-all">
-              <Download className="w-5 h-5" />
-              Gerar Relatório
+          <div className="flex gap-4 pt-6 border-t border-gray-700">
+            <button
+              onClick={gerarRelatorio}
+              disabled={gerando}
+              className="flex-1 px-6 py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {gerando ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5" />
+                  Gerar Relatório
+                </>
+              )}
             </button>
-            <button className="px-8 py-3.5 border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-3">
+            <button className="px-6 py-3.5 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700/50 transition-all flex items-center gap-3">
               <Share2 className="w-5 h-5" />
               Compartilhar
             </button>
@@ -826,12 +1517,12 @@ const RelatoriosTab = () => {
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
+// ==================== COMPONENTE PRINCIPAL ====================
 
 export const FinanceiroScreen = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('visao-geral');
   const [periodo, setPeriodo] = useState('mes');
   const [dataInicio, setDataInicio] = useState(() => {
     const date = new Date();
@@ -839,320 +1530,124 @@ export const FinanceiroScreen = ({ onClose }) => {
     return date.toISOString().split('T')[0];
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().split('T')[0]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
   
   const [resumoFinanceiro, setResumoFinanceiro] = useState({
-    receitaBruta: 0,
-    despesasPagas: 0,
-    despesasPendentes: 0,
-    lucroLiquido: 0,
-    margemLucro: 0
+    receita_bruta: 0,
+    despesas_pagas: 0,
+    despesas_pendentes: 0,
+    lucro_liquido: 0,
+    margem_lucro: 0
   });
   
-  const [despesas, setDespesas] = useState([]);
-  const [contasAVencer, setContasAVencer] = useState([]);
   const [evolucaoReceitas, setEvolucaoReceitas] = useState([]);
   const [distribuicaoDespesas, setDistribuicaoDespesas] = useState([]);
-  const [topClientes, setTopClientes] = useState([]);
-  const [insights, setInsights] = useState([]);
-  const [alertas, setAlertas] = useState([]);
-  const [metas, setMetas] = useState({
-    faturamento: 15000,
-    lucro: 5000,
-    clientesNovos: 20
-  });
-
-  const gerarInsights = useCallback((dados) => {
-    const novosInsights = [];
-    const novosAlertas = [];
-
-    // Insights baseados em performance
-    if (dados.margemLucro > 30) {
-      novosInsights.push({
-        titulo: '🎉 Performance Excelente!',
-        descricao: `Sua margem de lucro de ${dados.margemLucro.toFixed(1)}% está acima da média do setor.`,
-        icon: TrendingUp,
-        cor: 'text-green-600',
-        bgCor: 'bg-green-50 border-green-100',
-        dica: 'Considere reinvestir parte do lucro para acelerar o crescimento.'
-      });
-    } else if (dados.margemLucro < 15) {
-      novosInsights.push({
-        titulo: '⚠️ Atenção à Margem',
-        descricao: `Margem de lucro em ${dados.margemLucro.toFixed(1)}%. Há espaço para melhorias.`,
-        icon: AlertTriangle,
-        cor: 'text-yellow-600',
-        bgCor: 'bg-yellow-50 border-yellow-100',
-        dica: 'Analise suas despesas variáveis para identificar oportunidades de redução.'
-      });
-    }
-
-    // Insights de crescimento
-    if (dados.receitaBruta > 20000) {
-      novosInsights.push({
-        titulo: '🚀 Crescimento Acelerado',
-        descricao: 'Faturamento acima de R$ 20.000 este mês! Continue assim.',
-        icon: Zap,
-        cor: 'text-purple-600',
-        bgCor: 'bg-purple-50 border-purple-100',
-        dica: 'Invista em marketing digital para manter o ritmo de crescimento.'
-      });
-    }
-
-    // Alertas de vencimento
-    if (dados.contasVencendo > 0) {
-      novosAlertas.push({
-        titulo: '⏰ Contas Próximas do Vencimento',
-        descricao: `${dados.contasVencendo} conta(s) vence(m) nos próximos 7 dias.`,
-        valor: dados.contasVencendo,
-        icon: Clock,
-        cor: 'text-orange-600',
-        bgCor: 'bg-orange-50 border-orange-100',
-        acao: 'Ver detalhes'
-      });
-    }
-
-    // Alerta de fluxo de caixa
-    if (dados.despesasPendentes > dados.receitaBruta * 0.3) {
-      novosAlertas.push({
-        titulo: '💰 Fluxo de Caixa Atenção',
-        descricao: 'Despesas pendentes representam mais de 30% da receita.',
-        icon: AlertCircle,
-        cor: 'text-red-600',
-        bgCor: 'bg-red-50 border-red-100',
-        acao: 'Revisar finanças'
-      });
-    }
-
-    setInsights(novosInsights);
-    setAlertas(novosAlertas);
-  }, []);
 
   const carregarDados = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: usu } = await supabase
-        .from('usuarios')
-        .select('salao_id')
-        .eq('id', user.id)
-        .maybeSingle();
-       
-      if (!usu?.salao_id) return;
-
-      const salaoId = usu.salao_id;
-
-      // Carregar dados em paralelo
-      const [resAgendamentos, resDespesas, resTopClientes, resMetas] = await Promise.all([
-        supabase
-          .from('agendamentos')
-          .select('valor_total, data, status')
-          .eq('salao_id', salaoId)
-          .gte('data', dataInicio)
-          .lte('data', dataFim)
-          .eq('status', 'concluido'),
-        
-        supabase
-          .from('despesas')
-          .select('*')
-          .eq('salao_id', salaoId)
-          .gte('data_vencimento', dataInicio)
-          .lte('data_vencimento', dataFim),
-        
-        supabase
-          .from('vw_top_clientes_mes')
-          .select('*')
-          .limit(10),
-        
-        supabase
-          .from('metas')
-          .select('*')
-          .order('mes', { ascending: false })
-          .limit(1)
+      const [resumoRes, mensalRes, despesasCatRes] = await Promise.all([
+        supabase.from('vw_resumo_financeiro').select('*').single(),
+        supabase.from('vw_financeiro_mensal').select('*').order('mes', { ascending: true }),
+        supabase.from('vw_despesas_por_categoria').select('*')
       ]);
 
-      // Calcular resumo financeiro
-      const receitaBruta = resAgendamentos.data?.reduce((sum, item) => 
-        sum + Number(item.valor_total || 0), 0) || 0;
-
-      const despesasPagas = resDespesas.data?.filter(d => d.pago)
-        .reduce((sum, item) => sum + Number(item.valor || 0), 0) || 0;
-       
-      const despesasPendentes = resDespesas.data?.filter(d => !d.pago)
-        .reduce((sum, item) => sum + Number(item.valor || 0), 0) || 0;
-
-      const lucroLiquido = receitaBruta - despesasPagas;
-      const margemLucro = receitaBruta > 0 ? (lucroLiquido / receitaBruta) * 100 : 0;
-
-      setResumoFinanceiro({ 
-        receitaBruta, 
-        despesasPagas, 
-        despesasPendentes, 
-        lucroLiquido, 
-        margemLucro 
-      });
-
-      // Processar despesas
-      let countVencendo = 0;
-      if (resDespesas.data) {
-        setDespesas(resDespesas.data);
-        
-        // Distribuição por categoria
-        const distribuicao = resDespesas.data.reduce((acc, despesa) => {
-          const categoria = despesa.categoria || 'Outros';
-          if (!acc[categoria]) {
-            acc[categoria] = { valor: 0, count: 0 };
-          }
-          acc[categoria].valor += Number(despesa.valor || 0);
-          acc[categoria].count += 1;
-          return acc;
-        }, {});
-
-        const distribuicaoArray = Object.entries(distribuicao)
-          .map(([name, data]) => ({ 
-            name, 
-            value: data.valor,
-            count: data.count 
-          }))
-          .sort((a, b) => b.value - a.value);
-
-        setDistribuicaoDespesas(distribuicaoArray);
-
-        // Contas a vencer (próximos 7 dias)
-        const hoje = new Date();
-        const seteDias = new Date();
-        seteDias.setDate(hoje.getDate() + 7);
-        
-        const contasVencendo = resDespesas.data.filter(d => {
-          if (d.pago) return false;
-          const vencimento = new Date(d.data_vencimento);
-          return vencimento >= hoje && vencimento <= seteDias;
+      if (resumoRes.data) {
+        setResumoFinanceiro({
+          receita_bruta: resumoRes.data.receita_bruta || 0,
+          despesas_pagas: resumoRes.data.despesas_pagas || 0,
+          despesas_pendentes: resumoRes.data.despesas_pendentes || 0,
+          lucro_liquido: resumoRes.data.lucro_liquido || 0,
+          margem_lucro: resumoRes.data.margem_lucro || 0
         });
-        
-        setContasAVencer(contasVencendo);
-        countVencendo = contasVencendo.length;
       }
 
-      // Dados de evolução (simulados para demonstração)
-      const dadosEvolucao = [
-        { mes: 'Jan', receita: receitaBruta * 0.8, despesas: 8500, lucro: receitaBruta * 0.8 - 8500 },
-        { mes: 'Fev', receita: receitaBruta * 0.9, despesas: 9200, lucro: receitaBruta * 0.9 - 9200 },
-        { mes: 'Mar', receita: receitaBruta, despesas: 9800, lucro: receitaBruta - 9800 },
-        { mes: 'Abr', receita: receitaBruta * 1.1, despesas: 10500, lucro: receitaBruta * 1.1 - 10500 },
-        { mes: 'Mai', receita: receitaBruta * 1.2, despesas: 11200, lucro: receitaBruta * 1.2 - 11200 }
-      ];
-      setEvolucaoReceitas(dadosEvolucao);
-
-      // Top clientes
-      if (resTopClientes.data) {
-        setTopClientes(resTopClientes.data);
+      if (mensalRes.data) {
+        setEvolucaoReceitas(mensalRes.data.map(item => ({
+          mes: new Date(item.mes).toLocaleDateString('pt-BR', { month: 'short' }),
+          receita: item.receita || 0,
+          despesas: item.despesas || 0,
+          lucro: item.lucro || 0
+        })));
       }
 
-      // Metas
-      if (resMetas.data?.length) {
-        setMetas(prev => ({ 
-          ...prev, 
-          faturamento: Number(resMetas.data[0].valor) 
-        }));
+      if (despesasCatRes.data) {
+        setDistribuicaoDespesas(despesasCatRes.data.map(item => ({
+          categoria: item.categoria || 'Sem categoria',
+          total: item.total || 0
+        })));
       }
-
-      // Gerar insights automáticos
-      gerarInsights({
-        receitaBruta, 
-        despesasPagas, 
-        despesasPendentes, 
-        lucroLiquido, 
-        margemLucro,
-        contasVencendo: countVencendo
-      });
-
-      setLastUpdate(new Date());
 
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao carregar dados financeiros:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dataInicio, dataFim, gerarInsights]);
+  }, []);
 
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
 
   const tabs = [
-    { id: 'overview', label: 'Visão Geral', icon: Home, color: 'text-purple-600' },
-    { id: 'despesas', label: 'Despesas', icon: Receipt, color: 'text-orange-600' },
-    { id: 'metas', label: 'Metas', icon: Target, color: 'text-green-600' },
-    { id: 'clientes', label: 'Clientes', icon: Users, color: 'text-blue-600' },
-    { id: 'analise', label: 'Análise', icon: BarChart3, color: 'text-pink-600' },
-    { id: 'relatorios', label: 'Relatórios', icon: FileText, color: 'text-indigo-600' }
+    { id: 'visao-geral', label: 'Visão Geral', icon: Home },
+    { id: 'despesas', label: 'Despesas', icon: Receipt },
+    { id: 'metas', label: 'Metas', icon: Target },
+    { id: 'relatorios', label: 'Relatórios', icon: FileText }
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
+      case 'visao-geral':
         return (
-          <OverviewTab
+          <VisaoGeralTab
             resumoFinanceiro={resumoFinanceiro}
             evolucaoReceitas={evolucaoReceitas}
             distribuicaoDespesas={distribuicaoDespesas}
-            alertas={alertas}
-            insights={insights}
-            contasAVencer={contasAVencer}
-            topClientes={topClientes}
             loading={loading}
           />
         );
       case 'despesas':
-        return <DespesasScreen onClose={() => setActiveTab('overview')} />;
+        return <DespesasTab onRefresh={() => carregarDados(false)} />;
       case 'metas':
-        return <MetasScreen onClose={() => setActiveTab('overview')} />;
-      case 'clientes':
-        return <ClientesTab topClientes={topClientes} loading={loading} />;
-      case 'analise':
-        return <div className="p-8 text-center">Análise Avançada em desenvolvimento</div>;
+        return <MetasTab resumoFinanceiro={resumoFinanceiro} />;
       case 'relatorios':
-        return <RelatoriosTab />;
+        return (
+          <RelatoriosTab
+            resumoFinanceiro={resumoFinanceiro}
+            evolucaoReceitas={evolucaoReceitas}
+            distribuicaoDespesas={distribuicaoDespesas}
+          />
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-xl border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
               <button
                 onClick={onClose}
-                className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors group"
-                title="Voltar"
+                className="p-2.5 hover:bg-gray-800/50 rounded-xl transition-colors"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-600 group-hover:text-gray-900" />
+                <ChevronLeft className="w-5 h-5 text-gray-400" />
               </button>
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
                   <DollarSign className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Dashboard Financeiro</h1>
-                  <div className="flex items-center gap-3 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {new Date(dataInicio).toLocaleDateString('pt-BR')} - {new Date(dataFim).toLocaleDateString('pt-BR')}
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      Atualizado {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                  <h1 className="text-2xl font-bold text-white">Finanças</h1>
+                  <p className="text-sm text-gray-400">
+                    {new Date(dataInicio).toLocaleDateString('pt-BR')} - {new Date(dataFim).toLocaleDateString('pt-BR')}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1161,8 +1656,7 @@ export const FinanceiroScreen = ({ onClose }) => {
               <button
                 onClick={() => carregarDados(false)}
                 disabled={refreshing}
-                className="p-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-                title="Atualizar dados"
+                className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
               >
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
@@ -1176,20 +1670,15 @@ export const FinanceiroScreen = ({ onClose }) => {
                 setDataFim={setDataFim}
                 onAplicar={() => carregarDados()}
               />
-              
-              <button className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
-                <Download className="w-5 h-5" />
-                Exportar
-              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="sticky top-20 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+      {/* Tabs */}
+      <div className="sticky top-20 z-40 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-1 overflow-x-auto no-scrollbar py-2">
+          <div className="flex space-x-1 overflow-x-auto py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1199,17 +1688,12 @@ export const FinanceiroScreen = ({ onClose }) => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${
                     isActive
-                      ? 'bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 border border-purple-200 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-purple-500 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? tab.color : 'text-gray-400'}`} />
+                  <Icon className="w-5 h-5" />
                   {tab.label}
-                  {tab.id === 'despesas' && contasAVencer.length > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
-                      {contasAVencer.length}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -1217,33 +1701,17 @@ export const FinanceiroScreen = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading && activeTab === 'overview' ? (
+        {loading && activeTab === 'visao-geral' ? (
           <div className="flex flex-col items-center justify-center h-96">
-            <div className="relative">
-              <Loader2 className="w-16 h-16 text-purple-600 animate-spin" />
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-20 blur-xl"></div>
-            </div>
-            <p className="mt-6 text-gray-600 font-medium">Carregando dados financeiros...</p>
-            <p className="text-sm text-gray-500 mt-2">Isso pode levar alguns segundos</p>
+            <Loader2 className="w-16 h-16 text-purple-500 animate-spin mb-4" />
+            <p className="text-gray-400 font-medium">Carregando dados financeiros...</p>
           </div>
         ) : (
           renderTabContent()
         )}
       </div>
-
-      <style jsx>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </div>
   );
 };
-
-export const RelatorioAvancadoModal = () => null;
