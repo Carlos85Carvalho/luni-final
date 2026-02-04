@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabase';
 import { 
   TrendingUp, TrendingDown, DollarSign, Receipt, 
@@ -41,7 +42,7 @@ const KPICard = ({
   };
 
   const style = colorClasses[cor] || colorClasses.purple;
-   
+    
   const formattedValue = useMemo(() => {
     if (loading) return '---';
     if (format === 'currency') {
@@ -65,7 +66,7 @@ const KPICard = ({
           <Icon className={`w-5 h-5 ${style.text}`} />
         </div>
       </div>
-       
+        
       {loading ? (
         <div className="space-y-2">
           <div className="h-8 bg-gray-700/50 rounded animate-pulse"></div>
@@ -74,12 +75,12 @@ const KPICard = ({
       ) : (
         <>
           <div className="text-xl sm:text-2xl font-bold text-white mb-2 truncate">{formattedValue}</div>
-           
+            
           <div className="flex flex-wrap items-center justify-between gap-2">
             {subTitulo && (
               <span className="text-xs sm:text-sm text-gray-400 truncate max-w-[60%]">{subTitulo}</span>
             )}
-            
+             
             {trend && trendValue > 0 && (
               <div className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                 trend === 'up' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
@@ -217,7 +218,7 @@ const VisaoGeralTab = ({
           subTitulo="Faturamento total"
           format="currency"
         />
-        
+         
         <KPICard
           titulo="Despesas"
           valor={(resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)}
@@ -229,7 +230,7 @@ const VisaoGeralTab = ({
           subTitulo={`${resumoFinanceiro.despesas_pendentes > 0 ? 'R$ ' + (resumoFinanceiro.despesas_pendentes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' pendentes' : 'Todas pagas'}`}
           format="currency"
         />
-        
+         
         <KPICard
           titulo="Lucro Líquido"
           valor={resumoFinanceiro.lucro_liquido || 0}
@@ -240,7 +241,7 @@ const VisaoGeralTab = ({
           loading={loading}
           format="currency"
         />
-        
+         
         <KPICard
           titulo="Margem de Lucro"
           valor={resumoFinanceiro.margem_lucro || 0}
@@ -393,6 +394,7 @@ const DespesasTab = ({ onRefresh }) => {
   const [modalAberto, setModalAberto] = useState(false);
   const [despesaEditando, setDespesaEditando] = useState(null);
   const [salvando, setSalvando] = useState(false);
+  const [salaoId, setSalaoId] = useState(null); // <--- NOVO ESTADO
 
   const categorias = ['Aluguel', 'Energia', 'Água', 'Produtos', 'Salários', 'Marketing', 'Manutenção', 'Outros'];
 
@@ -404,6 +406,18 @@ const DespesasTab = ({ onRefresh }) => {
     pago: false,
     data_pagamento: null
   });
+
+  // Buscar salao_id ao carregar o componente
+  useEffect(() => {
+    const fetchSalao = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).single();
+        if (data) setSalaoId(data.salao_id);
+      }
+    };
+    fetchSalao();
+  }, []);
 
   const carregarDespesas = useCallback(async () => {
     setLoading(true);
@@ -426,12 +440,42 @@ const DespesasTab = ({ onRefresh }) => {
     carregarDespesas();
   }, [carregarDespesas]);
 
+  // INJEÇÃO DE ESTILO "NUCLEAR" PARA OCULTAR RODAPÉ
+  useEffect(() => {
+    if (modalAberto) {
+      const style = document.createElement('style');
+      style.id = 'hide-footer-style';
+      style.innerHTML = `
+        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { 
+          display: none !important; 
+          opacity: 0 !important;
+          pointer-events: none !important;
+          z-index: -1 !important;
+        }
+        body { overflow: hidden !important; }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        const existingStyle = document.getElementById('hide-footer-style');
+        if (existingStyle) document.head.removeChild(existingStyle);
+        document.body.style.overflow = '';
+      };
+    }
+  }, [modalAberto]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!salaoId) {
+      alert("Erro: Salão não identificado. Tente recarregar a página.");
+      return;
+    }
+
     setSalvando(true);
 
     try {
       const despesaData = {
+        salao_id: salaoId, // <--- AQUI ESTAVA FALTANDO!
         ...formData,
         valor: parseFloat(formData.valor),
         data_pagamento: formData.pago ? (formData.data_pagamento || new Date().toISOString()) : null
@@ -459,7 +503,7 @@ const DespesasTab = ({ onRefresh }) => {
       onRefresh();
     } catch (error) {
       console.error('Erro ao salvar despesa:', error);
-      alert('Erro ao salvar despesa. Tente novamente.');
+      alert('Erro ao salvar despesa: ' + (error.message || 'Tente novamente.'));
     } finally {
       setSalvando(false);
     }
@@ -733,10 +777,12 @@ const DespesasTab = ({ onRefresh }) => {
         )}
       </div>
 
-      {/* Modal de Criar/Editar Despesa - CORRIGIDO */}
-      {modalAberto && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[85vh] flex flex-col">
+      {/* Modal de Criar/Editar Despesa - AGORA COM PORTAL */}
+      {modalAberto && createPortal(
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div 
+            className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[90dvh] flex flex-col shadow-2xl"
+          >
             {/* Header Fixo */}
             <div className="p-6 border-b border-gray-700 flex items-center justify-between shrink-0">
               <h3 className="text-xl font-bold text-white">
@@ -754,8 +800,8 @@ const DespesasTab = ({ onRefresh }) => {
               </button>
             </div>
 
-            {/* Conteúdo com Scroll - ALTURA CONTROLADA */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Conteúdo com Scroll - ALTURA CONTROLADA COM min-h-0 */}
+            <div className="flex-1 overflow-y-auto min-h-0">
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
@@ -825,7 +871,7 @@ const DespesasTab = ({ onRefresh }) => {
             </div>
 
             {/* Footer Fixo - SEMPRE VISÍVEL */}
-            <div className="p-6 border-t border-gray-700 shrink-0">
+            <div className="p-6 border-t border-gray-700 shrink-0 bg-gray-800 rounded-b-2xl">
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
@@ -858,7 +904,8 @@ const DespesasTab = ({ onRefresh }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -910,6 +957,29 @@ const MetasTab = ({ resumoFinanceiro }) => {
     tipo: 'faturamento'
   });
 
+  // INJEÇÃO DE ESTILO "NUCLEAR" PARA OCULTAR RODAPÉ
+  useEffect(() => {
+    if (modalAberto) {
+      const style = document.createElement('style');
+      style.id = 'hide-footer-style-metas';
+      style.innerHTML = `
+        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { 
+          display: none !important; 
+          opacity: 0 !important;
+          pointer-events: none !important;
+          z-index: -1 !important;
+        }
+        body { overflow: hidden !important; }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        const existingStyle = document.getElementById('hide-footer-style-metas');
+        if (existingStyle) document.head.removeChild(existingStyle);
+        document.body.style.overflow = '';
+      };
+    }
+  }, [modalAberto]);
+
   const abrirModalNovaMeta = () => {
     setMetaEditando(null);
     setFormMeta({
@@ -934,7 +1004,7 @@ const MetasTab = ({ resumoFinanceiro }) => {
 
   const salvarMeta = () => {
     console.log('Salvando meta:', formMeta);
-     
+      
     if (!formMeta.titulo || !formMeta.valorMeta) {
       alert('Preencha todos os campos');
       return;
@@ -1108,10 +1178,10 @@ const MetasTab = ({ resumoFinanceiro }) => {
         })}
       </div>
 
-      {/* Modal de Criar/Editar Meta - CORRIGIDO */}
-      {modalAberto && (
+      {/* Modal de Criar/Editar Meta - AGORA COM PORTAL */}
+      {modalAberto && createPortal(
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[85vh] flex flex-col">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[85dvh] flex flex-col shadow-2xl">
             {/* Header Fixo */}
             <div className="p-6 border-b border-gray-700 flex items-center justify-between shrink-0">
               <h3 className="text-xl font-bold text-white">
@@ -1125,8 +1195,8 @@ const MetasTab = ({ resumoFinanceiro }) => {
               </button>
             </div>
 
-            {/* Conteúdo com Scroll - ALTURA CONTROLADA */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Conteúdo com Scroll */}
+            <div className="flex-1 overflow-y-auto min-h-0">
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Meta</label>
@@ -1182,8 +1252,8 @@ const MetasTab = ({ resumoFinanceiro }) => {
               </div>
             </div>
 
-            {/* Footer Fixo - SEMPRE VISÍVEL */}
-            <div className="p-6 border-t border-gray-700 shrink-0">
+            {/* Footer Fixo */}
+            <div className="p-6 border-t border-gray-700 shrink-0 bg-gray-800 rounded-b-2xl">
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setModalAberto(false)}
@@ -1201,7 +1271,8 @@ const MetasTab = ({ resumoFinanceiro }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Insights */}
@@ -1266,11 +1337,11 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
 
   const gerarRelatorio = () => {
     setGerando(true);
-     
+      
     // Simular geração de relatório
     setTimeout(() => {
       const relatorioSelecionado = relatorios.find(r => r.id === tipoRelatorio);
-      
+       
       if (formato === 'csv') {
         gerarCSV();
       } else if (formato === 'excel') {
@@ -1278,7 +1349,7 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
       } else {
         gerarPDF();
       }
-      
+       
       setGerando(false);
     }, 1500);
   };
@@ -1291,7 +1362,7 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
     csvContent += `Despesas Totais,R$ ${((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
     csvContent += `Lucro Líquido,R$ ${(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
     csvContent += `Margem de Lucro,${(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%\n\n`;
-     
+      
     csvContent += "Evolução Mensal\n";
     csvContent += "Mês,Receita,Despesas,Lucro\n";
     evolucaoReceitas.forEach(item => {
@@ -1305,7 +1376,7 @@ const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesa
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-     
+      
     alert('Relatório CSV gerado com sucesso!');
   };
 
@@ -1361,7 +1432,7 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-     
+      
     alert('Relatório gerado com sucesso!\n\nNota: Para PDF real com formatação profissional, instale as bibliotecas:\n- npm install jspdf\n- npm install jspdf-autotable');
   };
 
@@ -1418,7 +1489,7 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
       {/* Configurações */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
         <h3 className="text-lg font-bold text-white mb-6">Configurar Relatório</h3>
-        
+         
         <div className="space-y-6">
           {/* Período */}
           <div>
@@ -1547,7 +1618,7 @@ export const FinanceiroScreen = ({ onClose }) => {
     return date.toISOString().split('T')[0];
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().split('T')[0]);
-   
+    
   const [resumoFinanceiro, setResumoFinanceiro] = useState({
     receita_bruta: 0,
     despesas_pagas: 0,
@@ -1555,7 +1626,7 @@ export const FinanceiroScreen = ({ onClose }) => {
     lucro_liquido: 0,
     margem_lucro: 0
   });
-   
+    
   const [evolucaoReceitas, setEvolucaoReceitas] = useState([]);
   const [distribuicaoDespesas, setDistribuicaoDespesas] = useState([]);
 
@@ -1677,7 +1748,7 @@ export const FinanceiroScreen = ({ onClose }) => {
               >
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
-              
+               
               <FiltroPeriodo 
                 periodo={periodo} 
                 setPeriodo={setPeriodo}

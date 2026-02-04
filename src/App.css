@@ -1,58 +1,89 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* ========================================
+   SOLUÇÃO DEFINITIVA - OCULTA RODAPÉ EM MODAIS
+   ======================================== */
+
+/* 1. IDENTIFICA O RODAPÉ PELA ESTRUTURA */
+/* Baseado na imagem, o rodapé tem ícones: Início, Agenda, Finanças, Clientes */
+
+/* Oculta qualquer nav/footer fixo na parte inferior quando modal abre */
+body.modal-open nav[class*="fixed"],
+body.modal-open div[class*="fixed"][class*="bottom"],
+body.modal-open footer,
+body.modal-open [role="navigation"] {
+  transform: translateY(150px) !important;
+  transition: transform 0.3s ease-out !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* 2. OCULTA ESPECIFICAMENTE ELEMENTOS COM ÍCONES DE NAVEGAÇÃO */
+body.modal-open div:has(svg + span:contains("Início")),
+body.modal-open div:has(svg + span:contains("Agenda")),
+body.modal-open div:has(svg + span:contains("Finanças")),
+body.modal-open div:has(svg + span:contains("Clientes")) {
+  display: none !important;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* 3. OCULTA ELEMENTOS COM TEXTO "Início", "Agenda", "Finanças", "Clientes" */
+body.modal-open *:has(span:contains("Início")),
+body.modal-open *:has(span:contains("Agenda")),
+body.modal-open *:has(span:contains("Finanças")),
+body.modal-open *:has(span:contains("Clientes")) {
+  transform: translateY(200px) !important;
+  opacity: 0 !important;
+}
+
+/* 4. FORÇA OCULTAR QUALQUER ELEMENTO NA PARTE INFERIOR DA TELA */
+body.modal-open > div > nav,
+body.modal-open > div > footer,
+body.modal-open > div > div:last-child:has(nav) {
+  transform: translateY(200px) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: all 0.3s ease-out !important;
+}
+
+/* 5. PREVINE SCROLL NO BODY */
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100vh !important;
+}
+
+/* 6. Z-INDEX - GARANTE QUE MODAL FIQUE ACIMA */
+div[class*="z-[9999]"],
+div[class*="fixed inset-0"] {
+  z-index: 9999 !important;
+}
+
+/* 7. SOLUÇÃO UNIVERSAL - OCULTA ÚLTIMO FILHO FIXO NO BODY */
+body.modal-open > #root > div:last-child,
+body.modal-open > div:last-child:not([class*="modal"]):not([class*="dialog"]) {
+  transform: translateY(200px) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 8. ALTERNATIVA - OCULTA ELEMENTOS COM BOTTOM-0 */
+body.modal-open .bottom-0,
+body.modal-open [class*="bottom-0"],
+body.modal-open [style*="bottom: 0"] {
+  transform: translateY(150px) !important;
+  opacity: 0 !important;
+}
+
+/* ========================================
+   MOBILE - FORÇA AINDA MAIS
+   ======================================== */
+
+@media (max-width: 768px) {
+  body.modal-open nav,
+  body.modal-open footer {
+    transform: translateY(300px) !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
   }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-/* --- CORREÇÃO DE SOBREPOSIÇÃO (Z-INDEX) --- */
-
-/* 1. O Rodapé (Menu inferior) */
-/* Coloque aqui a classe que você usa no seu rodapé. 
-   Se não for .footer-navbar, troque pelo nome correto (ex: .navbar, .menu-bottom) */
-.footer-navbar, .navbar, footer {
-  z-index: 10 !important; /* Camada baixa */
-  position: fixed; /* Garante que ele fique preso na tela */
-}
-
-/* 2. O Modal (A janela de Nova Meta) */
-/* Coloque aqui a classe principal dos seus modais.
-   Geralmente é o container que faz o fundo escuro */
-.modal-overlay, .modal-backdrop, .dialog-content, .MuiModal-root {
-  z-index: 9999 !important; /* Camada altíssima, acima de tudo */
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom'; // <--- 1. IMPORTAÇÃO DO PORTAL
 import { supabase } from '../../services/supabase';
 import { 
   X, Calendar, Clock, User, Scissors, DollarSign, Lock, Save, Loader2, CheckCircle
@@ -20,6 +21,30 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
   const [bloqueioMotivo, setBloqueioMotivo] = useState('');
 
   const isBloqueio = tipo === 'bloqueio';
+
+  // --- 2. REGRA PARA ESCONDER O RODAPÉ (Igual ao Financeiro) ---
+  useEffect(() => {
+    if (isOpen) {
+      const style = document.createElement('style');
+      style.id = 'hide-footer-agendamento';
+      style.innerHTML = `
+        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { 
+          display: none !important; 
+          opacity: 0 !important;
+          pointer-events: none !important;
+          z-index: -1 !important;
+        }
+        body { overflow: hidden !important; }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        const existingStyle = document.getElementById('hide-footer-agendamento');
+        if (existingStyle) document.head.removeChild(existingStyle);
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +69,6 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
 
       carregarDadosIniciais();
       
-      // Correção da Data: Usar toLocaleDateString com 'en-CA' para YYYY-MM-DD local
       const hojeLocal = new Date().toLocaleDateString('en-CA');
       setData(hojeLocal);
       setHorario('09:00');
@@ -94,10 +118,14 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
 
   if (!isOpen) return null;
 
-  return (
+  // --- 3. USO DO PORTAL (Para ficar acima de tudo) ---
+  return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-      {/* Container com altura máxima e scroll inteligente */}
-      <div className="bg-[#18181b] w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl border border-white/10 shadow-2xl relative max-h-[95vh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300">
+      {/* Container adaptado para mobile (max-h-dvh) */}
+      <div 
+        className="bg-[#18181b] w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl border border-white/10 shadow-2xl relative flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300"
+        style={{ maxHeight: '90dvh' }} // Altura dinâmica para celular
+      >
         
         {/* Success Overlay */}
         {showSuccess && (
@@ -121,8 +149,8 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
           </button>
         </div>
 
-        {/* Conteúdo Scrollável (Formulário) */}
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4 custom-scrollbar">
+        {/* Conteúdo Scrollável (min-h-0 para o scroll funcionar no flexbox) */}
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4 custom-scrollbar min-h-0">
           {!profissionalId && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Profissional</label>
@@ -249,6 +277,7 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body // <--- 4. ONDE O PORTAL É RENDERIZADO
   );
 };
