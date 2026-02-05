@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabase';
 import { 
   TrendingUp, TrendingDown, DollarSign, Receipt, 
@@ -9,15 +8,25 @@ import {
   Eye, CheckCircle, AlertCircle, Zap,
   ChevronRight, ChevronDown, Plus, MoreVertical,
   CalendarDays, WalletCards, Edit2, Trash2, X,
-  TrendingUp as TrendingUpIcon, Filter, Search,
+  Filter, Search,
   BarChart3, PieChart as PieChartIcon, Activity,
-  Check, Save, Home
+  Check, Save, Home, Package, Users, XCircle, Info, Truck,
+  Tag, ShoppingCart, BarChart, PieChart, CreditCard,
+  Package as PackageIcon
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Bar, PieChart as RechartsPie, Pie, Cell,
   ComposedChart, Line
 } from 'recharts';
+
+// Importar modais - Verifique se estes arquivos existem!
+import { DespesaModal } from './DespesaModal';
+import { ProdutoModal } from './ProdutoModal';
+import { EstoqueModal } from './EstoqueModal';
+import { FornecedorModal } from './FornecedorModal';
+import { MetaModal } from './MetaModal';
+import { RelatorioModal } from './RelatorioModal';
 
 // ==================== COMPONENTES REUTILIZÁVEIS ====================
 
@@ -51,6 +60,8 @@ const KPICard = ({
       return `${Number(valor || 0).toFixed(1)}%`;
     } else if (format === 'number') {
       return Number(valor || 0).toLocaleString('pt-BR');
+    } else if (format === 'text') {
+      return valor || 'Nenhum';
     }
     return valor || '0';
   }, [valor, format, loading]);
@@ -96,139 +107,47 @@ const KPICard = ({
   );
 };
 
-const FiltroPeriodo = ({ periodo, setPeriodo, dataInicio, setDataInicio, dataFim, setDataFim, onAplicar }) => {
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
-
-  const periodos = [
-    { id: 'hoje', label: 'Hoje' },
-    { id: 'semana', label: 'Esta Semana' },
-    { id: 'mes', label: 'Este Mês' },
-    { id: 'ano', label: 'Este Ano' },
-    { id: 'personalizado', label: 'Personalizado' }
-  ];
-
-  const handlePeriodoClick = (periodoId) => {
-    setPeriodo(periodoId);
-    setMostrarFiltros(false);
-    onAplicar();
-  };
-
-  return (
-    <div className="relative w-full sm:w-auto">
-      <button
-        onClick={() => setMostrarFiltros(!mostrarFiltros)}
-        className="w-full sm:w-auto px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl hover:bg-gray-800/70 flex items-center justify-between sm:justify-start gap-2 transition-all"
-      >
-        <div className="flex items-center gap-2">
-          <CalendarDays className="w-5 h-5 text-gray-400" />
-          <span className="text-sm font-medium text-white">
-            {periodos.find(p => p.id === periodo)?.label || 'Período'}
-          </span>
-        </div>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${mostrarFiltros ? 'rotate-180' : ''}`} />
-      </button>
-
-      {mostrarFiltros && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent" onClick={() => setMostrarFiltros(false)}></div>
-          <div className="absolute right-0 left-0 sm:left-auto mt-2 w-full sm:w-80 bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-            <div className="p-4">
-              <div className="mb-4">
-                <h4 className="text-sm font-semibold text-white mb-3">Período Rápido</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {periodos.slice(0, -1).map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => handlePeriodoClick(p.id)}
-                      className={`px-3 py-2 text-sm rounded-lg transition-all ${
-                        periodo === p.id 
-                          ? 'bg-purple-500 text-white' 
-                          : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {periodo === 'personalizado' && (
-                <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-white mb-3">Datas Personalizadas</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">De</label>
-                      <input
-                        type="date"
-                        value={dataInicio}
-                        onChange={(e) => setDataInicio(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-sm text-white focus:border-purple-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Até</label>
-                      <input
-                        type="date"
-                        value={dataFim}
-                        onChange={(e) => setDataFim(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-sm text-white focus:border-purple-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={() => {
-                  onAplicar();
-                  setMostrarFiltros(false);
-                }}
-                className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all"
-              >
-                Aplicar Filtros
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
 // ==================== 1. VISÃO GERAL ====================
 
 const VisaoGeralTab = ({ 
   resumoFinanceiro, 
   evolucaoReceitas, 
-  distribuicaoDespesas,
-  loading 
+  margemServicos,
+  estoqueCritico,
+  rankingFornecedores,
+  loading,
+  onCardClick,
+  onAbrirModal
 }) => {
+  const totalDespesas = (resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0);
+  const ticketMedio = resumoFinanceiro.receita_bruta && resumoFinanceiro.total_vendas 
+    ? resumoFinanceiro.receita_bruta / resumoFinanceiro.total_vendas 
+    : 0;
+
   return (
     <div className="space-y-6">
-      {/* KPIs Principais - Responsivo: 1 col mobile, 2 tablet, 4 desktop */}
+      {/* KPIs Principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          titulo="Receita Bruta"
+          titulo="Receita Total"
           valor={resumoFinanceiro.receita_bruta || 0}
           icone={DollarSign}
           cor="green"
-          trend="up"
-          trendValue={12.5}
           loading={loading}
           subTitulo="Faturamento total"
           format="currency"
+          onClick={() => onCardClick('receita')}
         />
          
         <KPICard
-          titulo="Despesas"
-          valor={(resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)}
+          titulo="Despesa Total"
+          valor={totalDespesas}
           icone={Receipt}
           cor="orange"
-          trend="down"
-          trendValue={3.2}
           loading={loading}
-          subTitulo={`${resumoFinanceiro.despesas_pendentes > 0 ? 'R$ ' + (resumoFinanceiro.despesas_pendentes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' pendentes' : 'Todas pagas'}`}
+          subTitulo="Custos operacionais"
           format="currency"
+          onClick={() => onCardClick('despesa')}
         />
          
         <KPICard
@@ -236,40 +155,87 @@ const VisaoGeralTab = ({
           valor={resumoFinanceiro.lucro_liquido || 0}
           icone={TrendingUp}
           cor={(resumoFinanceiro.lucro_liquido || 0) >= 0 ? "blue" : "red"}
-          trend={(resumoFinanceiro.lucro_liquido || 0) >= 0 ? "up" : "down"}
-          trendValue={8.7}
           loading={loading}
           format="currency"
+          onClick={() => onCardClick('lucro')}
+        />
+         
+        <KPICard
+          titulo="Ticket Médio"
+          valor={ticketMedio}
+          icone={Tag}
+          cor="purple"
+          loading={loading}
+          format="currency"
+          onClick={() => onCardClick('ticket')}
+        />
+      </div>
+
+      {/* Cards Secundários */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          titulo="Total de Vendas"
+          valor={resumoFinanceiro.total_vendas || 0}
+          icone={ShoppingCart}
+          cor="green"
+          loading={loading}
+          format="number"
+          onClick={() => onCardClick('vendas')}
         />
          
         <KPICard
           titulo="Margem de Lucro"
           valor={resumoFinanceiro.margem_lucro || 0}
-          icone={Activity}
-          cor={(resumoFinanceiro.margem_lucro || 0) >= 20 ? "green" : (resumoFinanceiro.margem_lucro || 0) >= 10 ? "blue" : "red"}
+          icone={BarChart}
+          cor="blue"
           loading={loading}
-          subTitulo="Rentabilidade"
           format="percent"
+          onClick={() => onAbrirModal('margem')}
+        />
+         
+        <KPICard
+          titulo="Estoque Crítico"
+          valor={estoqueCritico?.length || 0}
+          icone={AlertTriangle}
+          cor="red"
+          loading={loading}
+          subTitulo="Produtos"
+          format="number"
+          onClick={() => onAbrirModal('estoque-critico')}
+        />
+         
+        <KPICard
+          titulo="Top Fornecedor"
+          valor={rankingFornecedores?.[0]?.nome || 'Nenhum'}
+          icone={Truck}
+          cor="orange"
+          loading={loading}
+          subTitulo="Maior gasto"
+          format="text"
+          onClick={() => onAbrirModal('ranking-fornecedores')}
         />
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gráfico de Evolução */}
-        <div className="lg:col-span-2 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Evolução Financeira */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-purple-400" />
                 Evolução Financeira
               </h3>
-              <p className="text-sm text-gray-400 mt-1">Receita vs Despesas (últimos meses)</p>
+              <p className="text-sm text-gray-400 mt-1">Receita x Despesa x Lucro (mensal)</p>
             </div>
-            <button className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors self-end sm:self-auto">
-              <Download className="w-5 h-5 text-gray-400" />
+            <button 
+              onClick={() => onAbrirModal('evolucao-detalhada')}
+              className="px-4 py-2 text-sm text-purple-400 hover:text-purple-300 font-medium flex items-center gap-2"
+            >
+              Ver detalhes <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          <div className="h-64 sm:h-80">
+          <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={evolucaoReceitas} margin={{ left: -20, right: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -292,7 +258,6 @@ const VisaoGeralTab = ({
                     backgroundColor: '#1f2937',
                     borderRadius: '12px', 
                     border: '1px solid rgba(255,255,255,0.1)',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
                     padding: '12px'
                   }}
                   labelStyle={{ color: '#fff' }}
@@ -304,14 +269,12 @@ const VisaoGeralTab = ({
                   radius={[4, 4, 0, 0]}
                   barSize={24}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="despesas" 
-                  name="Despesas" 
-                  stroke="#ef4444" 
+                <Bar 
+                  dataKey="despesa" 
+                  name="Despesa" 
                   fill="#ef4444" 
-                  fillOpacity={0.1}
-                  strokeWidth={2}
+                  radius={[4, 4, 0, 0]}
+                  barSize={24}
                 />
                 <Line 
                   type="monotone" 
@@ -327,40 +290,45 @@ const VisaoGeralTab = ({
           </div>
         </div>
 
-        {/* Distribuição de Despesas */}
+        {/* Margem por Serviço */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <PieChartIcon className="w-5 h-5 text-purple-400" />
-                Distribuição
+                <BarChart className="w-5 h-5 text-purple-400" />
+                Margem por Serviço
               </h3>
-              <p className="text-sm text-gray-400 mt-1">Despesas por categoria</p>
+              <p className="text-sm text-gray-400 mt-1">Rentabilidade dos serviços</p>
             </div>
+            <button 
+              onClick={() => onAbrirModal('margem-servicos')}
+              className="px-4 py-2 text-sm text-purple-400 hover:text-purple-300 font-medium flex items-center gap-2"
+            >
+              Detalhes <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-          <div className="h-64 sm:h-80">
-            {distribuicaoDespesas.length > 0 ? (
+          <div className="h-64 sm:h-72">
+            {margemServicos?.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsPie>
-                  <Pie
-                    data={distribuicaoDespesas}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="total"
-                    labelLine={false}
-                  >
-                    {distribuicaoDespesas.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#f472b6'][index % 6]} 
-                      />
-                    ))}
-                  </Pie>
+                <BarChart data={margemServicos} margin={{ left: -20, right: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="servico" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#9ca3af', fontSize: 10 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#9ca3af', fontSize: 10 }}
+                    tickFormatter={(value) => `${value}%`}
+                  />
                   <Tooltip 
-                    formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+                    formatter={(value) => [`${value}%`, 'Margem']}
                     contentStyle={{ 
                       backgroundColor: '#1f2937',
                       borderRadius: '12px', 
@@ -369,11 +337,18 @@ const VisaoGeralTab = ({
                     }}
                     labelStyle={{ color: '#fff' }}
                   />
-                </RechartsPie>
+                  <Bar 
+                    dataKey="margem" 
+                    name="Margem" 
+                    fill="#8b5cf6" 
+                    radius={[4, 4, 0, 0]}
+                    barSize={24}
+                  />
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center">
-                <p className="text-gray-500 text-sm">Nenhuma despesa registrada</p>
+                <p className="text-gray-500 text-sm">Nenhum dado de margem disponível</p>
               </div>
             )}
           </div>
@@ -383,41 +358,16 @@ const VisaoGeralTab = ({
   );
 };
 
-// ==================== 2. DESPESAS ====================
+// ==================== 2. DESPESAS TAB ====================
 
-const DespesasTab = ({ onRefresh }) => {
+const DespesasTab = ({ onAbrirModal }) => {
   const [despesas, setDespesas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('todas');
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas');
   const [busca, setBusca] = useState('');
-  const [modalAberto, setModalAberto] = useState(false);
-  const [despesaEditando, setDespesaEditando] = useState(null);
-  const [salvando, setSalvando] = useState(false);
-  const [salaoId, setSalaoId] = useState(null); // <--- NOVO ESTADO
 
   const categorias = ['Aluguel', 'Energia', 'Água', 'Produtos', 'Salários', 'Marketing', 'Manutenção', 'Outros'];
-
-  const [formData, setFormData] = useState({
-    descricao: '',
-    categoria: '',
-    valor: '',
-    data_vencimento: new Date().toISOString().split('T')[0],
-    pago: false,
-    data_pagamento: null
-  });
-
-  // Buscar salao_id ao carregar o componente
-  useEffect(() => {
-    const fetchSalao = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).single();
-        if (data) setSalaoId(data.salao_id);
-      }
-    };
-    fetchSalao();
-  }, []);
 
   const carregarDespesas = useCallback(async () => {
     setLoading(true);
@@ -440,78 +390,9 @@ const DespesasTab = ({ onRefresh }) => {
     carregarDespesas();
   }, [carregarDespesas]);
 
-  // INJEÇÃO DE ESTILO "NUCLEAR" PARA OCULTAR RODAPÉ
-  useEffect(() => {
-    if (modalAberto) {
-      const style = document.createElement('style');
-      style.id = 'hide-footer-style';
-      style.innerHTML = `
-        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { 
-          display: none !important; 
-          opacity: 0 !important;
-          pointer-events: none !important;
-          z-index: -1 !important;
-        }
-        body { overflow: hidden !important; }
-      `;
-      document.head.appendChild(style);
-      return () => {
-        const existingStyle = document.getElementById('hide-footer-style');
-        if (existingStyle) document.head.removeChild(existingStyle);
-        document.body.style.overflow = '';
-      };
-    }
-  }, [modalAberto]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!salaoId) {
-      alert("Erro: Salão não identificado. Tente recarregar a página.");
-      return;
-    }
-
-    setSalvando(true);
-
-    try {
-      const despesaData = {
-        salao_id: salaoId, // <--- AQUI ESTAVA FALTANDO!
-        ...formData,
-        valor: parseFloat(formData.valor),
-        data_pagamento: formData.pago ? (formData.data_pagamento || new Date().toISOString()) : null
-      };
-
-      if (despesaEditando) {
-        const { error } = await supabase
-          .from('despesas')
-          .update(despesaData)
-          .eq('id', despesaEditando.id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('despesas')
-          .insert([despesaData]);
-        
-        if (error) throw error;
-      }
-
-      setModalAberto(false);
-      setDespesaEditando(null);
-      resetForm();
-      carregarDespesas();
-      onRefresh();
-    } catch (error) {
-      console.error('Erro ao salvar despesa:', error);
-      alert('Erro ao salvar despesa: ' + (error.message || 'Tente novamente.'));
-    } finally {
-      setSalvando(false);
-    }
-  };
-
   const marcarComoPaga = async (despesa) => {
     try {
-      const { error } = await supabase
+      await supabase
         .from('despesas')
         .update({ 
           pago: true, 
@@ -519,9 +400,7 @@ const DespesasTab = ({ onRefresh }) => {
         })
         .eq('id', despesa.id);
 
-      if (error) throw error;
       carregarDespesas();
-      onRefresh();
     } catch (error) {
       console.error('Erro ao marcar como paga:', error);
     }
@@ -531,41 +410,11 @@ const DespesasTab = ({ onRefresh }) => {
     if (!confirm('Deseja realmente excluir esta despesa?')) return;
 
     try {
-      const { error } = await supabase
-        .from('despesas')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await supabase.from('despesas').delete().eq('id', id);
       carregarDespesas();
-      onRefresh();
     } catch (error) {
       console.error('Erro ao excluir despesa:', error);
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      descricao: '',
-      categoria: '',
-      valor: '',
-      data_vencimento: new Date().toISOString().split('T')[0],
-      pago: false,
-      data_pagamento: null
-    });
-  };
-
-  const editarDespesa = (despesa) => {
-    setDespesaEditando(despesa);
-    setFormData({
-      descricao: despesa.descricao,
-      categoria: despesa.categoria,
-      valor: despesa.valor.toString(),
-      data_vencimento: despesa.data_vencimento,
-      pago: despesa.pago,
-      data_pagamento: despesa.data_pagamento
-    });
-    setModalAberto(true);
   };
 
   const despesasFiltradas = useMemo(() => {
@@ -590,7 +439,7 @@ const DespesasTab = ({ onRefresh }) => {
 
   return (
     <div className="space-y-6">
-      {/* Resumo - Stack vertical no mobile */}
+      {/* Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between">
@@ -627,7 +476,7 @@ const DespesasTab = ({ onRefresh }) => {
         </div>
       </div>
 
-      {/* Filtros e Ações - Responsivo */}
+      {/* Filtros e Ações */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
           <div className="flex flex-wrap gap-2 w-full lg:w-auto">
@@ -670,11 +519,7 @@ const DespesasTab = ({ onRefresh }) => {
             </select>
 
             <button
-              onClick={() => {
-                setDespesaEditando(null);
-                resetForm();
-                setModalAberto(true);
-              }}
+              onClick={() => onAbrirModal('nova-despesa')}
               className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-2 font-medium transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -754,7 +599,7 @@ const DespesasTab = ({ onRefresh }) => {
                           </button>
                         )}
                         <button 
-                          onClick={() => editarDespesa(despesa)}
+                          onClick={() => onAbrirModal('editar-despesa', despesa)}
                           className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                           title="Editar"
                         >
@@ -776,274 +621,632 @@ const DespesasTab = ({ onRefresh }) => {
           </div>
         )}
       </div>
-
-      {/* Modal de Criar/Editar Despesa - AGORA COM PORTAL */}
-      {modalAberto && createPortal(
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div 
-            className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[90dvh] flex flex-col shadow-2xl"
-          >
-            {/* Header Fixo */}
-            <div className="p-6 border-b border-gray-700 flex items-center justify-between shrink-0">
-              <h3 className="text-xl font-bold text-white">
-                {despesaEditando ? 'Editar Despesa' : 'Nova Despesa'}
-              </h3>
-              <button
-                onClick={() => {
-                  setModalAberto(false);
-                  setDespesaEditando(null);
-                  resetForm();
-                }}
-                className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            {/* Conteúdo com Scroll - ALTURA CONTROLADA COM min-h-0 */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.descricao}
-                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                    placeholder="Ex: Conta de luz"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Categoria</label>
-                  <select
-                    required
-                    value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  >
-                    <option value="">Selecione...</option>
-                    {categorias.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Valor (R$)</label>
-                  <input
-                    type="number"
-                    required
-                    step="0.01"
-                    min="0"
-                    value={formData.valor}
-                    onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                    placeholder="0,00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Data de Vencimento</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.data_vencimento}
-                    onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 p-4 bg-gray-700/30 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="pago"
-                    checked={formData.pago}
-                    onChange={(e) => setFormData({ ...formData, pago: e.target.checked })}
-                    className="w-5 h-5 rounded border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-800"
-                  />
-                  <label htmlFor="pago" className="text-sm font-medium text-gray-300 cursor-pointer">
-                    Marcar como paga
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Fixo - SEMPRE VISÍVEL */}
-            <div className="p-6 border-t border-gray-700 shrink-0 bg-gray-800 rounded-b-2xl">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalAberto(false);
-                    setDespesaEditando(null);
-                    resetForm();
-                  }}
-                  className="flex-1 px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 font-medium transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={salvando}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                >
-                  {salvando ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      SALVAR
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 };
 
-// ==================== 3. METAS ====================
+// ==================== 3. ESTOQUE TAB ====================
 
-const MetasTab = ({ resumoFinanceiro }) => {
-  const [metas, setMetas] = useState([
-    {
-      id: 1,
-      tipo: 'faturamento',
-      titulo: 'Meta de Faturamento',
-      valorMeta: 50000,
-      valorAtual: resumoFinanceiro.receita_bruta || 0,
-      periodo: 'Mensal',
-      icon: DollarSign,
-      color: 'green'
-    },
-    {
-      id: 2,
-      tipo: 'lucro',
-      titulo: 'Meta de Lucro',
-      valorMeta: 15000,
-      valorAtual: resumoFinanceiro.lucro_liquido || 0,
-      periodo: 'Mensal',
-      icon: TrendingUp,
-      color: 'blue'
-    },
-    {
-      id: 3,
-      tipo: 'despesas',
-      titulo: 'Limite de Despesas',
-      valorMeta: 35000,
-      valorAtual: (resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0),
-      periodo: 'Mensal',
-      icon: Receipt,
-      color: 'orange',
-      inverso: true
+const EstoqueTab = ({ onAbrirModal }) => {
+  const [produtos, setProdutos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [busca, setBusca] = useState('');
+
+  const carregarProdutos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('vw_lucro_produtos')
+        .select('*')
+        .order('lucro_total', { ascending: false });
+
+      if (error) throw error;
+      setProdutos(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
 
-  const [modalAberto, setModalAberto] = useState(false);
-  const [metaEditando, setMetaEditando] = useState(null);
-  const [formMeta, setFormMeta] = useState({
-    titulo: '',
-    valorMeta: '',
-    periodo: 'Mensal',
-    tipo: 'faturamento'
-  });
-
-  // INJEÇÃO DE ESTILO "NUCLEAR" PARA OCULTAR RODAPÉ
   useEffect(() => {
-    if (modalAberto) {
-      const style = document.createElement('style');
-      style.id = 'hide-footer-style-metas';
-      style.innerHTML = `
-        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { 
-          display: none !important; 
-          opacity: 0 !important;
-          pointer-events: none !important;
-          z-index: -1 !important;
-        }
-        body { overflow: hidden !important; }
-      `;
-      document.head.appendChild(style);
-      return () => {
-        const existingStyle = document.getElementById('hide-footer-style-metas');
-        if (existingStyle) document.head.removeChild(existingStyle);
-        document.body.style.overflow = '';
-      };
-    }
-  }, [modalAberto]);
+    carregarProdutos();
+  }, [carregarProdutos]);
 
-  const abrirModalNovaMeta = () => {
-    setMetaEditando(null);
-    setFormMeta({
-      titulo: '',
-      valorMeta: '',
-      periodo: 'Mensal',
-      tipo: 'faturamento'
-    });
-    setModalAberto(true);
-  };
-
-  const abrirModalEditarMeta = (meta) => {
-    setMetaEditando(meta);
-    setFormMeta({
-      titulo: meta.titulo,
-      valorMeta: meta.valorMeta.toString(),
-      periodo: meta.periodo,
-      tipo: meta.tipo
-    });
-    setModalAberto(true);
-  };
-
-  const salvarMeta = () => {
-    console.log('Salvando meta:', formMeta);
+  const produtosFiltrados = useMemo(() => {
+    return produtos.filter(produto => {
+      const matchStatus = filtroStatus === 'todos' || 
+        (filtroStatus === 'critico' && produto.quantidade_atual <= produto.estoque_minimo) ||
+        (filtroStatus === 'alto-giro' && produto.rotatividade > 2) ||
+        (filtroStatus === 'baixo-giro' && produto.rotatividade < 0.5);
       
-    if (!formMeta.titulo || !formMeta.valorMeta) {
-      alert('Preencha todos os campos');
-      return;
-    }
+      const matchBusca = busca === '' || 
+        produto.nome?.toLowerCase().includes(busca.toLowerCase()) ||
+        produto.categoria?.toLowerCase().includes(busca.toLowerCase());
 
-    if (metaEditando) {
-      // Editar meta existente
-      setMetas(metas.map(m => 
-        m.id === metaEditando.id 
-          ? { ...m, ...formMeta, valorMeta: parseFloat(formMeta.valorMeta) }
-          : m
-      ));
-      alert('Meta atualizada com sucesso!');
-    } else {
-      // Criar nova meta
-      const novaMeta = {
-        id: Date.now(),
-        ...formMeta,
-        valorMeta: parseFloat(formMeta.valorMeta),
-        valorAtual: 0,
-        icon: formMeta.tipo === 'faturamento' ? DollarSign : formMeta.tipo === 'lucro' ? TrendingUp : Receipt,
-        color: formMeta.tipo === 'faturamento' ? 'green' : formMeta.tipo === 'lucro' ? 'blue' : 'orange',
-        inverso: formMeta.tipo === 'despesas'
-      };
-      setMetas([...metas, novaMeta]);
-      alert('Meta criada com sucesso!');
-    }
+      return matchStatus && matchBusca;
+    });
+  }, [produtos, filtroStatus, busca]);
 
-    setModalAberto(false);
-    setFormMeta({ titulo: '', valorMeta: '', periodo: 'Mensal', tipo: 'faturamento' });
+  // Calcular KPIs do Estoque
+  const calcularKPIs = () => {
+    if (produtos.length === 0) return null;
+
+    const capitalParado = produtos.reduce((acc, p) => acc + (p.quantidade_atual * p.custo_unitario), 0);
+    const produtosCriticos = produtos.filter(p => p.quantidade_atual <= p.estoque_minimo).length;
+    const maiorGiro = produtos.reduce((max, p) => p.rotatividade > (max?.rotatividade || 0) ? p : max, null);
+    const maisLucrativo = produtos.reduce((max, p) => p.lucro_total > (max?.lucro_total || 0) ? p : max, null);
+
+    return {
+      capitalParado,
+      produtosCriticos,
+      maiorGiro,
+      maisLucrativo
+    };
   };
+
+  const kpis = calcularKPIs();
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs do Estoque */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          titulo="Capital Parado"
+          valor={kpis?.capitalParado || 0}
+          icone={DollarSign}
+          cor="orange"
+          loading={loading}
+          subTitulo="Em estoque"
+          format="currency"
+          onClick={() => onAbrirModal('capital-parado')}
+        />
+         
+        <KPICard
+          titulo="Produtos Críticos"
+          valor={kpis?.produtosCriticos || 0}
+          icone={AlertTriangle}
+          cor="red"
+          loading={loading}
+          subTitulo="Abaixo do mínimo"
+          format="number"
+          onClick={() => onAbrirModal('estoque-critico')}
+        />
+         
+        <KPICard
+          titulo="Maior Giro"
+          valor={kpis?.maiorGiro?.rotatividade?.toFixed(1) || 0}
+          icone={TrendingUp}
+          cor="green"
+          loading={loading}
+          subTitulo={kpis?.maiorGiro?.nome || 'Nenhum'}
+          format="number"
+          onClick={() => onAbrirModal('giro-produtos')}
+        />
+         
+        <KPICard
+          titulo="Mais Lucrativo"
+          valor={kpis?.maisLucrativo?.lucro_total || 0}
+          icone={BarChart}
+          cor="blue"
+          loading={loading}
+          subTitulo={kpis?.maisLucrativo?.nome || 'Nenhum'}
+          format="currency"
+          onClick={() => onAbrirModal('lucro-produtos')}
+        />
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+            {['todos', 'critico', 'alto-giro', 'baixo-giro'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFiltroStatus(f)}
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all text-center ${
+                  filtroStatus === f 
+                    ? 'bg-purple-500 text-white' 
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {f.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 lg:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar produto..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none text-sm"
+              />
+            </div>
+            
+            <button
+              onClick={() => onAbrirModal('entrada-estoque')}
+              className="w-full sm:w-auto px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 flex items-center gap-2 font-medium transition-all"
+            >
+              <PackageIcon className="w-4 h-4" />
+              Entrada de Estoque
+            </button>
+            
+            <button
+              onClick={() => onAbrirModal('novo-produto')}
+              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Produto
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Produtos */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          </div>
+        ) : produtosFiltrados.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400">Nenhum produto encontrado</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-gray-700/50 border-b border-gray-600">
+                <tr>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Produto</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Categoria</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Estoque</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Giro</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Lucro Total</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700/50">
+                {produtosFiltrados.map((produto) => {
+                  const margem = ((produto.preco_venda - produto.custo_unitario) / produto.custo_unitario * 100).toFixed(1);
+                  const status = 
+                    produto.quantidade_atual <= produto.estoque_minimo ? 'critico' :
+                    produto.rotatividade > 2 ? 'alto-giro' :
+                    produto.rotatividade < 0.5 ? 'baixo-giro' : 'normal';
+
+                  return (
+                    <tr key={produto.id} className="hover:bg-gray-700/30 transition-colors">
+                      <td className="py-4 px-6">
+                        <div>
+                          <p className="font-medium text-white">{produto.nome}</p>
+                          <p className="text-xs text-gray-400">Mín: {produto.estoque_minimo} uni</p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-medium">
+                          {produto.categoria || 'Sem categoria'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${
+                                produto.quantidade_atual <= produto.estoque_minimo ? 'bg-red-500' :
+                                produto.quantidade_atual <= produto.estoque_minimo * 2 ? 'bg-orange-500' : 'bg-green-500'
+                              }`}
+                              style={{ 
+                                width: `${Math.min(100, (produto.quantidade_atual / (produto.estoque_minimo * 3)) * 100)}%` 
+                              }}
+                            ></div>
+                          </div>
+                          <span className="font-bold text-white">{produto.quantidade_atual}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${
+                            produto.rotatividade > 2 ? 'text-green-400' :
+                            produto.rotatividade < 0.5 ? 'text-red-400' : 'text-yellow-400'
+                          }`}>
+                            {produto.rotatividade?.toFixed(2) || '0.00'}
+                          </span>
+                          <span className="text-xs text-gray-400">vezes/mês</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div>
+                          <p className="font-medium text-white">
+                            R$ {produto.lucro_total?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className={`text-xs ${
+                            parseFloat(margem) >= 50 ? 'text-green-400' :
+                            parseFloat(margem) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>
+                            Margem: {margem}%
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          status === 'critico' ? 'bg-red-500/20 text-red-400' :
+                          status === 'alto-giro' ? 'bg-green-500/20 text-green-400' :
+                          status === 'baixo-giro' ? 'bg-orange-500/20 text-orange-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {status === 'critico' ? 'Crítico' :
+                           status === 'alto-giro' ? 'Alto Giro' :
+                           status === 'baixo-giro' ? 'Baixo Giro' : 'Normal'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => onAbrirModal('editar-produto', produto)}
+                            className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => onAbrirModal('entrada-estoque', produto)}
+                            className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                            title="Entrada de Estoque"
+                          >
+                            <PackageIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ==================== 4. FORNECEDORES TAB ====================
+
+const FornecedoresTab = ({ onAbrirModal }) => {
+  const [fornecedores, setFornecedores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroAtivo, setFiltroAtivo] = useState('todos');
+  const [busca, setBusca] = useState('');
+  const [kpis, setKpis] = useState({ ranking: [] });
+
+  const carregarFornecedores = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('fornecedores')
+        .select('*')
+        .order('nome');
+
+      if (error) throw error;
+      setFornecedores(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar fornecedores:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const carregarKPIs = useCallback(async () => {
+    try {
+      const { data: rankingData } = await supabase
+        .from('vw_ranking_fornecedores')
+        .select('*')
+        .limit(5);
+
+      return {
+        ranking: rankingData || []
+      };
+    } catch (error) {
+      console.error('Erro ao carregar KPIs:', error);
+      return { ranking: [] };
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarFornecedores();
+    const loadKPIs = async () => {
+      const data = await carregarKPIs();
+      setKpis(data);
+    };
+    loadKPIs();
+  }, [carregarFornecedores, carregarKPIs]);
+
+  const fornecedoresFiltrados = useMemo(() => {
+    return fornecedores.filter(f => {
+      const matchAtivo = filtroAtivo === 'todos' || 
+        (filtroAtivo === 'ativo' && f.ativo) || 
+        (filtroAtivo === 'inativo' && !f.ativo);
+      
+      const matchBusca = busca === '' || 
+        f.nome?.toLowerCase().includes(busca.toLowerCase()) ||
+        f.email?.toLowerCase().includes(busca.toLowerCase()) ||
+        f.cnpj_cpf?.includes(busca);
+
+      return matchAtivo && matchBusca;
+    });
+  }, [fornecedores, filtroAtivo, busca]);
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs dos Fornecedores */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          titulo="Maior Volume"
+          valor={kpis.ranking?.[0]?.total_gasto || 0}
+          icone={DollarSign}
+          cor="green"
+          loading={loading}
+          subTitulo={kpis.ranking?.[0]?.nome || 'Nenhum'}
+          format="currency"
+          onClick={() => onAbrirModal('ranking-compras')}
+        />
+         
+        <KPICard
+          titulo="Fornecedor Top"
+          valor={kpis.ranking?.[0]?.nome || 'Nenhum'}
+          icone={Truck}
+          cor="blue"
+          loading={loading}
+          subTitulo={`${kpis.ranking?.[0]?.total_compras || 0} compras`}
+          format="text"
+          onClick={() => onAbrirModal('frequencia-compras')}
+        />
+         
+        <KPICard
+          titulo="Índice Dependência"
+          valor={kpis.ranking?.[0]?.percentual || 0}
+          icone={AlertTriangle}
+          cor="orange"
+          loading={loading}
+          subTitulo="Concentração"
+          format="percent"
+          onClick={() => onAbrirModal('dependencia-fornecedores')}
+        />
+         
+        <KPICard
+          titulo="Total Gasto"
+          valor={kpis.ranking?.reduce((acc, f) => acc + (f.total_gasto || 0), 0) || 0}
+          icone={Receipt}
+          cor="purple"
+          loading={loading}
+          subTitulo="Período atual"
+          format="currency"
+          onClick={() => onAbrirModal('compras-analise')}
+        />
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+            {['todos', 'ativo', 'inativo'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFiltroAtivo(f)}
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all text-center ${
+                  filtroAtivo === f 
+                    ? 'bg-purple-500 text-white' 
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 lg:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar fornecedor..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none text-sm"
+              />
+            </div>
+            
+            <button
+              onClick={() => onAbrirModal('novo-fornecedor')}
+              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Fornecedor
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Fornecedores */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          </div>
+        ) : fornecedoresFiltrados.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400">Nenhum fornecedor encontrado</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-gray-700/50 border-b border-gray-600">
+                <tr>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Fornecedor</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Contato</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Documento</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Compras</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700/50">
+                {fornecedoresFiltrados.map((fornecedor) => {
+                  const fornecedorRanking = kpis.ranking.find(f => f.id === fornecedor.id);
+                  
+                  return (
+                    <tr key={fornecedor.id} className="hover:bg-gray-700/30 transition-colors">
+                      <td className="py-4 px-6">
+                        <div>
+                          <p className="font-medium text-white">{fornecedor.nome}</p>
+                          {fornecedor.observacoes && (
+                            <p className="text-xs text-gray-400 truncate max-w-xs">{fornecedor.observacoes}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="space-y-1">
+                          {fornecedor.telefone && (
+                            <p className="text-sm text-gray-300">{fornecedor.telefone}</p>
+                          )}
+                          {fornecedor.email && (
+                            <p className="text-sm text-blue-300 truncate max-w-xs">{fornecedor.email}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <p className="text-sm text-gray-300 font-mono">
+                          {fornecedor.cnpj_cpf || 'Não informado'}
+                        </p>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div>
+                          {fornecedorRanking ? (
+                            <>
+                              <p className="text-sm text-white">
+                                R$ {fornecedorRanking.total_gasto?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {fornecedorRanking.total_compras} compras • {fornecedorRanking.percentual?.toFixed(1)}%
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-500">Sem compras</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        {fornecedor.ativo ? (
+                          <span className="flex items-center gap-2 text-green-400 text-sm">
+                            <CheckCircle className="w-4 h-4" />
+                            Ativo
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2 text-orange-400 text-sm">
+                            <XCircle className="w-4 h-4" />
+                            Inativo
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => onAbrirModal('editar-fornecedor', fornecedor)}
+                            className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => onAbrirModal('compras-fornecedor', fornecedor)}
+                            className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                            title="Ver Compras"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ==================== 5. METAS TAB ====================
+
+const MetasTab = ({ resumoFinanceiro, onAbrirModal }) => {
+  const [metas, setMetas] = useState([]);
+
+  const carregarMetas = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('metas')
+        .select('*')
+        .order('data_criacao', { ascending: false });
+
+      if (data && data.length > 0) {
+        setMetas(data);
+      } else {
+        // Metas padrão
+        setMetas([
+          {
+            id: 1,
+            tipo: 'faturamento',
+            titulo: 'Meta de Faturamento',
+            valor_meta: 50000,
+            valor_atual: resumoFinanceiro.receita_bruta || 0,
+            periodo: 'Mensal',
+            cor: 'green'
+          },
+          {
+            id: 2,
+            tipo: 'lucro',
+            titulo: 'Meta de Lucro',
+            valor_meta: 15000,
+            valor_atual: resumoFinanceiro.lucro_liquido || 0,
+            periodo: 'Mensal',
+            cor: 'blue'
+          },
+          {
+            id: 3,
+            tipo: 'despesas',
+            titulo: 'Limite de Despesas',
+            valor_meta: 35000,
+            valor_atual: (resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0),
+            periodo: 'Mensal',
+            cor: 'orange',
+            inverso: true
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar metas:', error);
+    }
+  }, [resumoFinanceiro]);
+
+  useEffect(() => {
+    carregarMetas();
+  }, [carregarMetas]);
 
   const calcularProgresso = (meta) => {
     if (meta.inverso) {
-      return meta.valorAtual <= meta.valorMeta 
+      return meta.valor_atual <= meta.valor_meta 
         ? 100 
-        : Math.max(0, 100 - ((meta.valorAtual - meta.valorMeta) / meta.valorMeta * 100));
+        : Math.max(0, 100 - ((meta.valor_atual - meta.valor_meta) / meta.valor_meta * 100));
     }
-    return Math.min(100, (meta.valorAtual / meta.valorMeta) * 100);
+    return Math.min(100, (meta.valor_atual / meta.valor_meta) * 100);
   };
 
   const getStatusMeta = (progresso, inverso) => {
@@ -1057,16 +1260,51 @@ const MetasTab = ({ resumoFinanceiro }) => {
     return { label: 'Em Risco', color: 'text-red-400', bg: 'bg-red-500/20' };
   };
 
+  const getIcon = (tipo) => {
+    switch (tipo) {
+      case 'faturamento': return DollarSign;
+      case 'lucro': return TrendingUp;
+      case 'despesas': return Receipt;
+      default: return Target;
+    }
+  };
+
+  const getColorClass = (cor) => {
+    switch (cor) {
+      case 'green': return 'from-green-500 to-green-600';
+      case 'blue': return 'from-blue-500 to-blue-600';
+      case 'orange': return 'from-orange-500 to-orange-600';
+      default: return 'from-purple-500 to-purple-600';
+    }
+  };
+
+  const getBgColorClass = (cor) => {
+    switch (cor) {
+      case 'green': return 'bg-green-500/10';
+      case 'blue': return 'bg-blue-500/10';
+      case 'orange': return 'bg-orange-500/10';
+      default: return 'bg-purple-500/10';
+    }
+  };
+
+  const getTextColorClass = (cor) => {
+    switch (cor) {
+      case 'green': return 'text-green-400';
+      case 'blue': return 'text-blue-400';
+      case 'orange': return 'text-orange-400';
+      default: return 'text-purple-400';
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white">Metas Financeiras</h2>
           <p className="text-sm sm:text-base text-gray-400 mt-1">Acompanhe o progresso das suas metas</p>
         </div>
         <button
-          onClick={abrirModalNovaMeta}
+          onClick={() => onAbrirModal('nova-meta')}
           className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-2 font-medium transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -1074,18 +1312,21 @@ const MetasTab = ({ resumoFinanceiro }) => {
         </button>
       </div>
 
-      {/* Cards de Metas - Responsivo: 1 col mobile, 2 tablet, 3 desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {metas.map((meta) => {
-          const Icon = meta.icon;
+          const Icon = getIcon(meta.tipo);
           const progresso = calcularProgresso(meta);
           const status = getStatusMeta(progresso, meta.inverso);
 
           return (
-            <div key={meta.id} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+            <div 
+              key={meta.id} 
+              className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 hover:bg-gray-800/70 transition-all cursor-pointer"
+              onClick={() => onAbrirModal('editar-meta', meta)}
+            >
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl bg-${meta.color}-500/10`}>
-                  <Icon className={`w-6 h-6 text-${meta.color}-400`} />
+                <div className={`p-3 rounded-xl ${getBgColorClass(meta.cor)}`}>
+                  <Icon className={`w-6 h-6 ${getTextColorClass(meta.cor)}`} />
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
                   {status.label}
@@ -1099,13 +1340,13 @@ const MetasTab = ({ resumoFinanceiro }) => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Atual</span>
                   <span className="font-bold text-white">
-                    R$ {meta.valorAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {meta.valor_atual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Meta</span>
                   <span className="font-bold text-white">
-                    R$ {meta.valorMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {meta.valor_meta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
@@ -1117,11 +1358,7 @@ const MetasTab = ({ resumoFinanceiro }) => {
                   </div>
                   <div className="h-3 bg-gray-700/50 rounded-full overflow-hidden">
                     <div
-                      className={`h-full bg-gradient-to-r transition-all duration-500 ${
-                        meta.color === 'green' ? 'from-green-500 to-green-600' :
-                        meta.color === 'blue' ? 'from-blue-500 to-blue-600' :
-                        'from-orange-500 to-orange-600'
-                      }`}
+                      className={`h-full bg-gradient-to-r transition-all duration-500 ${getColorClass(meta.cor)}`}
                       style={{ width: `${Math.min(100, progresso)}%` }}
                     ></div>
                   </div>
@@ -1131,17 +1368,17 @@ const MetasTab = ({ resumoFinanceiro }) => {
                 <div className="pt-2 border-t border-gray-700">
                   <p className="text-xs text-gray-400">
                     {meta.inverso ? (
-                      meta.valorAtual <= meta.valorMeta ? (
+                      meta.valor_atual <= meta.valor_meta ? (
                         <>
                           <span className="text-green-400 font-medium">
-                            R$ {(meta.valorMeta - meta.valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {(meta.valor_meta - meta.valor_atual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                           {' '}disponível no orçamento
                         </>
                       ) : (
                         <>
                           <span className="text-red-400 font-medium">
-                            R$ {(meta.valorAtual - meta.valorMeta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {(meta.valor_atual - meta.valor_meta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                           {' '}acima do limite
                         </>
@@ -1151,14 +1388,14 @@ const MetasTab = ({ resumoFinanceiro }) => {
                         <>
                           Meta atingida! 
                           <span className="text-green-400 font-medium">
-                            {' '}+R$ {(meta.valorAtual - meta.valorMeta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {' '}+R$ {(meta.valor_atual - meta.valor_meta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                         </>
                       ) : (
                         <>
                           Faltam{' '}
                           <span className="text-orange-400 font-medium">
-                            R$ {(meta.valorMeta - meta.valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {(meta.valor_meta - meta.valor_atual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                         </>
                       )
@@ -1166,114 +1403,10 @@ const MetasTab = ({ resumoFinanceiro }) => {
                   </p>
                 </div>
               </div>
-
-              <button
-                onClick={() => abrirModalEditarMeta(meta)}
-                className="w-full mt-4 py-2 text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
-              >
-                Editar Meta
-              </button>
             </div>
           );
         })}
       </div>
-
-      {/* Modal de Criar/Editar Meta - AGORA COM PORTAL */}
-      {modalAberto && createPortal(
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md max-h-[85dvh] flex flex-col shadow-2xl">
-            {/* Header Fixo */}
-            <div className="p-6 border-b border-gray-700 flex items-center justify-between shrink-0">
-              <h3 className="text-xl font-bold text-white">
-                {metaEditando ? 'Editar Meta' : 'Nova Meta'}
-              </h3>
-              <button
-                onClick={() => setModalAberto(false)}
-                className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            {/* Conteúdo com Scroll */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Meta</label>
-                  <select
-                    value={formMeta.tipo}
-                    onChange={(e) => setFormMeta({ ...formMeta, tipo: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  >
-                    <option value="faturamento">Faturamento</option>
-                    <option value="lucro">Lucro</option>
-                    <option value="despesas">Limite de Despesas</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Título da Meta</label>
-                  <input
-                    type="text"
-                    value={formMeta.titulo}
-                    onChange={(e) => setFormMeta({ ...formMeta, titulo: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                    placeholder="Ex: Meta de Faturamento Mensal"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Valor da Meta (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formMeta.valorMeta}
-                    onChange={(e) => setFormMeta({ ...formMeta, valorMeta: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                    placeholder="0,00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Período</label>
-                  <select
-                    value={formMeta.periodo}
-                    onChange={(e) => setFormMeta({ ...formMeta, periodo: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                  >
-                    <option value="Diário">Diário</option>
-                    <option value="Semanal">Semanal</option>
-                    <option value="Mensal">Mensal</option>
-                    <option value="Trimestral">Trimestral</option>
-                    <option value="Anual">Anual</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Fixo */}
-            <div className="p-6 border-t border-gray-700 shrink-0 bg-gray-800 rounded-b-2xl">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => setModalAberto(false)}
-                  className="flex-1 px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 font-medium transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={salvarMeta}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                >
-                  <Save className="w-5 h-5" />
-                  SALVAR
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* Insights */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
@@ -1290,7 +1423,7 @@ const MetasTab = ({ resumoFinanceiro }) => {
                   <div key={meta.id} className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
                     <p className="text-sm text-red-300">
                       <AlertTriangle className="w-4 h-4 inline mr-2" />
-                      <strong>{meta.titulo}:</strong> Você está {(((meta.valorAtual / meta.valorMeta) - 1) * 100).toFixed(1)}% 
+                      <strong>{meta.titulo}:</strong> Você está {(((meta.valor_atual / meta.valor_meta) - 1) * 100).toFixed(1)}% 
                       acima do limite estabelecido. Considere revisar suas despesas.
                     </p>
                   </div>
@@ -1313,7 +1446,7 @@ const MetasTab = ({ resumoFinanceiro }) => {
                     <p className="text-sm text-orange-300">
                       <AlertCircle className="w-4 h-4 inline mr-2" />
                       <strong>{meta.titulo}:</strong> Você está em {progresso.toFixed(1)}% da meta. 
-                      Faltam R$ {(meta.valorMeta - meta.valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para atingir o objetivo.
+                      Faltam R$ {(meta.valor_meta - meta.valor_atual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para atingir o objetivo.
                     </p>
                   </div>
                 );
@@ -1327,113 +1460,109 @@ const MetasTab = ({ resumoFinanceiro }) => {
   );
 };
 
-// ==================== 4. RELATÓRIOS ====================
+// ==================== 6. RELATÓRIOS TAB ====================
 
-const RelatoriosTab = ({ resumoFinanceiro, evolucaoReceitas, distribuicaoDespesas }) => {
+const RelatoriosTab = ({ 
+  resumoFinanceiro, 
+  evolucaoReceitas, 
+  distribuicaoDespesas,
+  estoqueCritico,
+  rankingFornecedores,
+  margemServicos,
+  onAbrirModal 
+}) => {
   const [tipoRelatorio, setTipoRelatorio] = useState('financeiro');
-  const [formato, setFormato] = useState('pdf');
-  const [periodo, setPeriodo] = useState('mes');
+  const [formato, setFormato] = useState('excel');
+  const [periodo, setPeriodo] = useState('mes_atual');
   const [gerando, setGerando] = useState(false);
 
-  const gerarRelatorio = () => {
+  const gerarRelatorio = async () => {
     setGerando(true);
+    
+    try {
+      // Coletar dados para o relatório
+      const dadosRelatorio = {
+        cabecalho: {
+          titulo: `Relatório Financeiro - ${new Date().toLocaleDateString('pt-BR')}`,
+          periodo: periodo,
+          tipo: tipoRelatorio
+        },
+        resumo: resumoFinanceiro,
+        evolucao: evolucaoReceitas,
+        despesas: distribuicaoDespesas,
+        estoque: estoqueCritico,
+        fornecedores: rankingFornecedores,
+        margens: margemServicos
+      };
+
+      // Gerar CSV (simulação de Excel)
+      const csvContent = gerarCSV(dadosRelatorio);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `relatorio_${tipoRelatorio}_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-    // Simular geração de relatório
-    setTimeout(() => {
-      const relatorioSelecionado = relatorios.find(r => r.id === tipoRelatorio);
-       
-      if (formato === 'csv') {
-        gerarCSV();
-      } else if (formato === 'excel') {
-        gerarExcel();
-      } else {
-        gerarPDF();
-      }
-       
+      alert('Relatório gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
+      alert('Erro ao gerar relatório.');
+    } finally {
       setGerando(false);
-    }, 1500);
+    }
   };
 
-  const gerarCSV = () => {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Relatório Financeiro\n\n";
-    csvContent += "Indicador,Valor\n";
-    csvContent += `Receita Bruta,R$ ${(resumoFinanceiro.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    csvContent += `Despesas Totais,R$ ${((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    csvContent += `Lucro Líquido,R$ ${(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    csvContent += `Margem de Lucro,${(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%\n\n`;
-      
-    csvContent += "Evolução Mensal\n";
-    csvContent += "Mês,Receita,Despesas,Lucro\n";
-    evolucaoReceitas.forEach(item => {
-      csvContent += `${item.mes},${item.receita},${item.despesas},${item.lucro}\n`;
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-      
-    alert('Relatório CSV gerado com sucesso!');
-  };
-
-  const gerarExcel = () => {
-    // Para Excel real, você precisaria de uma biblioteca como xlsx
-    alert('Para gerar Excel real, instale: npm install xlsx\n\nPor enquanto, gerando CSV...');
-    gerarCSV();
-  };
-
-  const gerarPDF = () => {
-    // Para PDF real, você precisaria de uma biblioteca como jsPDF
-    const content = `
-RELATÓRIO FINANCEIRO
-Data: ${new Date().toLocaleDateString('pt-BR')}
-Período: ${periodo}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-RESUMO FINANCEIRO
-
-Receita Bruta:        R$ ${(resumoFinanceiro.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Despesas Totais:      R$ ${((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Lucro Líquido:        R$ ${(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Margem de Lucro:      ${(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-EVOLUÇÃO MENSAL
-
-${evolucaoReceitas.map(item => 
-  `${item.mes}: Receita R$ ${item.receita.toFixed(2)} | Despesas R$ ${item.despesas.toFixed(2)} | Lucro R$ ${item.lucro.toFixed(2)}`
-).join('\n')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DESPESAS POR CATEGORIA
-
-${distribuicaoDespesas.map(item => 
-  `${item.categoria}: R$ ${item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-).join('\n')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
-    `.trim();
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-      
-    alert('Relatório gerado com sucesso!\n\nNota: Para PDF real com formatação profissional, instale as bibliotecas:\n- npm install jspdf\n- npm install jspdf-autotable');
+  const gerarCSV = (dados) => {
+    let csv = '';
+    
+    // Cabeçalho
+    csv += `${dados.cabecalho.titulo}\n`;
+    csv += `Período: ${dados.cabecalho.periodo}\n`;
+    csv += `Tipo: ${dados.cabecalho.tipo}\n\n`;
+    
+    // Resumo Financeiro
+    csv += "RESUMO FINANCEIRO\n";
+    csv += "Indicador,Valor\n";
+    csv += `Receita Bruta,R$ ${(dados.resumo.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+    csv += `Despesas Totais,R$ ${((dados.resumo.despesas_pagas || 0) + (dados.resumo.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+    csv += `Lucro Líquido,R$ ${(dados.resumo.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+    csv += `Margem de Lucro,${(dados.resumo.margem_lucro || 0).toFixed(1)}%\n`;
+    csv += `Total Vendas,${dados.resumo.total_vendas || 0}\n\n`;
+    
+    // Evolução Financeira
+    if (dados.evolucao && dados.evolucao.length > 0) {
+      csv += "EVOLUÇÃO FINANCEIRA\n";
+      csv += "Mês,Receita,Despesa,Lucro\n";
+      dados.evolucao.forEach(item => {
+        csv += `${item.mes},${item.receita},${item.despesa},${item.lucro}\n`;
+      });
+      csv += "\n";
+    }
+    
+    // Despesas por Categoria
+    if (dados.despesas && dados.despesas.length > 0) {
+      csv += "DESPESAS POR CATEGORIA\n";
+      csv += "Categoria,Total,Percentual\n";
+      dados.despesas.forEach(item => {
+        csv += `${item.categoria},${item.total},${item.percentual}\n`;
+      });
+      csv += "\n";
+    }
+    
+    // Estoque Crítico
+    if (dados.estoque && dados.estoque.length > 0) {
+      csv += "ESTOQUE CRÍTICO\n";
+      csv += "Produto,Quantidade Atual,Estoque Mínimo,Diferença\n";
+      dados.estoque.forEach(item => {
+        csv += `${item.nome},${item.quantidade_atual},${item.estoque_minimo},${item.quantidade_atual - item.estoque_minimo}\n`;
+      });
+      csv += "\n";
+    }
+    
+    return csv;
   };
 
   const relatorios = [
@@ -1452,17 +1581,46 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
       color: 'text-orange-400 bg-orange-500/10'
     },
     {
-      id: 'desempenho',
-      titulo: 'Desempenho',
-      descricao: 'KPIs e indicadores de performance',
-      icon: TrendingUp,
+      id: 'estoque',
+      titulo: 'Relatório de Estoque',
+      descricao: 'Giro, lucro e estoque crítico',
+      icon: Package,
+      color: 'text-blue-400 bg-blue-500/10'
+    },
+    {
+      id: 'fornecedores',
+      titulo: 'Performance de Fornecedores',
+      descricao: 'Volume, frequência e dependência',
+      icon: Users,
       color: 'text-purple-400 bg-purple-500/10'
+    },
+    {
+      id: 'margens',
+      titulo: 'Margens de Serviços',
+      descricao: 'Rentabilidade por serviço',
+      icon: BarChart,
+      color: 'text-yellow-400 bg-yellow-500/10'
+    },
+    {
+      id: 'insights',
+      titulo: 'Luni Insights',
+      descricao: 'Análises inteligentes e recomendações',
+      icon: Zap,
+      color: 'text-pink-400 bg-pink-500/10'
     }
+  ];
+
+  const periodos = [
+    { id: 'mes_atual', label: 'Este mês' },
+    { id: 'trimestre', label: 'Últimos 3 meses' },
+    { id: 'semestre', label: 'Últimos 6 meses' },
+    { id: 'ano', label: 'Este ano' },
+    { id: 'personalizado', label: 'Personalizado' }
   ];
 
   return (
     <div className="space-y-6">
-      {/* Seletor de Relatório - Grid responsivo */}
+      {/* Cards de Tipos de Relatório */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {relatorios.map((relatorio) => {
           const Icon = relatorio.icon;
@@ -1486,26 +1644,26 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
         })}
       </div>
 
-      {/* Configurações */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
+      {/* Configurações do Relatório */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
         <h3 className="text-lg font-bold text-white mb-6">Configurar Relatório</h3>
-         
+        
         <div className="space-y-6">
           {/* Período */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">Período</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {['Este mês', 'Últimos 3 meses', 'Este ano', 'Personalizado'].map((p) => (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {periodos.map((p) => (
                 <button
-                  key={p}
-                  onClick={() => setPeriodo(p.toLowerCase().replace(/ /g, '_'))}
+                  key={p.id}
+                  onClick={() => setPeriodo(p.id)}
                   className={`px-3 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-                    periodo === p.toLowerCase().replace(/ /g, '_')
+                    periodo === p.id
                       ? 'bg-purple-500 text-white'
                       : 'border border-gray-700 text-gray-300 hover:bg-gray-700/50'
                   }`}
                 >
-                  {p}
+                  {p.label}
                 </button>
               ))}
             </div>
@@ -1514,34 +1672,37 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
           {/* Formato */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">Formato de Exportação</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                { id: 'pdf', label: 'PDF', icon: FileText },
-                { id: 'excel', label: 'Excel', icon: BarChart3 },
-                { id: 'csv', label: 'CSV', icon: Download }
-              ].map((fmt) => {
-                const Icon = fmt.icon;
-                return (
-                  <button
-                    key={fmt.id}
-                    onClick={() => setFormato(fmt.id)}
-                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
-                      formato === fmt.id
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-700 hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm font-medium text-white">{fmt.label}</span>
-                  </button>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+              <button
+                onClick={() => setFormato('excel')}
+                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
+                  formato === 'excel'
+                    ? 'border-purple-500 bg-purple-500/10'
+                    : 'border-gray-700 hover:bg-gray-700/50'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5 text-gray-400" />
+                <div className="text-left">
+                  <span className="text-sm font-medium text-white">Excel (CSV)</span>
+                  <p className="text-xs text-gray-400">Compatível com todas as planilhas</p>
+                </div>
+              </button>
+              <button
+                onClick={() => onAbrirModal('preview-relatorio', { tipo: tipoRelatorio, periodo })}
+                className="p-4 rounded-xl border border-gray-700 hover:bg-gray-700/50 flex items-center gap-3 transition-all"
+              >
+                <Eye className="w-5 h-5 text-gray-400" />
+                <div className="text-left">
+                  <span className="text-sm font-medium text-white">Preview</span>
+                  <p className="text-xs text-gray-400">Visualizar antes de exportar</p>
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* Preview dos Dados */}
+          {/* Preview do Resumo */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Preview do Relatório</label>
+            <label className="block text-sm font-medium text-gray-300 mb-3">Resumo do Relatório</label>
             <div className="bg-gray-700/30 border border-gray-700 rounded-xl p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1563,14 +1724,24 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Margem</p>
+                  <p className="text-xs text-gray-400 mb-1">Margem de Lucro</p>
                   <p className="text-xl font-bold text-purple-400">
                     {(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%
                   </p>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Estoque Crítico</p>
+                  <p className="text-sm font-medium text-white">{estoqueCritico?.length || 0} produtos</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Fornecedores Ativos</p>
+                  <p className="text-sm font-medium text-white">{rankingFornecedores?.length || 0}</p>
+                </div>
+              </div>
               <p className="text-xs text-gray-500 text-center pt-4 border-t border-gray-700">
-                {distribuicaoDespesas.length} categorias de despesas • {evolucaoReceitas.length} meses de histórico
+                {distribuicaoDespesas?.length || 0} categorias de despesas • {evolucaoReceitas?.length || 0} períodos
               </p>
             </div>
           </div>
@@ -1590,11 +1761,14 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
               ) : (
                 <>
                   <Download className="w-5 h-5" />
-                  Gerar Relatório
+                  Exportar Relatório (Excel)
                 </>
               )}
             </button>
-            <button className="px-6 py-3.5 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700/50 transition-all flex items-center justify-center gap-3">
+            <button 
+              onClick={() => onAbrirModal('compartilhar-relatorio', { tipo: tipoRelatorio, periodo })}
+              className="px-6 py-3.5 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700/50 transition-all flex items-center justify-center gap-3"
+            >
               <Share2 className="w-5 h-5" />
               Compartilhar
             </button>
@@ -1605,70 +1779,453 @@ Para PDF real com gráficos, instale: npm install jspdf jspdf-autotable
   );
 };
 
+// ==================== HEALTH SCORE COMPONENT ====================
+
+const HealthScore = ({ 
+  resumoFinanceiro, 
+  margemServicos, 
+  estoqueCritico, 
+  rankingFornecedores,
+  evolucaoReceitas 
+}) => {
+  const [score, setScore] = useState(0);
+  const [status, setStatus] = useState('');
+  const [explicacao, setExplicacao] = useState('');
+
+  useEffect(() => {
+    const calcularHealthScore = () => {
+      let totalScore = 0;
+      let explicacoes = [];
+      
+      // 1. Saúde Financeira (40%)
+      const margemLucro = resumoFinanceiro.margem_lucro || 0;
+      const scoreFinanceiro = Math.min(100, (margemLucro / 30) * 100);
+      totalScore += scoreFinanceiro * 0.4;
+      
+      if (margemLucro < 20) {
+        explicacoes.push(`Margem de lucro baixa (${margemLucro.toFixed(1)}%).`);
+      } else if (margemLucro > 35) {
+        explicacoes.push(`Margem de lucro excelente (${margemLucro.toFixed(1)}%).`);
+      }
+
+      // 2. Margem de Serviços (20%)
+      const mediaMargem = margemServicos?.reduce((acc, s) => acc + (s.margem || 0), 0) / (margemServicos?.length || 1) || 0;
+      const scoreMargem = Math.min(100, (mediaMargem / 50) * 100);
+      totalScore += scoreMargem * 0.2;
+      
+      if (mediaMargem < 30) {
+        explicacoes.push(`Margem média dos serviços baixa (${mediaMargem.toFixed(1)}%).`);
+      }
+
+      // 3. Estoque (15%)
+      const totalProdutosCriticos = estoqueCritico?.length || 0;
+      const scoreEstoque = totalProdutosCriticos === 0 ? 100 : Math.max(0, 100 - (totalProdutosCriticos * 20));
+      totalScore += scoreEstoque * 0.15;
+      
+      if (totalProdutosCriticos > 0) {
+        explicacoes.push(`${totalProdutosCriticos} produto(s) em estoque crítico.`);
+      }
+
+      // 4. Dependência de Fornecedores (10%)
+      const topFornecedorPercent = rankingFornecedores?.[0]?.percentual || 0;
+      const scoreFornecedores = topFornecedorPercent > 50 ? Math.max(0, 100 - ((topFornecedorPercent - 50) * 2)) : 100;
+      totalScore += scoreFornecedores * 0.1;
+      
+      if (topFornecedorPercent > 50) {
+        explicacoes.push(`Alta dependência do fornecedor ${rankingFornecedores[0]?.nome} (${topFornecedorPercent.toFixed(1)}%).`);
+      }
+
+      // 5. Consistência de Vendas (15%)
+      const receitas = evolucaoReceitas?.map(r => r.receita) || [];
+      let scoreConsistencia = 100;
+      if (receitas.length >= 3) {
+        const variacao = Math.abs((receitas[receitas.length - 1] - receitas[0]) / receitas[0]) * 100;
+        scoreConsistencia = Math.max(0, 100 - (variacao / 2));
+        
+        if (variacao > 30) {
+          explicacoes.push(`Alta variação nas vendas (${variacao.toFixed(1)}%).`);
+        }
+      }
+      totalScore += scoreConsistencia * 0.15;
+
+      const finalScore = Math.round(totalScore);
+      setScore(finalScore);
+
+      if (finalScore >= 80) {
+        setStatus('Excelente 🟢');
+        if (explicacoes.length === 0) explicacoes.push('Seu salão está operando de forma excelente!');
+      } else if (finalScore >= 60) {
+        setStatus('Boa 🟡');
+        if (explicacoes.length === 0) explicacoes.push('Seu salão está com saúde boa, mas há pontos de melhoria.');
+      } else if (finalScore >= 40) {
+        setStatus('Atenção 🟠');
+      } else {
+        setStatus('Crítica 🔴');
+      }
+
+      setExplicacao(explicacoes.join(' '));
+    };
+
+    calcularHealthScore();
+  }, [resumoFinanceiro, margemServicos, estoqueCritico, rankingFornecedores, evolucaoReceitas]);
+
+  const getScoreColor = () => {
+    if (score >= 80) return 'from-green-500 to-emerald-500';
+    if (score >= 60) return 'from-yellow-500 to-amber-500';
+    if (score >= 40) return 'from-orange-500 to-red-500';
+    return 'from-red-500 to-pink-500';
+  };
+
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-2">
+            <Activity className="w-5 h-5 text-purple-400" />
+            Saúde do Salão
+          </h3>
+          <p className="text-sm text-gray-400">
+            Pontuação geral baseada em 5 pilares
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className={`px-6 py-3 rounded-xl bg-gradient-to-r ${getScoreColor()} text-white flex items-center gap-3`}>
+            <span className="text-2xl font-bold">{score}</span>
+            <div className="text-left">
+              <p className="text-xs font-medium">{status}</p>
+              <p className="text-xs opacity-80">de 100 pontos</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <div className="flex justify-between text-sm text-gray-400 mb-2">
+          <span>0</span>
+          <span>Pontuação</span>
+          <span>100</span>
+        </div>
+        <div className="h-3 bg-gray-700/50 rounded-full overflow-hidden">
+          <div 
+            className={`h-full bg-gradient-to-r ${getScoreColor()} transition-all duration-1000`}
+            style={{ width: `${score}%` }}
+          ></div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Saúde Financeira</span>
+          <span className="text-white font-medium">40%</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Margem de Serviços</span>
+          <span className="text-white font-medium">20%</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Estoque</span>
+          <span className="text-white font-medium">15%</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Dependência de Fornecedores</span>
+          <span className="text-white font-medium">10%</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Consistência de Vendas</span>
+          <span className="text-white font-medium">15%</span>
+        </div>
+      </div>
+
+      {explicacao && (
+        <div className="mt-6 p-4 bg-gray-700/30 rounded-xl border border-gray-600">
+          <p className="text-sm text-gray-300">
+            <strong>Análise da Luni:</strong> {explicacao}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== LUNI INSIGHTS COMPONENT ====================
+
+const LuniInsights = ({ 
+  resumoFinanceiro, 
+  estoqueCritico, 
+  rankingFornecedores,
+  margemServicos 
+}) => {
+  const [insights, setInsights] = useState([]);
+
+  useEffect(() => {
+    const gerarInsights = () => {
+      const novosInsights = [];
+
+      // Estoque Crítico
+      if (estoqueCritico?.length > 0) {
+        novosInsights.push({
+          tipo: 'alerta',
+          titulo: 'Estoque Crítico',
+          descricao: `${estoqueCritico.length} produto(s) estão abaixo do estoque mínimo.`,
+          acao_sugerida: 'Faça um pedido urgente para evitar falta de produtos.'
+        });
+      }
+
+      // Margem de Serviços
+      const margemMedia = margemServicos?.reduce((acc, s) => acc + (s.margem || 0), 0) / (margemServicos?.length || 1) || 0;
+      if (margemMedia < 30) {
+        novosInsights.push({
+          tipo: 'alerta',
+          titulo: 'Margem de Serviços Baixa',
+          descricao: `Sua margem média está em ${margemMedia.toFixed(1)}%.`,
+          acao_sugerida: 'Reavalie preços ou negocie custos com fornecedores.'
+        });
+      }
+
+      // Dependência de Fornecedores
+      const topFornecedor = rankingFornecedores?.[0];
+      if (topFornecedor?.percentual > 50) {
+        novosInsights.push({
+          tipo: 'informativo',
+          titulo: 'Alta Dependência de Fornecedor',
+          descricao: `${topFornecedor.nome} concentra ${topFornecedor.percentual.toFixed(1)}% dos gastos.`,
+          acao_sugerida: 'Diversifique fornecedores para reduzir riscos.'
+        });
+      }
+
+      // Saúde Financeira
+      if (resumoFinanceiro.margem_lucro > 30) {
+        novosInsights.push({
+          tipo: 'oportunidade',
+          titulo: 'Lucro Saudável',
+          descricao: `Margem de lucro em ${resumoFinanceiro.margem_lucro.toFixed(1)}%.`,
+          acao_sugerida: 'Considere investir em marketing ou expandir serviços.'
+        });
+      }
+
+      // Consistência de Vendas
+      if (resumoFinanceiro.total_vendas > 0) {
+        const ticketMedio = resumoFinanceiro.receita_bruta / resumoFinanceiro.total_vendas;
+        if (ticketMedio < 50) {
+          novosInsights.push({
+            tipo: 'oportunidade',
+            titulo: 'Ticket Médio Baixo',
+            descricao: `Ticket médio de R$ ${ticketMedio.toFixed(2)}.`,
+            acao_sugerida: 'Upsell de serviços pode aumentar o valor médio.'
+          });
+        }
+      }
+
+      setInsights(novosInsights.slice(0, 3));
+    };
+
+    gerarInsights();
+  }, [resumoFinanceiro, estoqueCritico, rankingFornecedores, margemServicos]);
+
+  const getTipoColor = (tipo) => {
+    switch (tipo) {
+      case 'alerta': return 'border-red-500/30 bg-red-500/10';
+      case 'oportunidade': return 'border-green-500/30 bg-green-500/10';
+      case 'informativo': return 'border-blue-500/30 bg-blue-500/10';
+      default: return 'border-gray-500/30 bg-gray-500/10';
+    }
+  };
+
+  const getTipoIcon = (tipo) => {
+    switch (tipo) {
+      case 'alerta': return AlertTriangle;
+      case 'oportunidade': return TrendingUp;
+      case 'informativo': return Info;
+      default: return Zap;
+    }
+  };
+
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Zap className="w-5 h-5 text-purple-400" />
+            Insights da Luni
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">Recomendações inteligentes para seu salão</p>
+        </div>
+      </div>
+
+      {insights.length === 0 ? (
+        <div className="text-center py-8">
+          <Zap className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-400">Tudo sob controle! Continue monitorando.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {insights.map((insight, index) => {
+            const Icon = getTipoIcon(insight.tipo);
+            return (
+              <div key={index} className={`p-4 rounded-xl border ${getTipoColor(insight.tipo)}`}>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-800/50 rounded-lg">
+                    <Icon className="w-5 h-5 text-gray-300" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        insight.tipo === 'alerta' ? 'bg-red-500/20 text-red-400' :
+                        insight.tipo === 'oportunidade' ? 'bg-green-500/20 text-green-400' :
+                        'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {insight.tipo.charAt(0).toUpperCase() + insight.tipo.slice(1)}
+                      </span>
+                      <h4 className="font-bold text-white text-sm">{insight.titulo}</h4>
+                    </div>
+                    <p className="text-sm text-gray-300 mb-3">{insight.descricao}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">📌 Ação sugerida:</span>
+                      <span className="text-xs font-medium text-gray-200">{insight.acao_sugerida}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ==================== COMPONENTE PRINCIPAL ====================
 
 export const FinanceiroScreen = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('visao-geral');
-  const [periodo, setPeriodo] = useState('mes');
-  const [dataInicio, setDataInicio] = useState(() => {
-    const date = new Date();
-    date.setDate(1);
-    return date.toISOString().split('T')[0];
-  });
-  const [dataFim, setDataFim] = useState(() => new Date().toISOString().split('T')[0]);
-    
-  const [resumoFinanceiro, setResumoFinanceiro] = useState({
-    receita_bruta: 0,
-    despesas_pagas: 0,
-    despesas_pendentes: 0,
-    lucro_liquido: 0,
-    margem_lucro: 0
-  });
-    
-  const [evolucaoReceitas, setEvolucaoReceitas] = useState([]);
+  
+  const [kpiFinanceiro, setKpiFinanceiro] = useState({});
+  const [margemServicos, setMargemServicos] = useState([]);
+  const [estoqueCritico, setEstoqueCritico] = useState([]);
+  const [rankingFornecedores, setRankingFornecedores] = useState([]);
+  const [evolucaoFinanceira, setEvolucaoFinanceira] = useState([]);
   const [distribuicaoDespesas, setDistribuicaoDespesas] = useState([]);
+
+  // Estado para modais
+  const [modalAberto, setModalAberto] = useState(null);
+  const [modalDados, setModalDados] = useState(null);
+
+  const abrirModal = (tipo, dados = null) => {
+    setModalAberto(tipo);
+    setModalDados(dados);
+  };
+
+  const fecharModal = () => {
+    setModalAberto(null);
+    setModalDados(null);
+  };
 
   const carregarDados = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
     try {
-      const [resumoRes, mensalRes, despesasCatRes] = await Promise.all([
-        supabase.from('vw_resumo_financeiro').select('*').single(),
-        supabase.from('vw_financeiro_mensal').select('*').order('mes', { ascending: true }),
-        supabase.from('vw_despesas_por_categoria').select('*')
+      // Obter salao_id do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      let salaoId = null;
+
+      if (user) {
+        const { data: usuario } = await supabase
+          .from('usuarios')
+          .select('salao_id')
+          .eq('id', user.id)
+          .single();
+        
+        if (usuario) salaoId = usuario.salao_id;
+      }
+
+      if (!salaoId) {
+        console.error('Salão não encontrado');
+        return;
+      }
+
+      // Carregar todos os dados em paralelo
+      const [
+        kpiRes,
+        margemRes,
+        estoqueRes,
+        fornecedoresRes,
+        evolucaoRes,
+        despesasRes
+      ] = await Promise.all([
+        supabase
+          .from('vw_kpi_financeiro_salao')
+          .select('*')
+          .eq('salao_id', salaoId)
+          .single(),
+        
+        supabase
+          .from('vw_kpi_margem_servicos')
+          .select('*')
+          .eq('salao_id', salaoId)
+          .limit(5),
+        
+        supabase
+          .from('vw_estoque_critico')
+          .select('*')
+          .eq('salao_id', salaoId),
+        
+        supabase
+          .from('vw_ranking_fornecedores')
+          .select('*')
+          .eq('salao_id', salaoId)
+          .limit(5),
+        
+        supabase
+          .from('eventos')
+          .select('*')
+          .eq('salao_id', salaoId)
+          .order('data', { ascending: true })
+          .limit(6),
+        
+        supabase
+          .from('vw_despesas_por_categoria')
+          .select('*')
+          .eq('salao_id', salaoId)
       ]);
 
-      if (resumoRes.data) {
-        setResumoFinanceiro({
-          receita_bruta: resumoRes.data.receita_bruta || 0,
-          despesas_pagas: resumoRes.data.despesas_pagas || 0,
-          despesas_pendentes: resumoRes.data.despesas_pendentes || 0,
-          lucro_liquido: resumoRes.data.lucro_liquido || 0,
-          margem_lucro: resumoRes.data.margem_lucro || 0
+      if (kpiRes.data) setKpiFinanceiro(kpiRes.data);
+      if (margemRes.data) setMargemServicos(margemRes.data);
+      if (estoqueRes.data) setEstoqueCritico(estoqueRes.data);
+      if (fornecedoresRes.data) setRankingFornecedores(fornecedoresRes.data);
+      if (despesasRes.data) setDistribuicaoDespesas(despesasRes.data);
+      
+      // Processar evolução financeira
+      if (evolucaoRes.data) {
+        const meses = {};
+        evolucaoRes.data.forEach(evento => {
+          const mes = new Date(evento.data).toLocaleDateString('pt-BR', { month: 'short' });
+          if (!meses[mes]) {
+            meses[mes] = { receita: 0, despesa: 0, lucro: 0 };
+          }
+          if (evento.tipo === 'receita') {
+            meses[mes].receita += evento.valor || 0;
+          } else if (evento.tipo === 'despesa') {
+            meses[mes].despesa += evento.valor || 0;
+          }
+          meses[mes].lucro = meses[mes].receita - meses[mes].despesa;
         });
-      }
 
-      if (mensalRes.data) {
-        setEvolucaoReceitas(mensalRes.data.map(item => ({
-          mes: new Date(item.mes).toLocaleDateString('pt-BR', { month: 'short' }),
-          receita: item.receita || 0,
-          despesas: item.despesas || 0,
-          lucro: item.lucro || 0
-        })));
-      }
+        const evolucao = Object.entries(meses).map(([mes, dados]) => ({
+          mes,
+          receita: dados.receita,
+          despesa: dados.despesa,
+          lucro: dados.lucro
+        }));
 
-      if (despesasCatRes.data) {
-        setDistribuicaoDespesas(despesasCatRes.data.map(item => ({
-          categoria: item.categoria || 'Sem categoria',
-          total: item.total || 0
-        })));
+        setEvolucaoFinanceira(evolucao);
       }
 
     } catch (error) {
-      console.error('Erro ao carregar dados financeiros:', error);
+      console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -1682,33 +2239,90 @@ export const FinanceiroScreen = ({ onClose }) => {
   const tabs = [
     { id: 'visao-geral', label: 'Visão Geral', icon: Home },
     { id: 'despesas', label: 'Despesas', icon: Receipt },
+    { id: 'estoque', label: 'Estoque', icon: Package },
+    { id: 'fornecedores', label: 'Fornecedores', icon: Users },
     { id: 'metas', label: 'Metas', icon: Target },
     { id: 'relatorios', label: 'Relatórios', icon: FileText }
   ];
 
+  const handleCardClick = (tipo) => {
+    console.log(`Card ${tipo} clicado`);
+    switch(tipo) {
+      case 'receita':
+        abrirModal('analise-receitas');
+        break;
+      case 'despesa':
+        abrirModal('analise-despesas');
+        break;
+      case 'lucro':
+        abrirModal('analise-lucro');
+        break;
+      case 'ticket':
+        abrirModal('analise-ticket');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleRefresh = () => {
+    carregarDados(false);
+  };
+
   const renderTabContent = () => {
+    const commonProps = {
+      onAbrirModal: abrirModal
+    };
+
     switch (activeTab) {
       case 'visao-geral':
         return (
-          <VisaoGeralTab 
-            resumoFinanceiro={resumoFinanceiro}
-            evolucaoReceitas={evolucaoReceitas}
-            distribuicaoDespesas={distribuicaoDespesas}
-            loading={loading}
-          />
+          <>
+            <VisaoGeralTab 
+              resumoFinanceiro={kpiFinanceiro}
+              evolucaoReceitas={evolucaoFinanceira}
+              margemServicos={margemServicos}
+              estoqueCritico={estoqueCritico}
+              rankingFornecedores={rankingFornecedores}
+              loading={loading}
+              onCardClick={handleCardClick}
+              onAbrirModal={abrirModal}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <HealthScore 
+                resumoFinanceiro={kpiFinanceiro}
+                margemServicos={margemServicos}
+                estoqueCritico={estoqueCritico}
+                rankingFornecedores={rankingFornecedores}
+                evolucaoReceitas={evolucaoFinanceira}
+              />
+              <LuniInsights 
+                resumoFinanceiro={kpiFinanceiro}
+                estoqueCritico={estoqueCritico}
+                rankingFornecedores={rankingFornecedores}
+                margemServicos={margemServicos}
+              />
+            </div>
+          </>
         );
       case 'despesas':
-        return <DespesasTab onRefresh={() => carregarDados(false)} />;
+        return <DespesasTab {...commonProps} />;
+      case 'estoque':
+        return <EstoqueTab {...commonProps} />;
+      case 'fornecedores':
+        return <FornecedoresTab {...commonProps} />;
       case 'metas':
-        return <MetasTab resumoFinanceiro={resumoFinanceiro} />;
+        return <MetasTab resumoFinanceiro={kpiFinanceiro} onAbrirModal={abrirModal} />;
       case 'relatorios':
-        return (
-          <RelatoriosTab 
-            resumoFinanceiro={resumoFinanceiro}
-            evolucaoReceitas={evolucaoReceitas}
-            distribuicaoDespesas={distribuicaoDespesas}
-          />
-        );
+        return <RelatoriosTab 
+          resumoFinanceiro={kpiFinanceiro}
+          evolucaoReceitas={evolucaoFinanceira}
+          distribuicaoDespesas={distribuicaoDespesas}
+          estoqueCritico={estoqueCritico}
+          rankingFornecedores={rankingFornecedores}
+          margemServicos={margemServicos}
+          onAbrirModal={abrirModal}
+        />;
       default:
         return null;
     }
@@ -1716,7 +2330,6 @@ export const FinanceiroScreen = ({ onClose }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-x-hidden">
-      {/* Header */}
       <div className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-xl border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between py-4 md:h-20 gap-4">
@@ -1734,7 +2347,7 @@ export const FinanceiroScreen = ({ onClose }) => {
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold text-white">Finanças</h1>
                   <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">
-                    {new Date(dataInicio).toLocaleDateString('pt-BR')} - {new Date(dataFim).toLocaleDateString('pt-BR')}
+                    Centro de Decisão do Salão
                   </p>
                 </div>
               </div>
@@ -1742,28 +2355,17 @@ export const FinanceiroScreen = ({ onClose }) => {
 
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <button
-                onClick={() => carregarDados(false)}
+                onClick={handleRefresh}
                 disabled={refreshing}
                 className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
               >
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
-               
-              <FiltroPeriodo 
-                periodo={periodo} 
-                setPeriodo={setPeriodo}
-                dataInicio={dataInicio}
-                setDataInicio={setDataInicio}
-                dataFim={dataFim}
-                setDataFim={setDataFim}
-                onAplicar={() => carregarDados()}
-              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="sticky top-[84px] md:top-20 z-40 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto py-2 no-scrollbar">
@@ -1789,17 +2391,115 @@ export const FinanceiroScreen = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 mb-10">
         {loading && activeTab === 'visao-geral' ? (
           <div className="flex flex-col items-center justify-center h-96">
             <Loader2 className="w-16 h-16 text-purple-500 animate-spin mb-4" />
-            <p className="text-gray-400 font-medium">Carregando dados financeiros...</p>
+            <p className="text-gray-400 font-medium">Carregando dados do salão...</p>
           </div>
         ) : (
           renderTabContent()
         )}
       </div>
+
+      {/* Renderizar Modais */}
+      {modalAberto === 'nova-despesa' && (
+        <DespesaModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+        />
+      )}
+
+      {modalAberto === 'editar-despesa' && modalDados && (
+        <DespesaModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+          despesa={modalDados}
+        />
+      )}
+
+      {modalAberto === 'novo-produto' && (
+        <ProdutoModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+        />
+      )}
+
+      {modalAberto === 'editar-produto' && modalDados && (
+        <ProdutoModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+          produto={modalDados}
+        />
+      )}
+
+      {modalAberto === 'entrada-estoque' && (
+        <EstoqueModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+          produto={modalDados}
+        />
+      )}
+
+      {modalAberto === 'novo-fornecedor' && (
+        <FornecedorModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+        />
+      )}
+
+      {modalAberto === 'editar-fornecedor' && modalDados && (
+        <FornecedorModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={handleRefresh}
+          fornecedor={modalDados}
+        />
+      )}
+
+      {modalAberto === 'nova-meta' && (
+        <MetaModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={() => {
+            handleRefresh();
+          }}
+        />
+      )}
+
+      {modalAberto === 'editar-meta' && modalDados && (
+        <MetaModal
+          aberto={true}
+          onFechar={fecharModal}
+          onSucesso={() => {
+            handleRefresh();
+          }}
+          meta={modalDados}
+        />
+      )}
+
+      {modalAberto === 'preview-relatorio' && (
+        <RelatorioModal
+          aberto={true}
+          onFechar={fecharModal}
+          tipo={modalDados?.tipo}
+          periodo={modalDados?.periodo}
+          dados={{
+            resumo: kpiFinanceiro,
+            evolucao: evolucaoFinanceira,
+            despesas: distribuicaoDespesas,
+            estoque: estoqueCritico,
+            fornecedores: rankingFornecedores,
+            margens: margemServicos
+          }}
+        />
+      )}
     </div>
   );
 };

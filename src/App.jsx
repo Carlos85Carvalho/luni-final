@@ -218,37 +218,29 @@ const LoginScreen = () => {
   );
 };
 
-// --- ADMIN APP ATUALIZADO (CORREÇÃO: Esconder Menus quando modal abre) ---
+// --- ADMIN APP OTIMIZADO (SEM useEffect / SEM LOOP) ---
 const AdminApp = () => {
   const { logout, salaoNome, salaoId } = useAuth();
   const [screen, setScreen] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   
-  // NOVO: Estado para controlar se os menus (header/footer) devem sumir
-  const [hideMenus, setHideMenus] = useState(false);
+  // Este estado controla se o Financeiro pediu para esconder o menu
+  const [financeiroHideMenus, setFinanceiroHideMenus] = useState(false);
+
+  // Lógica inteligente: Esconde se tiver modal aberto OU se o financeiro pediu
+  // Isso substitui o useEffect antigo e evita o erro
+  const deveEsconderMenus = activeModal !== null || financeiroHideMenus;
 
   const larguraContainer = 'max-w-7xl'; 
-
-  // Efeito para os modais do próprio AdminApp (botão +)
-  useEffect(() => {
-    if (activeModal) {
-      setHideMenus(true);
-    } else {
-      // Se fechou um modal do menu principal e não está no financeiro
-      if (screen !== 'financeiro') {
-        setHideMenus(false);
-      }
-    }
-  }, [activeModal, screen]);
 
   return (
     // 'flex flex-col' garante que o conteudo ocupe 100% da altura
     <div className="min-h-screen font-sans bg-[#0a0a0f] text-white selection:bg-purple-500 selection:text-white flex flex-col">
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 z-20 backdrop-blur-sm transition-opacity duration-300" onClick={() => setIsMenuOpen(false)} />}
       
-      {/* HEADER: Só renderiza se hideMenus for false */}
-      {!hideMenus && (
+      {/* HEADER: Usa a variável calculada deveEsconderMenus */}
+      {!deveEsconderMenus && (
         <div className="bg-[#0a0a0f]/80 backdrop-blur-md px-6 py-4 sticky top-0 z-10 flex justify-between items-center border-b border-white/5 transition-all duration-300">
           <div className="flex items-center gap-3">
               <img src="/logo-luni.png" alt="LUNI" className="h-8 object-contain" />
@@ -260,19 +252,19 @@ const AdminApp = () => {
       )}
 
       {/* ÁREA DE CONTEÚDO */}
-      {/* flex-1: faz ocupar o espaço todo. Se hideMenus=true, remove padding para o modal ter espaço total */}
-      <div className={`mx-auto w-full relative z-0 flex-1 ${!hideMenus ? 'pb-28 p-4 md:p-8' : 'p-0'} ${larguraContainer}`}>
+      <div className={`mx-auto w-full relative z-0 flex-1 ${!deveEsconderMenus ? 'pb-28 p-4 md:p-8' : 'p-0'} ${larguraContainer}`}>
         
         {screen === 'dashboard' && <DashboardAdmin onNavigate={setScreen} />}
         
-        {/* IMPORTANTE: Passamos onToggleModal para o FinanceiroScreen */}
+        {/* Passamos onToggleModal para o FinanceiroScreen */}
         {screen === 'financeiro' && (
           <FinanceiroScreen 
             onClose={() => {
                 setScreen('dashboard');
-                setHideMenus(false); // Garante que reaparece ao sair
+                setFinanceiroHideMenus(false); 
             }}
-            onToggleModal={(isOpen) => setHideMenus(isOpen)} // O Financeiro vai chamar isso
+            // O Financeiro controla diretamente o estado
+            onToggleModal={(isOpen) => setFinanceiroHideMenus(isOpen)} 
           />
         )} 
         
@@ -285,8 +277,8 @@ const AdminApp = () => {
       <NovoClienteModal isOpen={activeModal === 'cliente'} onClose={() => setActiveModal(null)} />
       <NovoProfissionalModal isOpen={activeModal === 'profissional'} onClose={() => setActiveModal(null)} salaoId={salaoId} />
 
-      {/* MENU INFERIOR: Só renderiza se hideMenus for false */}
-      {!hideMenus && (
+      {/* MENU INFERIOR: Usa a variável calculada deveEsconderMenus */}
+      {!deveEsconderMenus && (
         <div className="fixed bottom-0 left-0 w-full bg-[#0a0a0f]/90 backdrop-blur-lg border-t border-white/5 py-4 px-6 shadow-2xl z-30 transition-all duration-300">
           <div className={`flex justify-between items-end mx-auto relative ${larguraContainer}`}>
             <MenuIcon id="dashboard" icon={Home} label="Início" activeId={screen} onClick={setScreen} />
