@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Loader2, Package, Tag, DollarSign, Layers, AlertTriangle, FileText } from 'lucide-react';
+import { X, Save, Loader2, Package, Tag, DollarSign, AlertTriangle, FileText, Check } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 
 export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
@@ -18,9 +18,9 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
     categoria: '',
     custo: '',
     preco_venda: '',
-    estoque_minimo: '10',
+    estoque_minimo: '5',
     ativo: true,
-    observacoes: '' // Adicionado caso sua tabela suporte, senão será ignorado se não enviado
+    observacoes: ''
   });
 
   // 1. Buscar ID do Salão
@@ -41,9 +41,10 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
       setFormData({
         nome: produto.nome || '',
         categoria: produto.categoria || '',
-        custo: produto.custo_unitario ? produto.custo_unitario.toString() : '',
-        preco_venda: produto.preco_venda ? produto.preco_venda.toString() : '',
-        estoque_minimo: produto.estoque_minimo ? produto.estoque_minimo.toString() : '10',
+        // Converte ponto para vírgula para edição amigável
+        custo: produto.custo_unitario ? produto.custo_unitario.toString().replace('.', ',') : '',
+        preco_venda: produto.preco_venda ? produto.preco_venda.toString().replace('.', ',') : '',
+        estoque_minimo: produto.estoque_minimo ? produto.estoque_minimo.toString() : '5',
         ativo: produto.ativo !== false,
         observacoes: produto.observacoes || ''
       });
@@ -53,20 +54,27 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         categoria: '',
         custo: '',
         preco_venda: '',
-        estoque_minimo: '10',
+        estoque_minimo: '5',
         ativo: true,
         observacoes: ''
       });
     }
   }, [produto, aberto]);
 
+  // Função BLINDADA para converter moeda (evita erro 400 NaN)
+  const parseMoeda = (valor) => {
+    if (!valor) return 0;
+    // Remove tudo que não é número, ponto ou vírgula
+    const limpo = valor.toString().replace(/[^0-9.,]/g, '');
+    // Troca vírgula por ponto para o banco aceitar
+    return parseFloat(limpo.replace(',', '.')) || 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!salaoId) return alert("Erro: Salão não identificado.");
-    if (!formData.nome || !formData.custo || !formData.preco_venda || !formData.estoque_minimo) {
-      return alert("Preencha todos os campos obrigatórios (*).");
-    }
+    if (!formData.nome) return alert("O nome do produto é obrigatório.");
 
     setSalvando(true);
     try {
@@ -74,13 +82,14 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         salao_id: salaoId,
         nome: formData.nome,
         categoria: formData.categoria || null,
-        custo_unitario: parseFloat(formData.custo.replace(',', '.')),
-        preco_venda: parseFloat(formData.preco_venda.replace(',', '.')),
-        estoque_minimo: parseInt(formData.estoque_minimo),
+        // Usa a função segura para números
+        custo_unitario: parseMoeda(formData.custo),
+        preco_venda: parseMoeda(formData.preco_venda),
+        estoque_minimo: parseInt(formData.estoque_minimo) || 0,
         ativo: formData.ativo,
-        // Se estiver editando, mantém a quantidade, senão 0
+        observacoes: formData.observacoes || null,
+        // Mantém a quantidade se editar, ou 0 se criar
         quantidade_atual: produto ? produto.quantidade_atual : 0
-        // observacoes: formData.observacoes // Descomente se tiver coluna observacoes na tabela produtos
       };
 
       if (produto?.id) {
@@ -88,19 +97,21 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
       } else {
         await supabase.from('produtos').insert([payload]);
       }
+      
       onSucesso();
       onFechar();
     } catch (error) {
       console.error('Erro:', error);
-      alert('Erro ao salvar produto.');
+      alert('Erro ao salvar produto: ' + (error.message || 'Verifique os dados.'));
     } finally {
       setSalvando(false);
     }
   };
 
+  // Cálculo visual da margem
   const calcularMargem = () => {
-    const custo = parseFloat(formData.custo.replace(',', '.')) || 0;
-    const venda = parseFloat(formData.preco_venda.replace(',', '.')) || 0;
+    const custo = parseMoeda(formData.custo);
+    const venda = parseMoeda(formData.preco_venda);
     if (custo === 0 || venda === 0) return 0;
     return ((venda - custo) / custo) * 100;
   };
@@ -112,7 +123,6 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
   return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
       
-      {/* Container Principal */}
       <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden relative">
         
         {/* Cabeçalho */}
@@ -125,7 +135,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
               <h3 className="text-lg font-bold text-white leading-tight">
                 {produto ? 'Editar Produto' : 'Novo Produto'}
               </h3>
-              <p className="text-xs text-gray-400">Cadastre itens para venda ou consumo</p>
+              <p className="text-xs text-gray-400">Gerencie itens de venda e consumo</p>
             </div>
           </div>
           <button 
@@ -179,12 +189,11 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
           <div className="grid grid-cols-2 gap-3">
             {/* Custo */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Custo (R$)*</label>
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Custo (R$)</label>
               <div className="relative group">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-purple-500 transition-colors" />
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text" // Input TEXT para aceitar vírgula na digitação
                   value={formData.custo}
                   onChange={(e) => setFormData({ ...formData, custo: e.target.value })}
                   className="w-full pl-9 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all outline-none placeholder-gray-600 text-sm"
@@ -195,12 +204,11 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
 
             {/* Preço Venda */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Preço Venda (R$)*</label>
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Preço Venda (R$)</label>
               <div className="relative group">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500 group-focus-within:text-green-400 transition-colors" />
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text" // Input TEXT para aceitar vírgula na digitação
                   value={formData.preco_venda}
                   onChange={(e) => setFormData({ ...formData, preco_venda: e.target.value })}
                   className="w-full pl-9 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all outline-none placeholder-gray-600 text-sm"
@@ -220,7 +228,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
 
           {/* Estoque Mínimo */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Estoque Mínimo*</label>
+            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Estoque Mínimo</label>
             <div className="relative group">
               <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-purple-500 transition-colors" />
               <input
@@ -231,10 +239,24 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all outline-none placeholder-gray-600 text-sm"
               />
             </div>
-            <p className="text-[10px] text-gray-500 pl-1">Quantidade mínima para receber alerta de reposição.</p>
+            <p className="text-[10px] text-gray-500 pl-1">Avisar quando o estoque estiver baixo.</p>
           </div>
 
-          {/* Produto Ativo */}
+          {/* Observações */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Observações</label>
+            <div className="relative group">
+              <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-500 group-focus-within:text-purple-500 transition-colors" />
+              <textarea
+                value={formData.observacoes}
+                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all outline-none text-sm h-20 resize-none placeholder-gray-600"
+                placeholder="Detalhes opcionais..."
+              />
+            </div>
+          </div>
+
+          {/* Produto Ativo Toggle */}
           <div 
             onClick={() => setFormData(prev => ({ ...prev, ativo: !prev.ativo }))}
             className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
@@ -249,7 +271,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                   ? 'bg-purple-500 border-purple-500' 
                   : 'border-gray-500 bg-transparent'
               }`}>
-                {formData.ativo && <Package className="w-3.5 h-3.5 text-white" />}
+                {formData.ativo && <Check className="w-3.5 h-3.5 text-white" />}
               </div>
               <div className="flex flex-col">
                 <span className={`text-sm font-medium ${formData.ativo ? 'text-purple-400' : 'text-gray-300'}`}>
