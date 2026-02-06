@@ -1,10 +1,11 @@
+// src/screens/main/DashboardAdmin.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { 
   TrendingUp, Calendar, Bell, Clock, DollarSign, Users, 
   Award, ArrowRight, Heart, Phone, Shield
 } from 'lucide-react';
-// Certifique-se que o TeamScreen existe nessa pasta, se der erro nele, avise
+// Certifique-se que o TeamScreen existe nessa pasta
 import { TeamScreen } from '../professional/TeamScreen';
 
 export const DashboardAdmin = ({ onNavigate }) => {
@@ -109,38 +110,46 @@ export const DashboardAdmin = ({ onNavigate }) => {
   const nomeUsuario = "Parceiro";
   const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // Componentes visuais auxiliares (dentro do arquivo para não dar erro de import)
-  const KPICard = ({ label, value, icon: Icon, color, onClick }) => (
-    <div 
-      onClick={onClick}
-      className={`bg-[#15151a] border border-${color}-500/20 rounded-3xl p-5 relative overflow-hidden group hover:border-${color}-500/50 transition-all ${onClick ? 'cursor-pointer' : ''}`}
-    >
-      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform"><Icon size={48}/></div>
-      <p className={`text-${color}-400 text-[10px] font-bold uppercase tracking-widest mb-1`}>{label}</p>
-      <h3 className="text-2xl md:text-3xl font-bold text-white truncate">{value}</h3>
-    </div>
-  );
+  // --- Componentes visuais auxiliares corrigidos para ESLint ---
 
-  const ActionButton = ({ label, sub, icon: Icon, color, onClick, isPro }) => (
-    <button onClick={onClick} className="bg-[#1c1c24] p-5 rounded-3xl border border-white/5 flex flex-col items-start hover:bg-white/10 transition-all group relative h-32 justify-between w-full">
-      {isPro && <div className="absolute top-3 right-3 bg-indigo-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">PRO</div>}
-      <div className={`p-3 rounded-2xl bg-${color}-500/10 text-${color}-400 mb-2 group-hover:scale-110 transition-transform`}><Icon size={24}/></div>
-      <div className="text-left w-full">
-        <span className="font-bold text-base text-white block">{label}</span>
-        <span className="text-xs text-gray-500">{sub}</span>
+  const KPICard = ({ label, value, icon, color, onClick }) => {
+    const Icon = icon; // Atribuição explícita
+    return (
+      <div 
+        onClick={onClick}
+        className={`bg-[#15151a] border border-${color}-500/20 rounded-3xl p-5 relative overflow-hidden group hover:border-${color}-500/50 transition-all ${onClick ? 'cursor-pointer' : ''}`}
+      >
+        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+          <Icon size={48}/>
+        </div>
+        <p className={`text-${color}-400 text-[10px] font-bold uppercase tracking-widest mb-1`}>{label}</p>
+        <h3 className="text-2xl md:text-3xl font-bold text-white truncate">{value}</h3>
       </div>
-    </button>
-  );
+    );
+  };
+
+  const ActionButton = ({ label, sub, icon, color, onClick, isPro }) => {
+    const Icon = icon; // Atribuição explícita
+    return (
+      <button onClick={onClick} className="bg-[#1c1c24] p-5 rounded-3xl border border-white/5 flex flex-col items-start hover:bg-white/10 transition-all group relative h-32 justify-between w-full">
+        {isPro && <div className="absolute top-3 right-3 bg-indigo-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">PRO</div>}
+        <div className={`p-3 rounded-2xl bg-${color}-500/10 text-${color}-400 mb-2 group-hover:scale-110 transition-transform`}>
+          <Icon size={24}/>
+        </div>
+        <div className="text-left w-full">
+          <span className="font-bold text-base text-white block">{label}</span>
+          <span className="text-xs text-gray-500">{sub}</span>
+        </div>
+      </button>
+    );
+  };
+
+  // -----------------------------------------------------------
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-[#0a0a0f] text-white">Carregando...</div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white pb-24 md:pb-8">
-      {/* CONTAINER RESPONSIVO (Substitui o ScreenWrapper)
-          max-w-7xl: Limita a largura em monitores grandes
-          mx-auto: Centraliza
-          px-4: Margem lateral
-      */}
       <div className="w-full max-w-7xl mx-auto px-4 pt-6 md:px-8 md:pt-10 animate-in fade-in duration-700">
 
         {/* HEADER */}
@@ -178,7 +187,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
           <div className="absolute right-0 top-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
         </div>
 
-        {/* GRID DE AÇÕES RÁPIDAS (Responsivo) */}
+        {/* GRID DE AÇÕES RÁPIDAS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           <ActionButton label="Agenda" sub="Horários" icon={Calendar} color="blue" onClick={() => onNavigate('agenda')} />
           <ActionButton label="Financeiro" sub="Relatórios" icon={DollarSign} color="emerald" onClick={() => onNavigate('financeiro')} />
@@ -186,7 +195,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
           <ActionButton label="Equipe" sub="Gestão" icon={Shield} color="indigo" onClick={() => setShowTeam(true)} isPro />
         </div>
 
-        {/* GRID INFERIOR (2 Colunas no PC, 1 no Mobile) */}
+        {/* GRID INFERIOR */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* LISTA PRÓXIMOS */}

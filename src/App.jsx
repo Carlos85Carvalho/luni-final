@@ -11,7 +11,9 @@ import { SplashScreen } from './components/ui/SplashScreen';
 import { InstallAppModal } from './components/ui/InstallAppModal';
 
 // --- IMPORTAÇÕES DE TELAS ---
-import { FinanceiroScreen } from './screens/financeiro/FinanceiroScreen.jsx';
+// ✅ CORREÇÃO 1: Importando o Módulo (vai ler o index.jsx automaticamente)
+import { FinanceiroModule } from './screens/financeiro';
+
 import { AgendaScreen } from './screens/agenda/AgendaScreen.jsx';
 import { ClientesScreen } from './screens/clientes/ClientesScreen.jsx';
 import { DashboardAdmin } from './screens/main/DashboardAdmin.jsx';
@@ -229,7 +231,6 @@ const AdminApp = () => {
   const [financeiroHideMenus, setFinanceiroHideMenus] = useState(false);
 
   // Lógica inteligente: Esconde se tiver modal aberto OU se o financeiro pediu
-  // Isso substitui o useEffect antigo e evita o erro
   const deveEsconderMenus = activeModal !== null || financeiroHideMenus;
 
   const larguraContainer = 'max-w-7xl'; 
@@ -256,15 +257,13 @@ const AdminApp = () => {
         
         {screen === 'dashboard' && <DashboardAdmin onNavigate={setScreen} />}
         
-        {/* Passamos onToggleModal para o FinanceiroScreen */}
+        {/* ✅ CORREÇÃO 2: Usando FinanceiroModule */}
         {screen === 'financeiro' && (
-          <FinanceiroScreen 
+          <FinanceiroModule 
             onClose={() => {
                 setScreen('dashboard');
                 setFinanceiroHideMenus(false); 
             }}
-            // O Financeiro controla diretamente o estado
-            onToggleModal={(isOpen) => setFinanceiroHideMenus(isOpen)} 
           />
         )} 
         
