@@ -20,20 +20,21 @@ import {
   ComposedChart, Line
 } from 'recharts';
 
-// Importar modais - Verifique se estes arquivos existem!
+// Importar modais
 import { DespesaModal } from './DespesaModal';
 import { ProdutoModal } from './ProdutoModal';
 import { EstoqueModal } from './EstoqueModal';
 import { FornecedorModal } from './FornecedorModal';
 import { MetaModal } from './MetaModal';
 import { RelatorioModal } from './RelatorioModal';
+import { PDVScreen } from './PDVScreen';
 
 // ==================== COMPONENTES REUTILIZÁVEIS ====================
 
 const KPICard = ({ 
   titulo, 
   valor, 
-  icone: Icon, 
+  icone: Icon, // ✅ CORREÇÃO: Recebendo o ícone corretamente
   cor = 'purple',
   trend = null,
   trendValue = 0,
@@ -74,7 +75,7 @@ const KPICard = ({
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-semibold text-gray-400 truncate pr-2">{titulo}</span>
         <div className={`p-2.5 rounded-xl ${style.bg} shrink-0`}>
-          <Icon className={`w-5 h-5 ${style.text}`} />
+          {Icon && <Icon className={`w-5 h-5 ${style.text}`} />}
         </div>
       </div>
         
@@ -91,7 +92,7 @@ const KPICard = ({
             {subTitulo && (
               <span className="text-xs sm:text-sm text-gray-400 truncate max-w-[60%]">{subTitulo}</span>
             )}
-             
+              
             {trend && trendValue > 0 && (
               <div className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                 trend === 'up' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
@@ -1407,374 +1408,6 @@ const MetasTab = ({ resumoFinanceiro, onAbrirModal }) => {
           );
         })}
       </div>
-
-      {/* Insights */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-purple-400" />
-          Insights sobre Metas
-        </h3>
-        <div className="space-y-3">
-          {metas.map((meta) => {
-            const progresso = calcularProgresso(meta);
-            if (meta.inverso) {
-              if (progresso < 70) {
-                return (
-                  <div key={meta.id} className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                    <p className="text-sm text-red-300">
-                      <AlertTriangle className="w-4 h-4 inline mr-2" />
-                      <strong>{meta.titulo}:</strong> Você está {(((meta.valor_atual / meta.valor_meta) - 1) * 100).toFixed(1)}% 
-                      acima do limite estabelecido. Considere revisar suas despesas.
-                    </p>
-                  </div>
-                );
-              }
-            } else {
-              if (progresso >= 100) {
-                return (
-                  <div key={meta.id} className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                    <p className="text-sm text-green-300">
-                      <CheckCircle className="w-4 h-4 inline mr-2" />
-                      <strong>{meta.titulo}:</strong> Parabéns! Você atingiu {progresso.toFixed(1)}% da meta. 
-                      Continue com o ótimo trabalho!
-                    </p>
-                  </div>
-                );
-              } else if (progresso < 50) {
-                return (
-                  <div key={meta.id} className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-                    <p className="text-sm text-orange-300">
-                      <AlertCircle className="w-4 h-4 inline mr-2" />
-                      <strong>{meta.titulo}:</strong> Você está em {progresso.toFixed(1)}% da meta. 
-                      Faltam R$ {(meta.valor_meta - meta.valor_atual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para atingir o objetivo.
-                    </p>
-                  </div>
-                );
-              }
-            }
-            return null;
-          }).filter(Boolean)}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== 6. RELATÓRIOS TAB ====================
-
-const RelatoriosTab = ({ 
-  resumoFinanceiro, 
-  evolucaoReceitas, 
-  distribuicaoDespesas,
-  estoqueCritico,
-  rankingFornecedores,
-  margemServicos,
-  onAbrirModal 
-}) => {
-  const [tipoRelatorio, setTipoRelatorio] = useState('financeiro');
-  const [formato, setFormato] = useState('excel');
-  const [periodo, setPeriodo] = useState('mes_atual');
-  const [gerando, setGerando] = useState(false);
-
-  const gerarRelatorio = async () => {
-    setGerando(true);
-    
-    try {
-      // Coletar dados para o relatório
-      const dadosRelatorio = {
-        cabecalho: {
-          titulo: `Relatório Financeiro - ${new Date().toLocaleDateString('pt-BR')}`,
-          periodo: periodo,
-          tipo: tipoRelatorio
-        },
-        resumo: resumoFinanceiro,
-        evolucao: evolucaoReceitas,
-        despesas: distribuicaoDespesas,
-        estoque: estoqueCritico,
-        fornecedores: rankingFornecedores,
-        margens: margemServicos
-      };
-
-      // Gerar CSV (simulação de Excel)
-      const csvContent = gerarCSV(dadosRelatorio);
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `relatorio_${tipoRelatorio}_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      alert('Relatório gerado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
-      alert('Erro ao gerar relatório.');
-    } finally {
-      setGerando(false);
-    }
-  };
-
-  const gerarCSV = (dados) => {
-    let csv = '';
-    
-    // Cabeçalho
-    csv += `${dados.cabecalho.titulo}\n`;
-    csv += `Período: ${dados.cabecalho.periodo}\n`;
-    csv += `Tipo: ${dados.cabecalho.tipo}\n\n`;
-    
-    // Resumo Financeiro
-    csv += "RESUMO FINANCEIRO\n";
-    csv += "Indicador,Valor\n";
-    csv += `Receita Bruta,R$ ${(dados.resumo.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    csv += `Despesas Totais,R$ ${((dados.resumo.despesas_pagas || 0) + (dados.resumo.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    csv += `Lucro Líquido,R$ ${(dados.resumo.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    csv += `Margem de Lucro,${(dados.resumo.margem_lucro || 0).toFixed(1)}%\n`;
-    csv += `Total Vendas,${dados.resumo.total_vendas || 0}\n\n`;
-    
-    // Evolução Financeira
-    if (dados.evolucao && dados.evolucao.length > 0) {
-      csv += "EVOLUÇÃO FINANCEIRA\n";
-      csv += "Mês,Receita,Despesa,Lucro\n";
-      dados.evolucao.forEach(item => {
-        csv += `${item.mes},${item.receita},${item.despesa},${item.lucro}\n`;
-      });
-      csv += "\n";
-    }
-    
-    // Despesas por Categoria
-    if (dados.despesas && dados.despesas.length > 0) {
-      csv += "DESPESAS POR CATEGORIA\n";
-      csv += "Categoria,Total,Percentual\n";
-      dados.despesas.forEach(item => {
-        csv += `${item.categoria},${item.total},${item.percentual}\n`;
-      });
-      csv += "\n";
-    }
-    
-    // Estoque Crítico
-    if (dados.estoque && dados.estoque.length > 0) {
-      csv += "ESTOQUE CRÍTICO\n";
-      csv += "Produto,Quantidade Atual,Estoque Mínimo,Diferença\n";
-      dados.estoque.forEach(item => {
-        csv += `${item.nome},${item.quantidade_atual},${item.estoque_minimo},${item.quantidade_atual - item.estoque_minimo}\n`;
-      });
-      csv += "\n";
-    }
-    
-    return csv;
-  };
-
-  const relatorios = [
-    {
-      id: 'financeiro',
-      titulo: 'Relatório Financeiro',
-      descricao: 'Receitas, despesas e lucro detalhado',
-      icon: DollarSign,
-      color: 'text-green-400 bg-green-500/10'
-    },
-    {
-      id: 'despesas',
-      titulo: 'Análise de Despesas',
-      descricao: 'Despesas por categoria e período',
-      icon: Receipt,
-      color: 'text-orange-400 bg-orange-500/10'
-    },
-    {
-      id: 'estoque',
-      titulo: 'Relatório de Estoque',
-      descricao: 'Giro, lucro e estoque crítico',
-      icon: Package,
-      color: 'text-blue-400 bg-blue-500/10'
-    },
-    {
-      id: 'fornecedores',
-      titulo: 'Performance de Fornecedores',
-      descricao: 'Volume, frequência e dependência',
-      icon: Users,
-      color: 'text-purple-400 bg-purple-500/10'
-    },
-    {
-      id: 'margens',
-      titulo: 'Margens de Serviços',
-      descricao: 'Rentabilidade por serviço',
-      icon: BarChart,
-      color: 'text-yellow-400 bg-yellow-500/10'
-    },
-    {
-      id: 'insights',
-      titulo: 'Luni Insights',
-      descricao: 'Análises inteligentes e recomendações',
-      icon: Zap,
-      color: 'text-pink-400 bg-pink-500/10'
-    }
-  ];
-
-  const periodos = [
-    { id: 'mes_atual', label: 'Este mês' },
-    { id: 'trimestre', label: 'Últimos 3 meses' },
-    { id: 'semestre', label: 'Últimos 6 meses' },
-    { id: 'ano', label: 'Este ano' },
-    { id: 'personalizado', label: 'Personalizado' }
-  ];
-
-  return (
-    <div className="space-y-6">
-      {/* Cards de Tipos de Relatório */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {relatorios.map((relatorio) => {
-          const Icon = relatorio.icon;
-          return (
-            <button
-              key={relatorio.id}
-              onClick={() => setTipoRelatorio(relatorio.id)}
-              className={`p-6 rounded-2xl border text-left transition-all ${
-                tipoRelatorio === relatorio.id
-                  ? 'border-purple-500 bg-purple-500/10'
-                  : 'border-gray-700 bg-gray-800/50 hover:bg-gray-800/70'
-              }`}
-            >
-              <div className={`p-3 rounded-xl ${relatorio.color} w-fit mb-4`}>
-                <Icon className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold text-white mb-2">{relatorio.titulo}</h3>
-              <p className="text-sm text-gray-400">{relatorio.descricao}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Configurações do Relatório */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
-        <h3 className="text-lg font-bold text-white mb-6">Configurar Relatório</h3>
-        
-        <div className="space-y-6">
-          {/* Período */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Período</label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {periodos.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPeriodo(p.id)}
-                  className={`px-3 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-                    periodo === p.id
-                      ? 'bg-purple-500 text-white'
-                      : 'border border-gray-700 text-gray-300 hover:bg-gray-700/50'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Formato */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Formato de Exportação</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-              <button
-                onClick={() => setFormato('excel')}
-                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
-                  formato === 'excel'
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-gray-700 hover:bg-gray-700/50'
-                }`}
-              >
-                <BarChart3 className="w-5 h-5 text-gray-400" />
-                <div className="text-left">
-                  <span className="text-sm font-medium text-white">Excel (CSV)</span>
-                  <p className="text-xs text-gray-400">Compatível com todas as planilhas</p>
-                </div>
-              </button>
-              <button
-                onClick={() => onAbrirModal('preview-relatorio', { tipo: tipoRelatorio, periodo })}
-                className="p-4 rounded-xl border border-gray-700 hover:bg-gray-700/50 flex items-center gap-3 transition-all"
-              >
-                <Eye className="w-5 h-5 text-gray-400" />
-                <div className="text-left">
-                  <span className="text-sm font-medium text-white">Preview</span>
-                  <p className="text-xs text-gray-400">Visualizar antes de exportar</p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Preview do Resumo */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Resumo do Relatório</label>
-            <div className="bg-gray-700/30 border border-gray-700 rounded-xl p-4 sm:p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Receita Total</p>
-                  <p className="text-xl font-bold text-green-400">
-                    R$ {(resumoFinanceiro.receita_bruta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Despesas Total</p>
-                  <p className="text-xl font-bold text-orange-400">
-                    R$ {((resumoFinanceiro.despesas_pagas || 0) + (resumoFinanceiro.despesas_pendentes || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Lucro Líquido</p>
-                  <p className={`text-xl font-bold ${(resumoFinanceiro.lucro_liquido || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                    R$ {(resumoFinanceiro.lucro_liquido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Margem de Lucro</p>
-                  <p className="text-xl font-bold text-purple-400">
-                    {(resumoFinanceiro.margem_lucro || 0).toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700">
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Estoque Crítico</p>
-                  <p className="text-sm font-medium text-white">{estoqueCritico?.length || 0} produtos</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Fornecedores Ativos</p>
-                  <p className="text-sm font-medium text-white">{rankingFornecedores?.length || 0}</p>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 text-center pt-4 border-t border-gray-700">
-                {distribuicaoDespesas?.length || 0} categorias de despesas • {evolucaoReceitas?.length || 0} períodos
-              </p>
-            </div>
-          </div>
-
-          {/* Ações */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-700">
-            <button
-              onClick={gerarRelatorio}
-              disabled={gerando}
-              className="flex-1 px-6 py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {gerando ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-                  Exportar Relatório (Excel)
-                </>
-              )}
-            </button>
-            <button 
-              onClick={() => onAbrirModal('compartilhar-relatorio', { tipo: tipoRelatorio, periodo })}
-              className="px-6 py-3.5 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700/50 transition-all flex items-center justify-center gap-3"
-            >
-              <Share2 className="w-5 h-5" />
-              Compartilhar
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
@@ -2095,12 +1728,14 @@ const LuniInsights = ({
   );
 };
 
-// ==================== COMPONENTE PRINCIPAL ====================
+// ==================== COMPONENTE PRINCIPAL COMPLETO ====================
 
 export const FinanceiroScreen = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('visao-geral');
+  
+  const [modoPDV, setModoPDV] = useState(false);
   
   const [kpiFinanceiro, setKpiFinanceiro] = useState({});
   const [margemServicos, setMargemServicos] = useState([]);
@@ -2109,7 +1744,6 @@ export const FinanceiroScreen = ({ onClose }) => {
   const [evolucaoFinanceira, setEvolucaoFinanceira] = useState([]);
   const [distribuicaoDespesas, setDistribuicaoDespesas] = useState([]);
 
-  // Estado para modais
   const [modalAberto, setModalAberto] = useState(null);
   const [modalDados, setModalDados] = useState(null);
 
@@ -2128,7 +1762,6 @@ export const FinanceiroScreen = ({ onClose }) => {
     else setRefreshing(true);
 
     try {
-      // Obter salao_id do usuário logado
       const { data: { user } } = await supabase.auth.getUser();
       let salaoId = null;
 
@@ -2147,7 +1780,6 @@ export const FinanceiroScreen = ({ onClose }) => {
         return;
       }
 
-      // Carregar todos os dados em paralelo
       const [
         kpiRes,
         margemRes,
@@ -2198,7 +1830,6 @@ export const FinanceiroScreen = ({ onClose }) => {
       if (fornecedoresRes.data) setRankingFornecedores(fornecedoresRes.data);
       if (despesasRes.data) setDistribuicaoDespesas(despesasRes.data);
       
-      // Processar evolução financeira
       if (evolucaoRes.data) {
         const meses = {};
         evolucaoRes.data.forEach(evento => {
@@ -2235,6 +1866,10 @@ export const FinanceiroScreen = ({ onClose }) => {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  if (modoPDV) {
+    return <PDVScreen onVoltar={() => { setModoPDV(false); carregarDados(); }} />;
+  }
 
   const tabs = [
     { id: 'visao-geral', label: 'Visão Geral', icon: Home },
@@ -2314,15 +1949,32 @@ export const FinanceiroScreen = ({ onClose }) => {
       case 'metas':
         return <MetasTab resumoFinanceiro={kpiFinanceiro} onAbrirModal={abrirModal} />;
       case 'relatorios':
-        return <RelatoriosTab 
-          resumoFinanceiro={kpiFinanceiro}
-          evolucaoReceitas={evolucaoFinanceira}
-          distribuicaoDespesas={distribuicaoDespesas}
-          estoqueCritico={estoqueCritico}
-          rankingFornecedores={rankingFornecedores}
-          margemServicos={margemServicos}
-          onAbrirModal={abrirModal}
-        />;
+        return (
+          <div className="space-y-6">
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Relatórios</h3>
+              <p className="text-gray-400 mb-6">Exporte relatórios detalhados do seu salão</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button 
+                  onClick={() => abrirModal('preview-relatorio', { tipo: 'financeiro', periodo: 'mes_atual' })}
+                  className="p-6 bg-gray-700/30 border border-gray-600 rounded-xl hover:bg-gray-700/50 transition-all text-left"
+                >
+                  <DollarSign className="w-8 h-8 text-green-400 mb-4" />
+                  <h4 className="font-bold text-white mb-2">Relatório Financeiro</h4>
+                  <p className="text-sm text-gray-400">Receitas, despesas e lucro detalhado</p>
+                </button>
+                <button 
+                  onClick={() => abrirModal('preview-relatorio', { tipo: 'estoque', periodo: 'mes_atual' })}
+                  className="p-6 bg-gray-700/30 border border-gray-600 rounded-xl hover:bg-gray-700/50 transition-all text-left"
+                >
+                  <Package className="w-8 h-8 text-blue-400 mb-4" />
+                  <h4 className="font-bold text-white mb-2">Relatório de Estoque</h4>
+                  <p className="text-sm text-gray-400">Giro, lucro e estoque crítico</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -2387,6 +2039,13 @@ export const FinanceiroScreen = ({ onClose }) => {
                 </button>
               );
             })}
+            
+            <button 
+              onClick={() => setModoPDV(true)}
+              className="ml-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 transition-transform hover:scale-105 whitespace-nowrap"
+            >
+              <ShoppingCart className="w-5 h-5" /> Abrir PDV
+            </button>
           </div>
         </div>
       </div>
@@ -2467,9 +2126,7 @@ export const FinanceiroScreen = ({ onClose }) => {
         <MetaModal
           aberto={true}
           onFechar={fecharModal}
-          onSucesso={() => {
-            handleRefresh();
-          }}
+          onSucesso={handleRefresh}
         />
       )}
 
@@ -2477,9 +2134,7 @@ export const FinanceiroScreen = ({ onClose }) => {
         <MetaModal
           aberto={true}
           onFechar={fecharModal}
-          onSucesso={() => {
-            handleRefresh();
-          }}
+          onSucesso={handleRefresh}
           meta={modalDados}
         />
       )}

@@ -7,7 +7,7 @@ import {
   DollarSign, Receipt, Loader2, Eye
 } from 'lucide-react';
 
-export const RelatorioModal = ({ aberto, onFechar, tipo, periodo, dados }) => {
+export const RelatorioModal = ({ aberto, onFechar, tipo, periodo }) => {
   const [gerando, setGerando] = useState(false);
   const [formato, setFormato] = useState('excel');
 
