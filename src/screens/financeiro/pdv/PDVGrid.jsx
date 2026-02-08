@@ -1,313 +1,239 @@
 import React from 'react';
+import { Search, Package, Calendar, Clock, User, Scissors, Plus, Edit2, ChevronRight, Tag } from 'lucide-react';
 
-export const PDVGrid = ({
-  abaAtiva,
-  setAbaAtiva,
-  busca,
-  setBusca,
-  categorias,
-  categoriaAtiva,
-  setCategoriaAtiva,
-  produtos,
-  agendamentos,
+export const PDVGrid = ({ 
+  abaAtiva, 
+  setAbaAtiva, 
+  busca, 
+  setBusca, 
+  categorias, 
+  categoriaAtiva, 
+  setCategoriaAtiva, 
+  produtos, 
+  agendamentos, 
   onAdicionarItem,
-  onEditarPreco
+  onEditarPreco 
 }) => {
-  
+
+  // --- RENDERIZAR CARD DE AGENDAMENTO ---
+  const renderAgendamentoCard = (agendamento) => (
+    <div 
+      key={agendamento.id} 
+      onClick={() => onAdicionarItem(agendamento, 'agendamento')}
+      className="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/50 
+                 rounded-2xl p-4 cursor-pointer transition-all duration-300 relative overflow-hidden"
+    >
+      <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="bg-purple-600 rounded-full p-1.5 shadow-lg shadow-purple-900/50">
+          <Plus size={16} className="text-white" />
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+          <User size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-white truncate">{agendamento.cliente_nome}</h3>
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+            <span className="flex items-center gap-1"><Clock size={12}/> {agendamento.hora?.slice(0, 5)}</span>
+            {agendamento.cliente_telefone && <span>• {agendamento.cliente_telefone}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gray-900/50 rounded-xl p-3 border border-white/5">
+        <div className="flex items-center gap-2 text-purple-300 text-sm font-medium mb-1">
+          <Scissors size={14} />
+          <span className="truncate">{agendamento.servico_nome}</span>
+        </div>
+        <div className="text-right font-bold text-white">
+          R$ {agendamento.preco?.toFixed(2)}
+        </div>
+      </div>
+    </div>
+  );
+
+  // --- RENDERIZAR CARD DE PRODUTO (NOVO DESIGN) ---
+  const renderProdutoCard = (produto) => (
+    <div 
+      key={produto.id} 
+      className="bg-gray-800 rounded-2xl border border-gray-700 hover:border-purple-500/50 
+                 transition-all duration-300 overflow-hidden flex flex-col group h-full shadow-lg"
+    >
+      {/* Topo do Card: Ícone e Badge de Estoque */}
+      <div className="relative h-24 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+        <Package size={32} className="text-gray-500 group-hover:text-purple-400 transition-colors" />
+        
+        {/* Badge de Estoque Flutuante */}
+        <div className={`absolute top-2 right-2 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border
+          ${produto.estoque > 5 
+            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+            : 'bg-red-500/20 text-red-400 border-red-500/30'
+          }`}>
+          Estoque: {produto.estoque || 0}
+        </div>
+      </div>
+
+      {/* Corpo do Card */}
+      <div className="p-4 flex flex-col flex-1">
+        
+        {/* Categoria */}
+        {produto.categoria && (
+          <div className="flex items-center gap-1 text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+            <Tag size={10} />
+            {produto.categoria}
+          </div>
+        )}
+
+        {/* Nome do Produto (até 2 linhas) */}
+        <h3 className="font-semibold text-gray-100 text-sm leading-tight mb-3 line-clamp-2 h-10" title={produto.nome}>
+          {produto.nome}
+        </h3>
+
+        {/* Preço e Ações (Ficam no rodapé do card) */}
+        <div className="mt-auto flex items-end justify-between gap-2">
+          
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-500">Preço Un.</span>
+            <span className="text-lg font-bold text-white">
+              R$ {produto.preco_venda?.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex gap-1">
+            {/* Botão Editar Preço */}
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEditarPreco(produto); }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-700 text-gray-400 
+                         hover:bg-purple-600 hover:text-white transition-colors border border-gray-600 hover:border-purple-500"
+              title="Editar Preço"
+            >
+              <Edit2 size={14} />
+            </button>
+
+            {/* Botão Adicionar ao Carrinho */}
+            <button 
+              onClick={() => onAdicionarItem(produto, 'produto')}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-purple-600 text-white 
+                         hover:bg-purple-500 shadow-lg shadow-purple-900/50 hover:scale-105 transition-all active:scale-95"
+              title="Adicionar à Venda"
+            >
+              <Plus size={16} strokeWidth={3} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-purple-500/20 shadow-2xl overflow-hidden">
+    <div className="flex flex-col h-full space-y-4">
       
-      {/* HEADER COM ABAS */}
-      <div className="border-b border-gray-700/50 bg-gray-800/80">
-        <div className="flex items-center gap-2 p-4">
+      {/* --- BARRA DE BUSCA E ABAS --- */}
+      <div className="flex flex-col sm:flex-row gap-4 bg-gray-800/50 p-2 rounded-2xl border border-gray-700/50">
+        
+        {/* Toggle Abas */}
+        <div className="flex bg-gray-900/50 p-1 rounded-xl shrink-0">
           <button
             onClick={() => setAbaAtiva('agendamentos')}
-            className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-300
-              ${abaAtiva === 'agendamentos' 
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/50 scale-105' 
-                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white'
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              abaAtiva === 'agendamentos' 
+                ? 'bg-gray-700 text-white shadow-md' 
+                : 'text-gray-400 hover:text-white'
+            }`}
           >
-            <span className="flex items-center justify-center gap-2">
-              📅 Agendamentos
-              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                {agendamentos.length}
-              </span>
+            <Calendar size={16} />
+            <span className="hidden sm:inline">Agendamentos</span>
+            <span className="bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+              {agendamentos.length}
             </span>
           </button>
-          
           <button
             onClick={() => setAbaAtiva('produtos')}
-            className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-300
-              ${abaAtiva === 'produtos' 
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/50 scale-105' 
-                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white'
-              }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              abaAtiva === 'produtos' 
+                ? 'bg-gray-700 text-white shadow-md' 
+                : 'text-gray-400 hover:text-white'
+            }`}
           >
-            <span className="flex items-center justify-center gap-2">
-              🏪 Produtos
-              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                {produtos.length}
-              </span>
+            <Package size={16} />
+            <span className="hidden sm:inline">Produtos</span>
+            <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+              {produtos.length}
             </span>
           </button>
         </div>
 
-        {/* BARRA DE BUSCA */}
-        <div className="p-4 pt-0">
-          <div className="relative">
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder={abaAtiva === 'agendamentos' 
-                ? '🔍 Buscar agendamento...' 
-                : '🔍 Buscar produto...'
-              }
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-5 py-3 pl-12
-                       text-white placeholder-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent
-                       transition-all duration-300"
-            />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xl">
-              🔍
-            </div>
-            {busca && (
-              <button
-                onClick={() => setBusca('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 
-                         text-gray-400 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
+        {/* Campo de Busca */}
+        <div className="relative flex-1 group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={20} />
+          <input 
+            type="text" 
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder={abaAtiva === 'agendamentos' ? "Buscar cliente..." : "Buscar produto..."}
+            className="w-full bg-gray-900 border border-gray-700 text-white pl-10 pr-4 py-2.5 rounded-xl 
+                       focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all placeholder:text-gray-600"
+          />
+        </div>
+      </div>
+
+      {/* --- FILTRO DE CATEGORIAS (SÓ PRODUTOS) --- */}
+      {abaAtiva === 'produtos' && categorias.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+          <button
+            onClick={() => setCategoriaAtiva('todas')}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
+              categoriaAtiva === 'todas'
+                ? 'bg-purple-600 border-purple-500 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            TODAS
+          </button>
+          {categorias.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCategoriaAtiva(cat)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border uppercase ${
+                categoriaAtiva === cat
+                  ? 'bg-purple-600 border-purple-500 text-white'
+                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* --- CONTEÚDO DA GRID --- */}
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        {abaAtiva === 'agendamentos' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {agendamentos.length === 0 ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
+                <Calendar size={48} className="mb-4 opacity-20" />
+                <p>Nenhum agendamento para hoje.</p>
+              </div>
+            ) : (
+              agendamentos.map(renderAgendamentoCard)
             )}
           </div>
-        </div>
-
-        {/* FILTRO DE CATEGORIAS (apenas para produtos) */}
-        {abaAtiva === 'produtos' && categorias.length > 0 && (
-          <div className="px-4 pb-4">
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
-              <button
-                onClick={() => setCategoriaAtiva('todas')}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all duration-300
-                  ${categoriaAtiva === 'todas'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
-                  }`}
-              >
-                Todas
-              </button>
-              {categorias.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoriaAtiva(cat)}
-                  className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all duration-300
-                    ${categoriaAtiva === cat
-                      ? 'bg-purple-600 text-white shadow-lg'
-                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
-                    }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* CONTEÚDO - GRID DE ITENS */}
-      <div className="p-4 max-h-[calc(100vh-400px)] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
-        {abaAtiva === 'agendamentos' ? (
-          // GRID DE AGENDAMENTOS
-          agendamentos.length === 0 ? (
-            <EmptyState 
-              icon="📅" 
-              message={busca ? 'Nenhum agendamento encontrado' : 'Nenhum agendamento próximo'} 
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {agendamentos.map((agend) => (
-                <AgendamentoCard
-                  key={agend.id}
-                  agendamento={agend}
-                  onAdicionar={() => onAdicionarItem(agend, 'agendamento')}
-                />
-              ))}
-            </div>
-          )
         ) : (
-          // GRID DE PRODUTOS
-          produtos.length === 0 ? (
-            <EmptyState 
-              icon="🏪" 
-              message={busca ? 'Nenhum produto encontrado' : 'Nenhum produto disponível'} 
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {produtos.map((produto) => (
-                <ProdutoCard
-                  key={produto.id}
-                  produto={produto}
-                  onAdicionar={() => onAdicionarItem(produto, 'produto')}
-                  onEditarPreco={() => onEditarPreco(produto)}
-                />
-              ))}
-            </div>
-          )
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {produtos.length === 0 ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
+                <Package size={48} className="mb-4 opacity-20" />
+                <p>Nenhum produto encontrado.</p>
+              </div>
+            ) : (
+              produtos.map(renderProdutoCard)
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 };
-
-// ========== COMPONENTE: CARD DE AGENDAMENTO ==========
-const AgendamentoCard = ({ agendamento, onAdicionar }) => {
-  const dataFormatada = new Date(agendamento.data).toLocaleDateString('pt-BR');
-  const horaFormatada = agendamento.hora || '--:--';
-
-  return (
-    <div className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 
-                    rounded-xl p-4 border border-gray-600/50 
-                    hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-900/30
-                    transition-all duration-300 group cursor-pointer"
-         onClick={onAdicionar}>
-      
-      {/* HEADER */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-purple-600/20 border border-purple-500/30 
-                        flex items-center justify-center text-lg">
-            👤
-          </div>
-          <div>
-            <p className="font-semibold text-white group-hover:text-purple-300 transition-colors">
-              {agendamento.cliente_nome}
-            </p>
-            <p className="text-xs text-gray-400">
-              {dataFormatada} às {horaFormatada}
-            </p>
-          </div>
-        </div>
-        
-        <div className="text-right">
-          <p className="text-lg font-bold text-green-400">
-            R$ {agendamento.preco.toFixed(2)}
-          </p>
-        </div>
-      </div>
-
-      {/* SERVIÇO */}
-      <div className="bg-gray-900/50 rounded-lg px-3 py-2 mb-3">
-        <p className="text-sm text-gray-300">
-          ✂️ {agendamento.servico_nome}
-        </p>
-      </div>
-
-      {/* STATUS */}
-      <div className="flex items-center justify-between">
-        <span className={`px-3 py-1 rounded-full text-xs font-medium
-          ${agendamento.status === 'confirmado' 
-            ? 'bg-green-600/20 text-green-300 border border-green-500/30' 
-            : 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30'
-          }`}>
-          {agendamento.status || 'Pendente'}
-        </span>
-        
-        <button 
-          onClick={onAdicionar}
-          className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 
-                   text-white rounded-lg font-medium text-sm
-                   transition-all duration-300 active:scale-95">
-          + Adicionar
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ========== COMPONENTE: CARD DE PRODUTO ==========
-const ProdutoCard = ({ produto, onAdicionar, onEditarPreco }) => {
-  const precoFinal = produto.preco || produto.preco_venda || 0;
-  const estoqueColor = produto.estoque > 10 ? 'text-green-400' : 
-                       produto.estoque > 5 ? 'text-yellow-400' : 'text-red-400';
-
-  return (
-    <div className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 
-                    rounded-xl overflow-hidden border border-gray-600/50 
-                    hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-900/30
-                    transition-all duration-300 group">
-      
-      {/* IMAGEM/ÍCONE DO PRODUTO */}
-      <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 h-32 
-                    flex items-center justify-center text-5xl">
-        {produto.imagem ? (
-          <img src={produto.imagem} alt={produto.nome} className="w-full h-full object-cover" />
-        ) : (
-          '📦'
-        )}
-      </div>
-
-      {/* CONTEÚDO */}
-      <div className="p-4">
-        {/* NOME E CATEGORIA */}
-        <div className="mb-3">
-          <h3 className="font-semibold text-white group-hover:text-purple-300 
-                       transition-colors mb-1 line-clamp-1">
-            {produto.nome}
-          </h3>
-          {produto.categoria && (
-            <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-0.5 rounded-full">
-              {produto.categoria}
-            </span>
-          )}
-        </div>
-
-        {/* PREÇO E ESTOQUE */}
-        <div className="flex items-end justify-between mb-3">
-          <div>
-            <p className="text-xs text-gray-400 mb-1">Preço</p>
-            <p className="text-2xl font-bold text-green-400">
-              R$ {precoFinal.toFixed(2)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400 mb-1">Estoque</p>
-            <p className={`text-lg font-bold ${estoqueColor}`}>
-              {produto.estoque}
-            </p>
-          </div>
-        </div>
-
-        {/* BOTÕES */}
-        <div className="flex gap-2">
-          <button
-            onClick={onAdicionar}
-            className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 
-                     text-white rounded-lg font-medium
-                     transition-all duration-300 active:scale-95">
-            + Adicionar
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditarPreco();
-            }}
-            className="px-3 py-2.5 bg-gray-700 hover:bg-gray-600 
-                     text-white rounded-lg
-                     transition-all duration-300 active:scale-95">
-            💲
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ========== COMPONENTE: ESTADO VAZIO ==========
-const EmptyState = ({ icon, message }) => (
-  <div className="flex flex-col items-center justify-center py-16 text-center">
-    <div className="text-6xl mb-4 opacity-50">{icon}</div>
-    <p className="text-gray-400 text-lg">{message}</p>
-  </div>
-);

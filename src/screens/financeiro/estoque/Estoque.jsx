@@ -1,26 +1,70 @@
-// src/screens/financeiro/estoque/Estoque.jsx
-import React, { useState, useMemo } from 'react';
-import { useEstoque, useEstoqueKPIs } from './EstoqueHooks'; // Corrigido o caminho do arquivo
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../../../services/supabase';
+import { useEstoque } from './EstoqueHooks';
 import { EstoqueKPIs } from './EstoqueKPIs';
 import { EstoqueFilters } from './EstoqueFilters';
 import { EstoqueTable } from './EstoqueTable';
-// Removi os ícones do lucide-react pois não eram usados neste arquivo visualmente
 
 export const Estoque = ({ onAbrirModal }) => {
-  // Removi as props 'dados', 'loading' e 'onRefresh' pois o hook já cuida disso
+  // Dados brutos da lista (para a tabela)
   const { produtos, loading: produtosLoading } = useEstoque();
-  const kpis = useEstoqueKPIs(produtos);
   
+  // Estado para os KPIs (Cards do topo)
+  const [kpis, setKpis] = useState({
+    valorTotal: 0,
+    estoqueCritico: 0,
+    giroEstoque: 0,
+    margemMedia: 0
+  });
+
+  // ========== BUSCA DADOS DA VIEW (CALCULADORA DO BANCO) ==========
+  useEffect(() => {
+    const fetchKPIs = async () => {
+      try {
+        // Busca da view que criamos no SQL
+        const { data, error } = await supabase
+          .from('vw_dashboard_estoque')
+          .select('*')
+          .maybeSingle(); // Pega apenas uma linha
+
+        if (error) {
+          console.error('Erro ao buscar KPIs:', error);
+          return;
+        }
+
+        if (data) {
+          setKpis({
+            valorTotal: Number(data.valor_total || 0),
+            estoqueCritico: Number(data.estoque_critico || 0),
+            giroEstoque: Number(data.vendas_mes || 0),
+            
+            // --- CORREÇÃO AQUI ---
+            // .toFixed(2) transforma 66.66666667 em "66.67"
+            margemMedia: Number(data.margem_media || 0).toFixed(2) 
+          });
+        }
+      } catch (err) {
+        console.error('Erro geral KPIs:', err);
+      }
+    };
+
+    // Chama ao carregar e sempre que a lista de produtos mudar
+    fetchKPIs();
+  }, [produtos]); 
+
+  // ========== FILTROS E BUSCA ==========
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [busca, setBusca] = useState('');
 
   const produtosFiltrados = useMemo(() => {
-    // Adicionei (|| []) para evitar erro caso produtos ainda não tenha carregado
     return (produtos || []).filter(produto => {
+      const isCritico = produto.quantidade_atual <= (produto.estoque_minimo || 5);
+      const isBaixoGiro = produto.quantidade_atual > 20; 
+
       const matchStatus = filtroStatus === 'todos' || 
-        (filtroStatus === 'critico' && produto.quantidade_atual <= produto.estoque_minimo) ||
-        (filtroStatus === 'alto-giro' && produto.rotatividade > 2) ||
-        (filtroStatus === 'baixo-giro' && produto.rotatividade < 0.5);
+        (filtroStatus === 'critico' && isCritico) ||
+        (filtroStatus === 'alto-giro' && !isBaixoGiro) || 
+        (filtroStatus === 'baixo-giro' && isBaixoGiro);
       
       const matchBusca = busca === '' || 
         produto.nome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -30,6 +74,7 @@ export const Estoque = ({ onAbrirModal }) => {
     });
   }, [produtos, filtroStatus, busca]);
 
+  // ========== AÇÕES ==========
   const handleEditarProduto = (produto) => {
     onAbrirModal('editar-produto', produto);
   };

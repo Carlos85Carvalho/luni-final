@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../services/supabase';
 import { PDVGrid } from './PDVGrid';
 import { PDVCart } from './PDVCart';
@@ -28,73 +28,73 @@ export const PDV = () => {
     isOpen: false 
   });
 
-  // ========== BUSCA DE DADOS (OTIMIZADO) ==========
-  useEffect(() => {
-    const fetchDados = async () => {
-      try {
-        setCarregando(true);
-        const hoje = new Date().toISOString().split('T')[0];
+  // ========== BUSCA DE DADOS (REFATORADA) ==========
+  // Criamos a função fora do useEffect para poder chamá-la ao finalizar a venda
+  const fetchDados = useCallback(async (silencioso = false) => {
+    try {
+      if (!silencioso) setCarregando(true);
+      const hoje = new Date().toISOString().split('T')[0];
 
-        // Busca paralela para otimizar performance
-        const [agendamentosRes, produtosRes] = await Promise.all([
-          // 1. Busca Agendamentos
-          supabase
-            .from('agendamentos')
-            .select(`
-              *,
-              clientes (id, nome, telefone)
-            `)
-            .gte('data', hoje)
-            .order('data', { ascending: true })
-            .order('hora', { ascending: true })
-            .limit(20),
-          
-          // 2. Busca Produtos
-          supabase
-            .from('produtos')
-            .select('*')
-            .gt('estoque', 0)
-            .order('nome')
-        ]);
+      const [agendamentosRes, produtosRes] = await Promise.all([
+        // 1. Busca Agendamentos
+        supabase
+          .from('agendamentos')
+          .select(`
+            *,
+            clientes (id, nome, telefone)
+          `)
+          .gte('data', hoje)
+          .order('data', { ascending: true })
+          .order('horario', { ascending: true })
+          .limit(20),
+        
+        // 2. Busca Produtos
+        supabase
+          .from('produtos')
+          .select('*')
+          // .gt('estoque', 0) // Filtro de estoque (opcional)
+          .order('nome')
+      ]);
 
-        // Processa Agendamentos
-        if (agendamentosRes.error) {
-          console.error("Erro ao buscar agendamentos:", agendamentosRes.error);
-        } else {
-          const agendamentosFormatados = (agendamentosRes.data || []).map(a => ({
-            ...a,
-            cliente_nome: a.clientes?.nome || a.cliente_nome || 'Cliente sem nome',
-            cliente_telefone: a.clientes?.telefone || a.cliente_telefone || '',
-            servico_nome: a.servico || 'Serviço Agendado',
-            preco: Number(a.valor || a.valor_total || 0)
-          }));
-          setAgendamentosProx(agendamentosFormatados);
-        }
-
-        // Processa Produtos
-        if (produtosRes.error) {
-          console.error("Erro ao buscar produtos:", produtosRes.error);
-        } else {
-          setProdutos(produtosRes.data || []);
-          
-          // Extrai categorias únicas
-          const catsUnicas = [...new Set(
-            (produtosRes.data || [])
-              .map(p => p.categoria)
-              .filter(Boolean)
-          )];
-          setCategorias(catsUnicas);
-        }
-
-      } catch (error) {
-        console.error("Erro geral PDV:", error);
-      } finally {
-        setCarregando(false);
+      // Processa Agendamentos
+      if (agendamentosRes.error) {
+        console.error("Erro ao buscar agendamentos:", agendamentosRes.error);
+      } else {
+        const agendamentosFormatados = (agendamentosRes.data || []).map(a => ({
+          ...a,
+          hora: a.horario, 
+          cliente_nome: a.clientes?.nome || a.cliente_nome || 'Cliente sem nome',
+          cliente_telefone: a.clientes?.telefone || a.cliente_telefone || '',
+          servico_nome: a.servico || 'Serviço Agendado',
+          preco: Number(a.valor || a.valor_total || 0)
+        }));
+        setAgendamentosProx(agendamentosFormatados);
       }
-    };
 
-    fetchDados();
+      // Processa Produtos
+      if (produtosRes.error) {
+        console.error("Erro ao buscar produtos:", produtosRes.error);
+      } else {
+        setProdutos(produtosRes.data || []);
+        const catsUnicas = [...new Set(
+          (produtosRes.data || [])
+            .map(p => p.categoria)
+            .filter(Boolean)
+        )];
+        setCategorias(catsUnicas);
+      }
+
+    } catch (error) {
+      console.error("Erro geral PDV:", error);
+    } finally {
+      if (!silencioso) setCarregando(false);
+    }
   }, []);
+
+  // Carrega dados ao montar a tela
+  useEffect(() => {
+    fetchDados();
+  }, [fetchDados]);
 
   // ========== CÁLCULOS DO CARRINHO ==========
   const subtotal = carrinho.reduce((acc, item) => 
@@ -107,16 +107,21 @@ export const PDV = () => {
   
   const total = Math.max(0, subtotal - valorDescontoCalculado);
 
-  // ========== FINALIZAR VENDA (OTIMIZADO) ==========
+  // ========== FINALIZAR VENDA ==========
   const handleFinalizarVenda = async (formaPagamento) => {
     setProcessando(true);
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      // Garante ID do salão
+      const salaoId = user?.user_metadata?.salao_id || carrinho[0]?.salao_id || user?.id;
+
       // 1. Cria a Venda
       const { data: venda, error: errVenda } = await supabase
         .from('vendas')
         .insert({
           cliente_id: cliente?.id || null,
+          salao_id: salaoId,
           total: total,
           subtotal: subtotal,
           desconto: valorDescontoCalculado,
@@ -129,7 +134,7 @@ export const PDV = () => {
 
       if (errVenda) throw errVenda;
 
-      // 2. Prepara os Itens
+      // 2. Salva os Itens
       const itensVenda = carrinho.map(item => ({
         venda_id: venda.id,
         produto_id: item.tipo === 'produto' ? item.id : null,
@@ -139,40 +144,63 @@ export const PDV = () => {
         preco_unitario: item.preco_venda
       }));
 
-      // 3. Salva os Itens
       const { error: errItens } = await supabase
         .from('venda_itens')
         .insert(itensVenda);
       
       if (errItens) throw errItens;
 
-      // 4. Atualiza Estoque e Status em paralelo
-      const updates = carrinho.map(item => {
+      // 3. Atualiza Estoque
+      const updates = carrinho.map(async (item) => {
         if (item.tipo === 'produto') {
           const novoEstoque = (item.estoque || 0) - item.qtd;
-          return supabase
+          
+          const updateProduto = supabase
             .from('produtos')
-            .update({ estoque: novoEstoque })
+            .update({ 
+              estoque: novoEstoque,
+              quantidade_atual: novoEstoque 
+            })
             .eq('id', item.id);
+
+          const insertMovimentacao = supabase
+            .from('movimentacoes_estoque')
+            .insert({
+              salao_id: salaoId,
+              produto_id: item.id,
+              tipo: 'saida',
+              origem: 'PDV',
+              quantidade: item.qtd,
+              valor_total: item.preco_venda * item.qtd,
+              custo_unitario: item.custo,
+              data_movimentacao: new Date().toISOString(),
+              observacoes: `Venda PDV #${venda.id}`
+            });
+
+          return Promise.all([updateProduto, insertMovimentacao]);
+
         } else if (item.tipo === 'agendamento') {
           return supabase
             .from('agendamentos')
             .update({ status: 'concluido' })
             .eq('id', item.id);
         }
-        return Promise.resolve();
       });
 
       await Promise.all(updates);
 
-      // Feedback de sucesso
+      // SUCESSO!
       alert('✅ Venda realizada com sucesso!');
       
-      // Reset do estado
+      // === AQUI ESTÁ A CORREÇÃO ===
+      // Em vez de recarregar a página, limpamos o estado e atualizamos os dados
       setCarrinho([]);
       setCliente(null);
       setDesconto(0);
       setModalState({ isOpen: false, view: null, dados: null });
+      
+      // Chama a função de busca novamente para atualizar o estoque na tela
+      await fetchDados(true); 
       
     } catch (error) {
       alert('❌ Erro ao finalizar venda: ' + error.message);
@@ -182,9 +210,8 @@ export const PDV = () => {
     }
   };
 
-  // ========== AÇÕES DO CARRINHO (OTIMIZADAS) ==========
+  // ========== AÇÕES DO CARRINHO ==========
   const adicionarAoCarrinho = (item, tipo) => {
-    // Se for agendamento, define o cliente automaticamente
     if (tipo === 'agendamento' && (item.cliente_id || item.clientes?.id)) {
       setCliente({
         nome: item.cliente_nome,
@@ -195,8 +222,6 @@ export const PDV = () => {
 
     setCarrinho(prev => {
       const existente = prev.find(i => i.id === item.id && i.tipo === tipo);
-      
-      // Se já existe, incrementa quantidade
       if (existente) {
         return prev.map(i => 
           i.id === item.id && i.tipo === tipo 
@@ -204,8 +229,6 @@ export const PDV = () => {
             : i
         );
       }
-
-      // Determina preço e nome baseado no tipo
       const precoFinal = tipo === 'produto' 
         ? (item.preco || item.preco_venda || 0)
         : (item.preco || 0);
@@ -214,14 +237,15 @@ export const PDV = () => {
         ? item.nome
         : `${item.servico_nome} (${item.cliente_nome})`;
 
-      // Adiciona novo item
       return [...prev, {
         id: item.id,
+        salao_id: item.salao_id,
         nome: nomeFinal,
         tipo,
         qtd: 1,
         preco_venda: precoFinal,
-        estoque: item.estoque
+        estoque: item.estoque,
+        custo: item.custo || item.custo_unitario || 0
       }];
     });
   };
@@ -234,13 +258,10 @@ export const PDV = () => {
     setCarrinho(prev => prev.map(item => {
       if (item.id === id && item.tipo === tipo) {
         const novaQtd = Math.max(1, item.qtd + delta);
-        
-        // Verifica estoque se for produto
         if (item.tipo === 'produto' && item.estoque && novaQtd > item.estoque) {
           alert(`⚠️ Estoque insuficiente! Disponível: ${item.estoque}`);
           return item;
         }
-        
         return { ...item, qtd: novaQtd };
       }
       return item;
@@ -249,7 +270,6 @@ export const PDV = () => {
 
   const limparCarrinho = () => {
     if (carrinho.length === 0) return;
-    
     if (window.confirm('🗑️ Limpar todo o carrinho?')) {
       setCarrinho([]);
       setCliente(null);
@@ -279,7 +299,7 @@ export const PDV = () => {
     return matchBusca;
   });
 
-  // ========== LOADING STATE ==========
+  // ========== RENDER ==========
   if (carregando) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
@@ -291,10 +311,8 @@ export const PDV = () => {
     );
   }
 
-  // ========== RENDER PRINCIPAL ==========
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 pb-24">
-      {/* CONTAINER PRINCIPAL */}
       <div className="max-w-[1920px] mx-auto p-4 lg:p-6">
         
         {/* HEADER */}
@@ -327,10 +345,8 @@ export const PDV = () => {
           </div>
         </div>
 
-        {/* GRID LAYOUT - 2 COLUNAS */}
+        {/* GRID LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* COLUNA ESQUERDA - GRID DE PRODUTOS/AGENDAMENTOS (2/3) */}
           <div className="lg:col-span-2 space-y-4">
             <PDVGrid
               abaAtiva={abaAtiva}
@@ -347,7 +363,6 @@ export const PDV = () => {
             />
           </div>
 
-          {/* COLUNA DIREITA - CARRINHO (1/3) */}
           <div className="lg:col-span-1">
             <div className="sticky top-6 space-y-4">
               <PDVCart
@@ -366,20 +381,19 @@ export const PDV = () => {
                 onSelecionarCliente={() => abrirModal('selecionar-cliente')}
               />
 
-              {/* BOTÃO FINALIZAR */}
               <button
                 onClick={() => abrirModal('pagamento')}
                 disabled={carrinho.length === 0 || processando}
                 className="w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 
-                         hover:from-purple-700 hover:to-pink-700 
-                         disabled:from-gray-700 disabled:to-gray-800
-                         disabled:cursor-not-allowed
-                         text-white rounded-2xl font-bold text-xl 
-                         shadow-2xl shadow-purple-900/60 
-                         transition-all duration-300 
-                         active:scale-95
-                         border border-purple-400/30
-                         relative overflow-hidden group"
+                          hover:from-purple-700 hover:to-pink-700 
+                          disabled:from-gray-700 disabled:to-gray-800
+                          disabled:cursor-not-allowed
+                          text-white rounded-2xl font-bold text-xl 
+                          shadow-2xl shadow-purple-900/60 
+                          transition-all duration-300 
+                          active:scale-95
+                          border border-purple-400/30
+                          relative overflow-hidden group"
               >
                 {processando ? (
                   <span className="flex items-center justify-center gap-3">
@@ -404,20 +418,12 @@ export const PDV = () => {
               {carrinho.length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-800/50 backdrop-blur rounded-xl p-4 border border-gray-700">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                      Itens
-                    </p>
-                    <p className="text-2xl font-bold text-white">
-                      {carrinho.reduce((acc, item) => acc + item.qtd, 0)}
-                    </p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Itens</p>
+                    <p className="text-2xl font-bold text-white">{carrinho.reduce((acc, item) => acc + item.qtd, 0)}</p>
                   </div>
                   <div className="bg-gray-800/50 backdrop-blur rounded-xl p-4 border border-gray-700">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                      Economia
-                    </p>
-                    <p className="text-2xl font-bold text-green-400">
-                      R$ {valorDescontoCalculado.toFixed(2)}
-                    </p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Economia</p>
+                    <p className="text-2xl font-bold text-green-400">R$ {valorDescontoCalculado.toFixed(2)}</p>
                   </div>
                 </div>
               )}
@@ -426,7 +432,6 @@ export const PDV = () => {
         </div>
       </div>
 
-      {/* MODAIS */}
       <PDVModals
         modalState={modalState}
         onClose={fecharModal}

@@ -1,5 +1,5 @@
 // src/screens/financeiro/estoque/EstoqueFilters.jsx
-import { Search, Package as PackageIcon, Plus } from 'lucide-react';
+import { Search, Plus, ArrowLeftRight } from 'lucide-react';
 
 export const EstoqueFilters = ({
   filtroStatus,
@@ -12,6 +12,8 @@ export const EstoqueFilters = ({
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6">
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+        
+        {/* Filtros de Status */}
         <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           {['todos', 'critico', 'alto-giro', 'baixo-giro'].map(f => (
             <button
@@ -28,6 +30,7 @@ export const EstoqueFilters = ({
           ))}
         </div>
 
+        {/* Busca e Ações */}
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
           <div className="relative flex-1 lg:w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -40,17 +43,19 @@ export const EstoqueFilters = ({
             />
           </div>
           
+          {/* Botão de Ajuste (Antigo Entrada) */}
           <button
             onClick={() => onEntradaEstoque()}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 flex items-center gap-2 font-medium transition-all"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 flex items-center justify-center gap-2 font-medium transition-all"
           >
-            <PackageIcon className="w-4 h-4" />
-            Entrada de Estoque
+            <ArrowLeftRight className="w-4 h-4" />
+            Ajuste de Estoque
           </button>
           
+          {/* Botão Novo Produto */}
           <button
             onClick={onNovoProduto}
-            className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center gap-2 font-medium transition-all"
+            className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-2 font-medium transition-all"
           >
             <Plus className="w-4 h-4" />
             Novo Produto
