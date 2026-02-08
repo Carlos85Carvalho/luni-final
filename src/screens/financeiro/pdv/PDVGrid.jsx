@@ -1,196 +1,313 @@
 import React from 'react';
-import { Search, Package, Scissors, CalendarClock, ChevronRight, AlertCircle } from 'lucide-react';
 
-export const PDVGrid = ({ 
-  produtos, 
-  agendamentos, 
-  categorias, 
-  abaAtiva, 
-  setAbaAtiva, 
-  busca, 
-  setBusca, 
-  categoriaAtiva, 
-  setCategoriaAtiva, 
-  onAdicionar, 
-  onEditarPreco 
+export const PDVGrid = ({
+  abaAtiva,
+  setAbaAtiva,
+  busca,
+  setBusca,
+  categorias,
+  categoriaAtiva,
+  setCategoriaAtiva,
+  produtos,
+  agendamentos,
+  onAdicionarItem,
+  onEditarPreco
 }) => {
-
-  // Filtra o conteúdo com base na aba, busca e categoria
-  const itensFiltrados = React.useMemo(() => {
-    const textoBusca = busca.toLowerCase();
-
-    if (abaAtiva === 'agendamentos') {
-      // Retorna apenas os 5 agendamentos passados (já filtrados no pai)
-      // Se houver busca, filtra também pelo nome do cliente ou serviço
-      if (textoBusca) {
-          return agendamentos.filter(ag => 
-              ag.cliente_nome?.toLowerCase().includes(textoBusca) ||
-              ag.servico_nome?.toLowerCase().includes(textoBusca)
-          );
-      }
-      return agendamentos; 
-    }
-
-    if (abaAtiva === 'produtos') {
-      return produtos.filter(p => {
-        const matchNome = p.nome.toLowerCase().includes(textoBusca);
-        // Se categoria for "todas", ignora filtro de categoria, senão filtra
-        const matchCat = categoriaAtiva === 'todas' || p.categoria === categoriaAtiva;
-        return matchNome && matchCat;
-      });
-    }
-
-    return [];
-  }, [produtos, agendamentos, abaAtiva, busca, categoriaAtiva]);
-
-  // Função para renderizar Card de Agendamento
-  const renderCardAgendamento = (ag) => (
-    <div 
-      key={ag.id} 
-      onClick={() => onAdicionar(ag, 'agendamento')}
-      className="bg-[#27272a] p-4 rounded-xl border-l-4 border-blue-500 hover:bg-[#3f3f46] cursor-pointer transition-all flex justify-between items-center group relative overflow-hidden"
-    >
-      <div>
-        <div className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1">
-          <CalendarClock size={12}/> {ag.horario?.slice(0,5)} • {new Date(ag.data).toLocaleDateString('pt-BR')}
-        </div>
-        <h3 className="font-bold text-white text-lg">{ag.cliente_nome}</h3>
-        <p className="text-sm text-gray-400">{ag.servico_nome}</p>
-      </div>
-      <div className="flex flex-col items-end">
-         <span className="font-bold text-white text-lg">R$ {ag.preco?.toFixed(2)}</span>
-         <span className="text-xs text-gray-500 group-hover:text-blue-400 flex items-center mt-1">
-           Adicionar <ChevronRight size={14}/>
-         </span>
-      </div>
-    </div>
-  );
-
-  // Função para renderizar Card de Produto
-  const renderCardProduto = (item) => (
-    <div 
-      key={item.id} 
-      className="bg-[#27272a] rounded-2xl p-4 flex flex-col justify-between hover:ring-2 hover:ring-purple-500/50 transition-all group relative border border-white/5"
-    >
-      {/* Botão Editar Preço (aparece no hover) */}
-      <button 
-        onClick={(e) => { e.stopPropagation(); onEditarPreco(item); }}
-        className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-purple-600 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-        title="Editar Preço"
-      >
-        <span className="text-[10px] font-bold">Editar</span>
-      </button>
-
-      <div onClick={() => onAdicionar(item, 'produto')} className="cursor-pointer">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
-             <Package size={20}/>
-          </div>
-          <div>
-            <h3 className="font-bold text-white leading-tight line-clamp-2">{item.nome}</h3>
-            <p className="text-xs text-gray-500 mt-1">{item.estoque} em estoque</p>
-          </div>
-        </div>
-        
-        <div className="mt-auto pt-3 border-t border-white/5 flex justify-between items-center">
-          {/* Usa 'preco' (banco) ou 'preco_venda' (fallback) */}
-          <span className="text-lg font-bold text-emerald-400">R$ {(item.preco || item.preco_venda || 0).toFixed(2)}</span>
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors text-gray-400">
-            +
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
+  
   return (
-    <div className="flex flex-col h-full bg-[#18181b]">
-      {/* HEADER DE FILTROS E BUSCA */}
-      <div className="p-4 space-y-4 border-b border-gray-800 bg-[#18181b]">
-        
-        {/* Barra de Busca + Tabs Principais */}
-        <div className="flex gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20}/>
-            <input 
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              placeholder={abaAtiva === 'produtos' ? "Buscar produto..." : "Filtrar agendamento..."}
-              className="w-full pl-10 pr-4 py-3 bg-[#0a0a0f] border border-gray-800 rounded-xl text-white focus:border-purple-500 outline-none transition-all"
-            />
-          </div>
+    <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-purple-500/20 shadow-2xl overflow-hidden">
+      
+      {/* HEADER COM ABAS */}
+      <div className="border-b border-gray-700/50 bg-gray-800/80">
+        <div className="flex items-center gap-2 p-4">
+          <button
+            onClick={() => setAbaAtiva('agendamentos')}
+            className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-300
+              ${abaAtiva === 'agendamentos' 
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/50 scale-105' 
+                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white'
+              }`}
+          >
+            <span className="flex items-center justify-center gap-2">
+              📅 Agendamentos
+              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                {agendamentos.length}
+              </span>
+            </span>
+          </button>
           
-          <div className="flex bg-[#0a0a0f] p-1 rounded-xl border border-gray-800">
-             <button 
-               onClick={() => setAbaAtiva('agendamentos')}
-               className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${abaAtiva === 'agendamentos' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-             >
-               <CalendarClock size={16}/> Agendamentos
-             </button>
-             <button 
-               onClick={() => setAbaAtiva('produtos')}
-               className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${abaAtiva === 'produtos' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-             >
-               <Package size={16}/> Produtos
-             </button>
+          <button
+            onClick={() => setAbaAtiva('produtos')}
+            className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-300
+              ${abaAtiva === 'produtos' 
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/50 scale-105' 
+                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white'
+              }`}
+          >
+            <span className="flex items-center justify-center gap-2">
+              🏪 Produtos
+              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                {produtos.length}
+              </span>
+            </span>
+          </button>
+        </div>
+
+        {/* BARRA DE BUSCA */}
+        <div className="p-4 pt-0">
+          <div className="relative">
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder={abaAtiva === 'agendamentos' 
+                ? '🔍 Buscar agendamento...' 
+                : '🔍 Buscar produto...'
+              }
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-5 py-3 pl-12
+                       text-white placeholder-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent
+                       transition-all duration-300"
+            />
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xl">
+              🔍
+            </div>
+            {busca && (
+              <button
+                onClick={() => setBusca('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 
+                         text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Filtros de Categoria (Só mostra se estiver em Produtos) */}
-        {abaAtiva === 'produtos' && (
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <button 
-              onClick={() => setCategoriaAtiva('todas')}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${categoriaAtiva === 'todas' ? 'bg-white text-black border-white' : 'bg-transparent text-gray-400 border-gray-700 hover:border-gray-500'}`}
-            >
-              Todos
-            </button>
-            {categorias.map(cat => (
-              <button 
-                key={cat} 
-                onClick={() => setCategoriaAtiva(cat)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${categoriaAtiva === cat ? 'bg-purple-600 text-white border-purple-600' : 'bg-transparent text-gray-400 border-gray-700 hover:border-gray-500'}`}
+        {/* FILTRO DE CATEGORIAS (apenas para produtos) */}
+        {abaAtiva === 'produtos' && categorias.length > 0 && (
+          <div className="px-4 pb-4">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
+              <button
+                onClick={() => setCategoriaAtiva('todas')}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all duration-300
+                  ${categoriaAtiva === 'todas'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                  }`}
               >
-                {cat}
+                Todas
               </button>
-            ))}
+              {categorias.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoriaAtiva(cat)}
+                  className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all duration-300
+                    ${categoriaAtiva === cat
+                      ? 'bg-purple-600 text-white shadow-lg'
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                    }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* ÁREA DE CONTEÚDO (GRID) */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-        
-        {abaAtiva === 'agendamentos' && (
-           <div className="space-y-4">
-              <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Próximos 5 Agendamentos</h3>
-              {itensFiltrados.length === 0 ? (
-                 <div className="text-center py-20 text-gray-500">
-                   <CalendarClock size={48} className="mx-auto mb-3 opacity-20"/>
-                   <p>Nenhum agendamento próximo encontrado.</p>
-                 </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                   {itensFiltrados.map(renderCardAgendamento)}
-                </div>
-              )}
-           </div>
+      {/* CONTEÚDO - GRID DE ITENS */}
+      <div className="p-4 max-h-[calc(100vh-400px)] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
+        {abaAtiva === 'agendamentos' ? (
+          // GRID DE AGENDAMENTOS
+          agendamentos.length === 0 ? (
+            <EmptyState 
+              icon="📅" 
+              message={busca ? 'Nenhum agendamento encontrado' : 'Nenhum agendamento próximo'} 
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {agendamentos.map((agend) => (
+                <AgendamentoCard
+                  key={agend.id}
+                  agendamento={agend}
+                  onAdicionar={() => onAdicionarItem(agend, 'agendamento')}
+                />
+              ))}
+            </div>
+          )
+        ) : (
+          // GRID DE PRODUTOS
+          produtos.length === 0 ? (
+            <EmptyState 
+              icon="🏪" 
+              message={busca ? 'Nenhum produto encontrado' : 'Nenhum produto disponível'} 
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {produtos.map((produto) => (
+                <ProdutoCard
+                  key={produto.id}
+                  produto={produto}
+                  onAdicionar={() => onAdicionarItem(produto, 'produto')}
+                  onEditarPreco={() => onEditarPreco(produto)}
+                />
+              ))}
+            </div>
+          )
         )}
-
-        {abaAtiva === 'produtos' && (
-           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {itensFiltrados.length === 0 ? (
-                <div className="col-span-full text-center py-20 text-gray-500">
-                  <Package size={48} className="mx-auto mb-3 opacity-20"/>
-                  <p>Nenhum produto encontrado.</p>
-                </div>
-              ) : (
-                itensFiltrados.map(renderCardProduto)
-              )}
-           </div>
-        )}
-
       </div>
     </div>
   );
 };
+
+// ========== COMPONENTE: CARD DE AGENDAMENTO ==========
+const AgendamentoCard = ({ agendamento, onAdicionar }) => {
+  const dataFormatada = new Date(agendamento.data).toLocaleDateString('pt-BR');
+  const horaFormatada = agendamento.hora || '--:--';
+
+  return (
+    <div className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 
+                    rounded-xl p-4 border border-gray-600/50 
+                    hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-900/30
+                    transition-all duration-300 group cursor-pointer"
+         onClick={onAdicionar}>
+      
+      {/* HEADER */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full bg-purple-600/20 border border-purple-500/30 
+                        flex items-center justify-center text-lg">
+            👤
+          </div>
+          <div>
+            <p className="font-semibold text-white group-hover:text-purple-300 transition-colors">
+              {agendamento.cliente_nome}
+            </p>
+            <p className="text-xs text-gray-400">
+              {dataFormatada} às {horaFormatada}
+            </p>
+          </div>
+        </div>
+        
+        <div className="text-right">
+          <p className="text-lg font-bold text-green-400">
+            R$ {agendamento.preco.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {/* SERVIÇO */}
+      <div className="bg-gray-900/50 rounded-lg px-3 py-2 mb-3">
+        <p className="text-sm text-gray-300">
+          ✂️ {agendamento.servico_nome}
+        </p>
+      </div>
+
+      {/* STATUS */}
+      <div className="flex items-center justify-between">
+        <span className={`px-3 py-1 rounded-full text-xs font-medium
+          ${agendamento.status === 'confirmado' 
+            ? 'bg-green-600/20 text-green-300 border border-green-500/30' 
+            : 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30'
+          }`}>
+          {agendamento.status || 'Pendente'}
+        </span>
+        
+        <button 
+          onClick={onAdicionar}
+          className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 
+                   text-white rounded-lg font-medium text-sm
+                   transition-all duration-300 active:scale-95">
+          + Adicionar
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ========== COMPONENTE: CARD DE PRODUTO ==========
+const ProdutoCard = ({ produto, onAdicionar, onEditarPreco }) => {
+  const precoFinal = produto.preco || produto.preco_venda || 0;
+  const estoqueColor = produto.estoque > 10 ? 'text-green-400' : 
+                       produto.estoque > 5 ? 'text-yellow-400' : 'text-red-400';
+
+  return (
+    <div className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 
+                    rounded-xl overflow-hidden border border-gray-600/50 
+                    hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-900/30
+                    transition-all duration-300 group">
+      
+      {/* IMAGEM/ÍCONE DO PRODUTO */}
+      <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 h-32 
+                    flex items-center justify-center text-5xl">
+        {produto.imagem ? (
+          <img src={produto.imagem} alt={produto.nome} className="w-full h-full object-cover" />
+        ) : (
+          '📦'
+        )}
+      </div>
+
+      {/* CONTEÚDO */}
+      <div className="p-4">
+        {/* NOME E CATEGORIA */}
+        <div className="mb-3">
+          <h3 className="font-semibold text-white group-hover:text-purple-300 
+                       transition-colors mb-1 line-clamp-1">
+            {produto.nome}
+          </h3>
+          {produto.categoria && (
+            <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-0.5 rounded-full">
+              {produto.categoria}
+            </span>
+          )}
+        </div>
+
+        {/* PREÇO E ESTOQUE */}
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <p className="text-xs text-gray-400 mb-1">Preço</p>
+            <p className="text-2xl font-bold text-green-400">
+              R$ {precoFinal.toFixed(2)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 mb-1">Estoque</p>
+            <p className={`text-lg font-bold ${estoqueColor}`}>
+              {produto.estoque}
+            </p>
+          </div>
+        </div>
+
+        {/* BOTÕES */}
+        <div className="flex gap-2">
+          <button
+            onClick={onAdicionar}
+            className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 
+                     text-white rounded-lg font-medium
+                     transition-all duration-300 active:scale-95">
+            + Adicionar
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditarPreco();
+            }}
+            className="px-3 py-2.5 bg-gray-700 hover:bg-gray-600 
+                     text-white rounded-lg
+                     transition-all duration-300 active:scale-95">
+            💲
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ========== COMPONENTE: ESTADO VAZIO ==========
+const EmptyState = ({ icon, message }) => (
+  <div className="flex flex-col items-center justify-center py-16 text-center">
+    <div className="text-6xl mb-4 opacity-50">{icon}</div>
+    <p className="text-gray-400 text-lg">{message}</p>
+  </div>
+);
