@@ -3,6 +3,8 @@ import { supabase } from '../../services/supabase';
 import { HorizontalCalendar } from '../../components/ui/HorizontalCalendar';
 import { NovoAgendamentoModal } from './NovoAgendamentoModal';
 import { RemarcarModal } from './RemarcarModal';
+// Importação do Modal de Checkout
+import { ModalFinalizarAtendimento } from './ModalFinalizarAtendimento'; 
 
 import { 
   Calendar, Clock, Scissors, MessageCircle, Plus, 
@@ -19,12 +21,19 @@ export const AgendaScreen = () => {
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [showFiltros, setShowFiltros] = useState(false);
   
+  // Estados dos Modais
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRemarcarOpen, setIsRemarcarOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState('agendamento');
+  
+  // Estados de Edição/Seleção
   const [agendamentoParaEditar, setAgendamentoParaEditar] = useState(null);
   const [menuAberto, setMenuAberto] = useState(null);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
+
+  // === NOVOS ESTADOS PARA O CHECKOUT ===
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [agendamentoCheckout, setAgendamentoCheckout] = useState(null);
 
   const fetchDados = async () => {
     setLoading(true);
@@ -58,7 +67,7 @@ export const AgendaScreen = () => {
     return () => document.removeEventListener('click', handleClick);
   }, [menuAberto]);
 
-  // === PROTEÇÃO CONTRA TELA BRANCA ===
+  // === FUNÇÕES AUXILIARES ===
   const getDataLocal = (dataObj) => {
     if (!dataObj) return '';
     try {
@@ -138,10 +147,35 @@ export const AgendaScreen = () => {
     } catch { return dataString; }
   };
 
-  const confirmarAgendamento = async (id) => { await supabase.from('agendamentos').update({ status: 'confirmado' }).eq('id', id); fetchDados(); setMenuAberto(null); };
-  const concluirAgendamento = async (id) => { await supabase.from('agendamentos').update({ status: 'concluido' }).eq('id', id); fetchDados(); setMenuAberto(null); };
-  const cancelarAgendamento = async (id) => { if (confirm('Cancelar este agendamento?')) { await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); fetchDados(); } setMenuAberto(null); };
-  const removerBloqueio = async (id) => { if (confirm('Remover bloqueio?')) { await supabase.from('agendamentos').delete().eq('id', id); fetchDados(); } setMenuAberto(null); };
+  // === AÇÕES DO SISTEMA ===
+  const confirmarAgendamento = async (id) => { 
+    await supabase.from('agendamentos').update({ status: 'confirmado' }).eq('id', id); 
+    fetchDados(); 
+    setMenuAberto(null); 
+  };
+
+  // --- ALTERADO: Agora abre o Modal de Checkout em vez de salvar direto ---
+  const abrirCheckout = (agendamento) => {
+    setAgendamentoCheckout(agendamento);
+    setIsCheckoutOpen(true);
+    setMenuAberto(null);
+  };
+
+  const cancelarAgendamento = async (id) => { 
+    if (confirm('Cancelar este agendamento?')) { 
+      await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); 
+      fetchDados(); 
+    } 
+    setMenuAberto(null); 
+  };
+
+  const removerBloqueio = async (id) => { 
+    if (confirm('Remover bloqueio?')) { 
+      await supabase.from('agendamentos').delete().eq('id', id); 
+      fetchDados(); 
+    } 
+    setMenuAberto(null); 
+  };
   
   const remarcarAgendamento = (agendamento) => {
     setAgendamentoSelecionado(agendamento);
@@ -168,8 +202,34 @@ export const AgendaScreen = () => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white pb-24 md:pb-8">
-      <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={() => { fetchDados(); setAgendamentoParaEditar(null); }} profissionalId={null} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
-      <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
+      
+      {/* --- MODAIS --- */}
+      <NovoAgendamentoModal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} 
+        onSuccess={() => { fetchDados(); setAgendamentoParaEditar(null); }} 
+        profissionalId={null} 
+        tipo={modalTipo} 
+        agendamentoParaEditar={agendamentoParaEditar} 
+      />
+      
+      <RemarcarModal 
+        isOpen={isRemarcarOpen} 
+        onClose={() => setIsRemarcarOpen(false)} 
+        onSuccess={fetchDados} 
+        agendamento={agendamentoSelecionado} 
+      />
+
+      {/* MODAL DE FINALIZAR/CHECKOUT */}
+      <ModalFinalizarAtendimento 
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        agendamento={agendamentoCheckout}
+        onSuccess={() => {
+          fetchDados(); // Atualiza a lista para mostrar como "concluído"
+          setIsCheckoutOpen(false);
+        }}
+      />
 
       <div className="w-full max-w-7xl mx-auto px-4 pt-6 md:px-8 md:pt-10 animate-in fade-in duration-500">
         
@@ -247,7 +307,7 @@ export const AgendaScreen = () => {
                       <span className="text-xl font-bold text-white">{item.horario?.slice(0,5)}</span>
                     </div>
 
-                    {/* Info Cliente + Profissional + STATUS AQUI */}
+                    {/* Info Cliente + Profissional + STATUS */}
                     <div className="flex-1 min-w-0">
                       <h3 className={`font-bold text-base leading-tight truncate ${item.status === 'concluido' ? 'text-gray-400' : 'text-white'}`}>{item.cliente_nome}</h3>
                       <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-1 truncate"><Scissors size={12}/> {item.servico}</p>
@@ -261,12 +321,11 @@ export const AgendaScreen = () => {
                         </div>
                       )}
 
-                      {/* --- NOVO LOCAL DO STATUS (Abaixo do Profissional) --- */}
                       {getStatusBadge(item.status)}
                     </div>
                   </div>
                   
-                  {/* Menu Lateral (Apenas o botão de menu agora) */}
+                  {/* MENU LATERAL */}
                   <div className="flex flex-col items-end gap-2">
                     {item.status !== 'cancelado' && (
                       <div className="relative">
@@ -276,7 +335,10 @@ export const AgendaScreen = () => {
                             {item.status !== 'bloqueado' ? (
                               <>
                                 {item.status === 'agendado' && <button onClick={() => confirmarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-sm border-b border-white/5"><Check size={16}/> Confirmar</button>}
-                                {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => concluirAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-sm border-b border-white/5"><CheckCheck size={16}/> Concluir</button>}
+                                
+                                {/* AQUI: Chama abrirCheckout(item) em vez de concluir direto */}
+                                {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirCheckout(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-sm border-b border-white/5"><CheckCheck size={16}/> Concluir</button>}
+                                
                                 {item.telefone && <button onClick={() => window.open(`https://wa.me/55${item.telefone.replace(/\D/g,'')}`)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-sm border-b border-white/5"><MessageCircle size={16}/> WhatsApp</button>}
                                 {item.status !== 'concluido' && <button onClick={() => remarcarAgendamento(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-sm border-b border-white/5"><CalendarClock size={16}/> Remarcar</button>}
                                 {item.status !== 'concluido' && <button onClick={() => cancelarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 text-red-400 text-sm"><XCircle size={16}/> Cancelar</button>}
@@ -296,7 +358,9 @@ export const AgendaScreen = () => {
                   <span className={`font-bold text-base ${item.status === 'concluido' ? 'text-gray-500 line-through' : 'text-emerald-400'}`}>R$ {parseFloat(item.valor_total || item.valor || 0).toFixed(2)}</span>
                   <div className="flex gap-2">
                     {item.status === 'agendado' && <button onClick={() => confirmarAgendamento(item.id)} className="px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 text-[10px] font-bold hover:bg-green-500/20 transition-all flex items-center gap-1"><Check size={12}/> Confirmar</button>}
-                    {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => concluirAgendamento(item.id)} className="px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20 text-[10px] font-bold hover:bg-blue-500/20 transition-all flex items-center gap-1"><CheckCheck size={12}/> Concluir</button>}
+                    
+                    {/* AQUI TAMBÉM: Chama abrirCheckout(item) */}
+                    {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirCheckout(item)} className="px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20 text-[10px] font-bold hover:bg-blue-500/20 transition-all flex items-center gap-1"><CheckCheck size={12}/> Concluir</button>}
                   </div>
                 </div>
               </div>

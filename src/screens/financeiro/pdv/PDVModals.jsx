@@ -1,10 +1,111 @@
-// src/screens/financeiro/pdv/PDVModals.jsx
 import React, { useState, useEffect } from 'react';
-import { X, QrCode, Banknote, CreditCard, Scissors, Clock3, History, RefreshCw, Package2, Edit } from 'lucide-react';
+import { X, QrCode, Banknote, CreditCard, Scissors, Clock3, History, RefreshCw, Package2, Edit, User, Search } from 'lucide-react';
+// CORREÇÃO: Ajuste do caminho da importação (3 níveis)
+import { supabase } from '../../../services/supabase';
 
 // ============================================================================
-// 1. COMPONENTES INDIVIDUAIS (Mantenha estes como estavam)
+// 1. COMPONENTES AUXILIARES
 // ============================================================================
+
+const BtnPagamento = ({ icon, label, color, onClick, disabled }) => {
+  // Atribuição explícita para o React entender que é um componente
+  const IconComponent = icon;
+  
+  const colors = {
+    green: 'border-green-200 hover:bg-green-50 text-green-700',
+    amber: 'border-amber-200 hover:bg-amber-50 text-amber-700',
+    blue: 'border-blue-200 hover:bg-blue-50 text-blue-700',
+    orange: 'border-orange-200 hover:bg-orange-50 text-orange-700',
+  };
+
+  return (
+    <button onClick={onClick} disabled={disabled} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colors[color]}`}>
+      <IconComponent size={24} /> <span className="font-bold">{label}</span>
+    </button>
+  );
+};
+
+// ============================================================================
+// 2. COMPONENTES DE MODAL
+// ============================================================================
+
+// --- MODAL DE SELEÇÃO DE CLIENTES ---
+export const ClientesSelectionModal = ({ aberto, onClose, onSelecionar }) => {
+  const [busca, setBusca] = useState('');
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (aberto) {
+      // Definimos a função aqui dentro para evitar avisos do useEffect
+      const fetchClientes = async () => {
+        setLoading(true);
+        const { data } = await supabase.from('clientes').select('*').order('nome');
+        setClientes(data || []);
+        setLoading(false);
+      };
+      
+      fetchClientes();
+    }
+  }, [aberto]);
+
+  const clientesFiltrados = clientes.filter(c => 
+    c.nome.toLowerCase().includes(busca.toLowerCase()) || 
+    (c.telefone && c.telefone.includes(busca))
+  );
+
+  if (!aberto) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-lg h-[600px] flex flex-col shadow-2xl animate-in zoom-in-95">
+        <div className="p-4 border-b flex justify-between items-center">
+          <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+            <User className="text-purple-600" /> Selecionar Cliente
+          </h3>
+          <button onClick={onClose}><X size={20} className="text-gray-500 hover:text-gray-800"/></button>
+        </div>
+
+        <div className="p-4 bg-gray-50 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+            <input 
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou telefone..."
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none"
+              autoFocus
+            />
+          </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-2">
+          {loading ? (
+             <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>
+          ) : clientesFiltrados.length === 0 ? (
+            <p className="text-center text-gray-400 py-10">Nenhum cliente encontrado.</p>
+          ) : (
+            clientesFiltrados.map(cliente => (
+              <div 
+                key={cliente.id} 
+                onClick={() => { onSelecionar(cliente); onClose(); }}
+                className="flex justify-between items-center p-3 hover:bg-purple-50 rounded-xl cursor-pointer transition-colors border-b border-gray-100 last:border-0"
+              >
+                <div>
+                  <div className="font-bold text-gray-800">{cliente.nome}</div>
+                  <div className="text-sm text-gray-500">{cliente.telefone || 'Sem telefone'}</div>
+                </div>
+                <div className="p-2 bg-gray-100 rounded-full text-gray-400">
+                   <User size={16} />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- MODAL DE PAGAMENTO ---
 export const PagamentoModal = ({ aberto, onClose, total, onFinalizar, processando }) => {
@@ -140,58 +241,9 @@ export const VendasPendentesModal = ({ aberto, onClose, vendasPendentes = [], on
   );
 };
 
-// --- MODAL DE HISTÓRICO ---
-export const HistoricoModal = ({ aberto, onClose, historico = [], cliente, loading }) => {
-  if (!aberto) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="p-4 border-b flex justify-between items-center">
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2"><History className="text-blue-600" /> Histórico de Compras</h3>
-            <p className="text-xs text-gray-500">{cliente?.nome}</p>
-          </div>
-          <button onClick={onClose}><X size={20}/></button>
-        </div>
-        <div className="p-4 overflow-y-auto flex-1">
-          {loading ? (
-            <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
-          ) : historico.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <Package2 size={48} className="mx-auto mb-3 opacity-20" />
-              <p>Nenhuma compra encontrada.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {historico.map(venda => (
-                <div key={venda.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                  <div>
-                    <div className="font-bold text-gray-700">#{venda.numero_venda}</div>
-                    <div className="text-xs text-gray-500">{new Date(venda.created_at).toLocaleDateString()}</div>
-                  </div>
-                  <div className="text-sm text-gray-600 hidden sm:block">
-                    {venda.forma_pagamento?.toUpperCase()}
-                  </div>
-                  <div className="font-bold text-green-700">R$ {venda.total?.toFixed(2)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // --- MODAL DE EDITAR PREÇO ---
 export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
-  const [preco, setPreco] = useState('');
-  
-  useEffect(() => {
-    if (aberto && item) {
-      setPreco(item.preco_venda || item.preco_base || 0);
-    }
-  }, [aberto, item]);
+  const [preco, setPreco] = useState(item?.preco_venda || item?.preco_base || 0);
 
   if (!aberto || !item) return null;
 
@@ -216,44 +268,25 @@ export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
   );
 };
 
-// Componente auxiliar interno (Botão de pagamento)
-const BtnPagamento = ({ icon: Icon, label, color, onClick, disabled }) => {
-  const colors = {
-    green: 'border-green-200 hover:bg-green-50 text-green-700',
-    amber: 'border-amber-200 hover:bg-amber-50 text-amber-700',
-    blue: 'border-blue-200 hover:bg-blue-50 text-blue-700',
-    orange: 'border-orange-200 hover:bg-orange-50 text-orange-700',
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colors[color]}`}>
-      <Icon size={24} /> <span className="font-bold">{label}</span>
-    </button>
-  );
-};
-
 // ============================================================================
-// 2. COMPONENTE AGREGADOR (A CORREÇÃO QUE FALTAVA)
+// 3. COMPONENTE AGREGADOR PRINCIPAL
 // ============================================================================
 
 export const PDVModals = ({
-  modalState, // { view: string, dados: any, isOpen: boolean }
+  modalState,
   onClose,
-  
-  // Handlers
   onFinalizarPagamento,
   onAdicionarServico,
   onRecuperarVenda,
   onUsarCliente,
   onSalvarPreco,
+  setCliente,
   
-  // Dados
   totalPagamento,
   processandoPagamento,
   agendamentos,
   servicos,
   vendasPendentes,
-  historicoCliente,
-  loadingHistorico
 }) => {
   
   const { view, dados, isOpen } = modalState || {};
@@ -266,6 +299,12 @@ export const PDVModals = ({
         total={totalPagamento || 0}
         onFinalizar={onFinalizarPagamento}
         processando={processandoPagamento}
+      />
+
+      <ClientesSelectionModal 
+        aberto={isOpen && view === 'selecionar-cliente'}
+        onClose={onClose}
+        onSelecionar={setCliente}
       />
 
       <ServicosModal
@@ -284,18 +323,11 @@ export const PDVModals = ({
         onUsarCliente={onUsarCliente}
       />
 
-      <HistoricoModal
-        aberto={isOpen && view === 'historico'}
-        onClose={onClose}
-        historico={historicoCliente}
-        cliente={dados?.cliente} // Assume que o dado do cliente vem no modalState.dados
-        loading={loadingHistorico}
-      />
-
       <EditarPrecoModal
+        key={dados?.id || 'editor'}
         aberto={isOpen && view === 'editar-preco'}
         onClose={onClose}
-        item={dados} // O item a ser editado vem em modalState.dados
+        item={dados}
         onSalvar={onSalvarPreco}
       />
     </>
