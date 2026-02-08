@@ -1,30 +1,31 @@
 // src/screens/financeiro/relatorios/RelatorioModal.jsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, Printer, Share2, FileText, Loader2, BarChart3, PieChart, TrendingUp } from 'lucide-react';
+import { X, Download, Printer, Share2, FileText, Loader2, BarChart3 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, 
-  ResponsiveContainer, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell 
+  ResponsiveContainer, CartesianGrid 
 } from 'recharts';
+
+// IMPORTANTE: Importar o serviço para chamar as funções reais
+import { relatoriosService } from './relatorios.service';
 
 export const RelatorioModal = ({ 
   aberto, 
   onFechar, 
   tipo = 'financeiro', 
   periodo = 'mes',
-  dados // Dados reais vindos do hook
+  dados 
 }) => {
   const [loading, setLoading] = useState(false);
   const [relatorioData, setRelatorioData] = useState(null);
-  const [visualizacao, setVisualizacao] = useState('grafico'); // 'grafico' ou 'tabela'
+  const [visualizacao, setVisualizacao] = useState('grafico');
 
   useEffect(() => {
     if (aberto) {
       if (dados) {
-        // Se já vieram dados prontos do pai (Hook), usa eles
         setRelatorioData(dados);
       } else if (tipo) {
-        // Se não, carrega o mock interno
         carregarRelatorio();
       }
     }
@@ -33,10 +34,7 @@ export const RelatorioModal = ({
   const carregarRelatorio = async () => {
     setLoading(true);
     try {
-      // Simular carregamento de dados
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Dados de exemplo baseados no tipo
+      await new Promise(resolve => setTimeout(resolve, 800));
       const dadosExemplo = gerarDadosExemplo(tipo, periodo);
       setRelatorioData(dadosExemplo);
     } catch (error) {
@@ -61,44 +59,27 @@ export const RelatorioModal = ({
         return {
           ...baseData,
           titulo: 'Relatório Financeiro',
-          resumo: {
-            receitaTotal: 75000,
-            despesaTotal: 45000,
-            lucroLiquido: 30000,
-            margemLucro: 40,
-            ticketMedio: 85.50
-          },
+          resumo: { receitaTotal: 75000, despesaTotal: 45000, lucroLiquido: 30000, margemLucro: 40 },
           detalhes: [
             { categoria: 'Cortes', valor: 25000 },
             { categoria: 'Coloração', valor: 18000 },
-            { categoria: 'Tratamentos', valor: 12000 },
             { categoria: 'Produtos', valor: 20000 }
           ],
           graficos: [
             { mes: 'Jan', receita: 65000, despesa: 42000 },
-            { mes: 'Fev', receita: 72000, despesa: 45000 },
-            { mes: 'Mar', receita: 78000, despesa: 46000 },
-            { mes: 'Abr', receita: 75000, despesa: 45000 }
+            { mes: 'Fev', receita: 72000, despesa: 45000 }
           ]
         };
       case 'estoque':
         return {
           ...baseData,
           titulo: 'Relatório de Estoque',
-          resumo: {
-            capitalParado: 15000,
-            produtosCriticos: 3,
-            maiorGiro: 'Shampoo Revitalizante',
-            maisLucrativo: 'Tintura Profissional'
-          },
+          resumo: { totalItens: 1500, valorEstoque: 45000, itensCriticos: 12 },
           detalhes: [
-            { produto: 'Shampoo', estoque: 45, giro: 2.5, lucro: 1200 },
-            { produto: 'Condicionador', estoque: 38, giro: 2.1, lucro: 950 },
-            { produto: 'Tintura', estoque: 22, giro: 1.8, lucro: 1800 },
-            { produto: 'Creme', estoque: 15, giro: 1.2, lucro: 750 }
+            { produto: 'Shampoo X', estoque: 10, status: 'Crítico' },
+            { produto: 'Condicionador Y', estoque: 50, status: 'Normal' }
           ]
         };
-      // Adicionar mais casos conforme necessário
       default:
         return baseData;
     }
@@ -114,12 +95,93 @@ export const RelatorioModal = ({
     return labels[tipo] || tipo;
   };
 
-  const handleExportarPDF = () => {
-    console.log('Exportando PDF...');
+  // --- AÇÕES DOS BOTÕES ---
+
+  const handleExportarPDF = async () => {
+    if (!relatorioData) return;
+    try {
+      setLoading(true);
+      await relatoriosService.exportarParaPDF(relatorioData, relatorioData.titulo || 'Relatorio');
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      alert("Erro ao gerar PDF. Verifique se as bibliotecas jspdf e jspdf-autotable estão instaladas.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleExportarExcel = () => {
-    console.log('Exportando Excel...');
+  const handleExportarExcel = async () => {
+    if (!relatorioData) return;
+    try {
+      setLoading(true);
+      await relatoriosService.exportarParaExcel(relatorioData, relatorioData.titulo || 'Relatorio');
+    } catch (error) {
+      console.error("Erro ao exportar Excel:", error);
+      alert("Erro ao gerar Excel.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- COMPARTILHAMENTO INTELIGENTE 2.0 ---
+  const handleCompartilhar = async () => {
+    if (!relatorioData) return;
+
+    // 1. Montar o texto formatado
+    const linhasResumo = Object.entries(relatorioData.resumo || {}).map(([key, value]) => {
+      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      const valorFormatado = typeof value === 'number' 
+        ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) 
+        : value;
+      const prefixo = (key.toLowerCase().includes('valor') || key.toLowerCase().includes('receita') || key.toLowerCase().includes('despesa') || key.toLowerCase().includes('lucro')) ? 'R$ ' : '';
+      return `• ${label}: ${prefixo}${valorFormatado}`;
+    });
+
+    const textoMensagem = `
+📊 *${relatorioData.titulo}*
+📅 Data: ${new Date().toLocaleDateString('pt-BR')}
+
+*Resumo:*
+${linhasResumo.join('\n')}
+
+🚀 _Gerado pelo Sistema Luni_`.trim();
+
+    // 2. Detectar se é Celular ou PC
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // 3. Lógica Dividida
+    if (isMobile && navigator.share) {
+      // NO CELULAR: Usa o menu nativo (que funciona bem lá)
+      try {
+        await navigator.share({
+          title: relatorioData.titulo,
+          text: textoMensagem,
+        });
+      } catch (err) {
+        console.log('Compartilhamento cancelado.');
+      }
+    } else {
+      // NO COMPUTADOR: Força nossa própria lógica (foge do menu do Windows)
+      const desejaWhatsApp = window.confirm(
+        "Opções de Compartilhamento:\n\n" +
+        "OK -> Abrir WhatsApp Web com o resumo.\n" +
+        "CANCELAR -> Apenas copiar o texto para a área de transferência."
+      );
+
+      if (desejaWhatsApp) {
+          // Abre Zap Web
+          const urlZap = `https://web.whatsapp.com/send?text=${encodeURIComponent(textoMensagem)}`;
+          window.open(urlZap, '_blank');
+      } else {
+          // Apenas Copia
+          try {
+            await navigator.clipboard.writeText(textoMensagem);
+            alert('Resumo copiado! Agora é só dar Ctrl+V onde quiser.');
+          } catch (err) {
+            alert('Erro ao copiar.');
+          }
+      }
+    }
   };
 
   const handleImprimir = () => {
@@ -131,6 +193,7 @@ export const RelatorioModal = ({
   return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
       <div className="bg-gray-900 border border-gray-700 w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
+        
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-900/95 sticky top-0 z-10">
           <div className="flex items-center gap-3">
@@ -138,9 +201,7 @@ export const RelatorioModal = ({
               <FileText className="w-6 h-6 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">
-                {relatorioData?.titulo || 'Relatório'}
-              </h2>
+              <h2 className="text-xl font-bold text-white">{relatorioData?.titulo || 'Relatório'}</h2>
               <p className="text-sm text-gray-400">
                 Gerado em {relatorioData?.dataGeracao ? new Date(relatorioData.dataGeracao).toLocaleDateString('pt-BR') : '--'}
               </p>
@@ -151,32 +212,18 @@ export const RelatorioModal = ({
             <div className="flex bg-gray-800/50 rounded-lg p-1">
               <button
                 onClick={() => setVisualizacao('grafico')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  visualizacao === 'grafico' 
-                    ? 'bg-purple-500 text-white' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${visualizacao === 'grafico' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}
               >
-                <BarChart3 className="w-4 h-4 inline-block mr-2" />
-                Gráfico
+                <BarChart3 className="w-4 h-4 inline-block mr-2" /> Gráfico
               </button>
               <button
                 onClick={() => setVisualizacao('tabela')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  visualizacao === 'tabela' 
-                    ? 'bg-purple-500 text-white' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${visualizacao === 'tabela' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}
               >
-                <FileText className="w-4 h-4 inline-block mr-2" />
-                Tabela
+                <FileText className="w-4 h-4 inline-block mr-2" /> Tabela
               </button>
             </div>
-
-            <button
-              onClick={onFechar}
-              className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
-            >
+            <button onClick={onFechar} className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors">
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
@@ -185,33 +232,22 @@ export const RelatorioModal = ({
         {/* Toolbar */}
         <div className="p-4 border-b border-gray-800 bg-gray-900/90">
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleExportarPDF}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              PDF
+            <button onClick={handleExportarPDF} disabled={loading} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors disabled:opacity-50">
+              <Download className="w-4 h-4" /> PDF
             </button>
-            <button
-              onClick={handleExportarExcel}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Excel
+            <button onClick={handleExportarExcel} disabled={loading} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors disabled:opacity-50">
+              <Download className="w-4 h-4" /> Excel
             </button>
-            <button
-              onClick={handleImprimir}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors"
-            >
-              <Printer className="w-4 h-4" />
-              Imprimir
+            <button onClick={handleImprimir} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors">
+              <Printer className="w-4 h-4" /> Imprimir
             </button>
-            <button
-              onClick={() => console.log('Compartilhar')}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors"
+            
+            {/* Botão Compartilhar Destacado */}
+            <button 
+              onClick={handleCompartilhar} 
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg flex items-center gap-2 text-sm transition-colors shadow-lg shadow-green-900/20"
             >
-              <Share2 className="w-4 h-4" />
-              Compartilhar
+              <Share2 className="w-4 h-4" /> Compartilhar
             </button>
           </div>
         </div>
@@ -221,7 +257,7 @@ export const RelatorioModal = ({
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-12 h-12 text-purple-400 animate-spin mb-4" />
-              <p className="text-gray-400">Gerando relatório...</p>
+              <p className="text-gray-400">Processando...</p>
             </div>
           ) : relatorioData ? (
             <div className="space-y-8">
@@ -242,7 +278,7 @@ export const RelatorioModal = ({
               </div>
 
               {/* Visualização selecionada */}
-              {visualizacao === 'grafico' && relatorioData.graficos && (
+              {visualizacao === 'grafico' && relatorioData.graficos && relatorioData.graficos.length > 0 && (
                 <div className="bg-gray-800/30 rounded-xl border border-gray-700 p-6">
                   <h3 className="text-lg font-bold text-white mb-6">Evolução</h3>
                   <div className="h-80">
@@ -296,25 +332,6 @@ export const RelatorioModal = ({
                   </div>
                 </div>
               )}
-
-              {/* Observações */}
-              <div className="bg-gray-800/30 rounded-xl border border-gray-700 p-6">
-                <h3 className="text-lg font-bold text-white mb-4">Observações</h3>
-                <ul className="space-y-2">
-                  <li className="text-gray-300 flex items-start gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <span>Período analisado: {periodo}</span>
-                  </li>
-                  <li className="text-gray-300 flex items-start gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <span>Relatório gerado automaticamente pelo sistema Luni</span>
-                  </li>
-                  <li className="text-gray-300 flex items-start gap-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                    <span>Para mais detalhes, entre em contato com suporte</span>
-                  </li>
-                </ul>
-              </div>
             </div>
           ) : (
             <div className="text-center py-20">
