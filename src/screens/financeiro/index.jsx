@@ -8,16 +8,17 @@ import {
   Target, 
   FileText, 
   ChevronLeft,
-  ShoppingCart 
+  ShoppingCart,
+  TrendingUp // <--- NOVO ÍCONE PARA PERFORMANCE
 } from 'lucide-react';
 
 // --- Importação das Telas ---
 import { VisaoGeral } from './visao-geral/VisaoGeral';
+import { Performance } from './performance/Performance'; // <--- NOVA IMPORTAÇÃO
 import { Despesas } from './despesas/Despesas';
 import { Estoque } from './estoque/Estoque';
 import { Fornecedores } from './fornecedores/Fornecedores';
 import { Metas } from './metas/Metas'; 
-// CORREÇÃO DE CASING: Importando com 'R' maiúsculo para coincidir com o erro do compilador
 import { Relatorios } from './Relatorios/Relatorios';
 import { PDV } from './pdv/PDV'; 
 
@@ -27,7 +28,6 @@ import { FornecedorModal } from './fornecedores/FornecedorModal';
 import { ProdutoModal } from './estoque/ProdutoModal';
 import { EstoqueModal } from './estoque/EstoqueModal';
 import { MetaModal } from './metas/MetaModal';
-// CORREÇÃO DE CASING: Importando com 'R' maiúsculo
 import { RelatorioModal } from './Relatorios/RelatorioModal';
 
 export const FinanceiroModule = ({ onClose }) => {
@@ -45,20 +45,19 @@ export const FinanceiroModule = ({ onClose }) => {
   };
 
   const handleFecharModal = () => {
-    // Primeiro fechamos visualmente para manter a animação (se houver)
     setModal(prev => ({ ...prev, isOpen: false }));
-    // Limpamos os dados após um pequeno delay
     setTimeout(() => setModal({ view: null, dados: null, isOpen: false }), 200);
   };
 
   const handleSucesso = () => {
     console.log('Operação salva com sucesso!');
-    handleFecharModal(); // Opcional: fechar o modal automaticamente após salvar
+    handleFecharModal(); 
   };
 
   // --- Abas ---
   const tabs = [
     { id: 'visao-geral', label: 'Visão Geral', icon: LayoutDashboard },
+    { id: 'performance', label: 'Performance', icon: TrendingUp }, // <--- NOVA ABA PERFORMANCE
     { id: 'pdv', label: 'PDV', icon: ShoppingCart }, 
     { id: 'despesas', label: 'Despesas', icon: Receipt },
     { id: 'estoque', label: 'Estoque', icon: Package },
@@ -70,6 +69,7 @@ export const FinanceiroModule = ({ onClose }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'visao-geral': return <VisaoGeral onAbrirModal={handleAbrirModal} />;
+      case 'performance': return <Performance />; // <--- RENDERIZAÇÃO DA PERFORMANCE
       case 'pdv': return <PDV />; 
       case 'despesas': return <Despesas onAbrirModal={handleAbrirModal} />;
       case 'estoque': return <Estoque onAbrirModal={handleAbrirModal} />;
@@ -126,8 +126,6 @@ export const FinanceiroModule = ({ onClose }) => {
       </main>
 
       {/* --- MODAIS --- */}
-      {/* Centralizamos a lógica de renderização condicional para evitar bugs de estado */}
-      
       {modal.isOpen && (
         <>
           <DespesaModal
