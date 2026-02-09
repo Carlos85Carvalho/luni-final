@@ -1,3 +1,4 @@
+// src/screens/professional/ProfessionalDashboard.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../services/supabase';
 import { requestNotificationPermission } from '../../services/firebase';
@@ -6,10 +7,9 @@ import { NovoAgendamentoModal } from '../agenda/NovoAgendamentoModal';
 import { RemarcarModal } from '../agenda/RemarcarModal';
 
 import { 
-  Calendar, Clock, User, LogOut, CheckCircle, 
-  Wallet, Scissors, Star, Bell, MessageCircle, Plus, Lock, Search, X, CalendarDays,
-  TrendingUp, DollarSign, Filter, Trash2, History, CheckCheck, XCircle, Loader2,
-  MoreVertical, CalendarClock, Check
+  Calendar, Clock, LogOut, Scissors, Star, Bell, MessageCircle, Plus, Lock, Search, 
+  TrendingUp, Trash2, History, CheckCheck, XCircle, Loader2,
+  MoreVertical, CalendarClock, Check, Wallet // <--- ADICIONADO AQUI
 } from 'lucide-react';
 
 export const ProfessionalDashboard = ({ profissional, onLogout }) => {
@@ -19,9 +19,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
   const [selectedDate, setSelectedDate] = useState(new Date()); 
   const [busca, setBusca] = useState(''); 
   const [resumo, setResumo] = useState({ hoje: 0, mes: 0, proximos: 0, total_clientes: 0 });
-  const [filtroStatus, setFiltroStatus] = useState('todos'); 
   const [visualizacao, setVisualizacao] = useState('proximos'); 
-  const [showFiltros, setShowFiltros] = useState(false);
   const [producaoMensal, setProducaoMensal] = useState([]);
   const [menuAberto, setMenuAberto] = useState(null);
   const [agendamentoParaEditar, setAgendamentoParaEditar] = useState(null);
@@ -31,7 +29,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
   const [isRemarcarOpen, setIsRemarcarOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState('agendamento'); 
 
-  // Função Auxiliar Segura para Data
   const getDataLocal = (dataObj) => {
     if (!dataObj) return '';
     try {
@@ -62,7 +59,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
       if (error) throw error;
 
-      // Filtros seguros
       const agendaHoje = todosAgendamentos?.filter(a => a.data && a.data.substring(0,10) === hojeStr && a.status !== 'cancelado') || [];
       
       const proximos = todosAgendamentos?.filter(a => {
@@ -140,10 +136,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
       resultado = resultado.filter(ag => ag.cliente_nome.toLowerCase().includes(busca.toLowerCase()) || ag.servico?.toLowerCase().includes(busca.toLowerCase()));
     }
 
-    if (filtroStatus !== 'todos') {
-      resultado = resultado.filter(ag => ag.status === filtroStatus);
-    }
-
     const hoje = new Date();
     const hojeStr = getDataLocal(hoje);
     const agoraHora = hoje.toLocaleTimeString('pt-BR', { hour12: false }).slice(0, 5);
@@ -163,8 +155,8 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     
     if (visualizacao === 'semana') {
       const d = new Date();
-      const seg = new Date(d.setDate(d.getDate() - d.getDay() + 1));
-      const dom = new Date(d.setDate(d.getDate() - d.getDay() + 7));
+      const seg = new Date(d.setDate(d.getDate() - d.getDate() + 1));
+      const dom = new Date(d.setDate(d.getDate() - d.getDate() + 7));
       const segStr = getDataLocal(seg);
       const domStr = getDataLocal(dom);
       return resultado.filter(ag => ag.data && ag.data.substring(0, 10) >= segStr && ag.data.substring(0, 10) <= domStr);
@@ -176,20 +168,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     }
 
     return resultado;
-  }, [agendamentos, busca, filtroStatus, visualizacao, selectedDate]);
-
-  const formatDataCard = (dataString) => {
-    if (!dataString) return '';
-    try {
-      const [ano, mes, dia] = dataString.split('-').map(Number);
-      const dataAtual = new Date(ano, mes - 1, dia);
-      const hoje = new Date(); hoje.setHours(0,0,0,0);
-      if (dataAtual.getTime() === hoje.getTime()) return 'HOJE';
-      const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
-      if (dataAtual.getTime() === amanha.getTime()) return 'AMANHÃ';
-      return `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
-    } catch { return ''; }
-  };
+  }, [agendamentos, busca, visualizacao, selectedDate]);
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -208,12 +187,17 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     );
   };
 
+  if (loading) return (
+    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white">
+      <Loader2 className="animate-spin text-[#5B2EFF]" size={40} />
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={handleAgendamentoSucesso} profissionalId={profissional.id} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
       <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
 
-      {/* HEADER FIXO TOPO */}
       <div className="bg-[#15151a] border-b border-white/5 pt-6 pb-6 px-4 md:px-8">
         <div className="w-full max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -235,10 +219,8 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         </div>
       </div>
 
-      {/* CONTAINER RESPONSIVO */}
       <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-24">
         
-        {/* SELETOR DE ABAS */}
         <div className="flex bg-[#1c1c24] p-1 rounded-2xl border border-white/10 mb-6 max-w-md mx-auto md:mx-0">
           <button onClick={() => setTab('agenda')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${tab === 'agenda' ? 'bg-[#5B2EFF] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}><Calendar size={14}/> Agenda</button>
           <button onClick={() => setTab('financeiro')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${tab === 'financeiro' ? 'bg-[#5B2EFF] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}><Wallet size={14}/> Financeiro</button>
@@ -246,7 +228,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
         {tab === 'agenda' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Grid de Ações e Filtros */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="flex gap-3">
                 <button onClick={abrirNovoAgendamento} className="flex-1 bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] hover:from-[#4a24cc] hover:to-[#6a30dd] text-white font-bold py-3 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Plus size={18} /> Novo Agendamento</button>
@@ -258,7 +239,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Filtros de Data */}
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-6">
               {['proximos', 'dia', 'semana', 'todos'].map(v => (
                 <button key={v} onClick={() => setVisualizacao(v)} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${visualizacao === v ? 'bg-[#5B2EFF] text-white shadow-lg' : 'bg-[#1c1c24] text-gray-400 border border-white/10'}`}>
@@ -269,14 +249,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
             {visualizacao === 'dia' && <div className="mb-6"><HorizontalCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} /></div>}
 
-            {/* LISTA DE AGENDAMENTOS (GRID RESPONSIVO) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {agendamentosFiltrados.map((item) => (
                 <div key={item.id} className={`bg-[#15151a] relative rounded-2xl p-4 border shadow-lg transition-all hover:border-purple-500/30 ${item.status === 'bloqueado' ? 'border-orange-500/20 bg-orange-500/5' : 'border-white/5'}`}>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3 flex-1">
                       <div className="flex flex-col items-center justify-center bg-[#1c1c24] rounded-xl px-3 py-2 border border-white/10 min-w-[60px]">
-                        <span className={`text-[9px] font-black uppercase ${item.status === 'bloqueado' ? 'text-orange-500' : 'text-[#5B2EFF]'}`}>{formatDataCard(item.data)}</span>
                         <span className="text-base font-bold text-white mt-0.5">{item.horario.slice(0, 5)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -322,7 +300,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         {tab === 'financeiro' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500 grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* CARD PRODUÇÃO (Destaque) */}
             <div className="bg-gradient-to-br from-emerald-600/20 via-green-600/10 to-teal-600/10 border border-emerald-500/30 p-8 rounded-3xl text-center relative overflow-hidden md:col-span-2">
               <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl"></div>
               <div className="relative z-10">
@@ -333,7 +310,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* KPIS MENORES */}
             <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:col-span-1">
               <div className="bg-[#1c1c24] border border-white/10 p-5 rounded-2xl">
                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-2">Ticket Médio</p>
@@ -345,7 +321,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* GRÁFICO BARRAS */}
             <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6 md:col-span-2 lg:col-span-1">
               <h3 className="text-white font-bold mb-6 flex items-center gap-2 text-sm"><History size={16} className="text-purple-400"/> Produção Diária</h3>
               <div className="flex items-end justify-between gap-1 h-32">
@@ -358,14 +333,13 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* LISTA ÚLTIMOS */}
             <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6 md:col-span-2">
               <h3 className="text-white font-bold mb-4 text-sm">Últimos Atendimentos</h3>
               <div className="space-y-2">
                 {agendamentos.filter(a => a.status === 'concluido').slice(0, 5).map((item) => (
                   <div key={item.id} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded-lg transition-colors">
                     <div><p className="text-white font-bold text-sm">{item.cliente_nome}</p><p className="text-gray-500 text-xs">{item.servico}</p></div>
-                    <div className="text-right"><p className="text-emerald-400 font-bold text-sm">R$ {Number(item.valor_total || item.valor || 0).toFixed(2)}</p><p className="text-gray-600 text-[10px]">{formatDataCard(item.data)}</p></div>
+                    <div className="text-right"><p className="text-emerald-400 font-bold text-sm">R$ {Number(item.valor_total || item.valor || 0).toFixed(2)}</p></div>
                   </div>
                 ))}
               </div>

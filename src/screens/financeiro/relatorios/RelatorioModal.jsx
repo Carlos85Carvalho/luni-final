@@ -1,13 +1,12 @@
 // src/screens/financeiro/relatorios/RelatorioModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, Printer, Share2, FileText, Loader2, BarChart3 } from 'lucide-react';
+import { X, Download, Printer, Share2, FileText, Loader2, BarChart3 } from 'lucide-react'; 
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, 
   ResponsiveContainer, CartesianGrid 
 } from 'recharts';
 
-// IMPORTANTE: Importar o serviço para chamar as funções reais
 import { relatoriosService } from './relatorios.service';
 
 export const RelatorioModal = ({ 
@@ -21,40 +20,27 @@ export const RelatorioModal = ({
   const [relatorioData, setRelatorioData] = useState(null);
   const [visualizacao, setVisualizacao] = useState('grafico');
 
-  useEffect(() => {
-    if (aberto) {
-      if (dados) {
-        setRelatorioData(dados);
-      } else if (tipo) {
-        carregarRelatorio();
-      }
-    }
-  }, [aberto, tipo, periodo, dados]);
-
-  const carregarRelatorio = async () => {
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const dadosExemplo = gerarDadosExemplo(tipo, periodo);
-      setRelatorioData(dadosExemplo);
-    } catch (error) {
-      console.error('Erro ao carregar relatório:', error);
-    } finally {
-      setLoading(false);
-    }
+  const getTipoLabel = (t) => {
+    const labels = {
+      financeiro: 'Financeiro',
+      estoque: 'de Estoque',
+      fornecedores: 'de Fornecedores',
+      metas: 'de Metas'
+    };
+    return labels[t] || t;
   };
 
-  const gerarDadosExemplo = (tipo, periodo) => {
+  const gerarDadosExemplo = useCallback((t, p) => {
     const baseData = {
-      titulo: `Relatório ${getTipoLabel(tipo)} - ${periodo}`,
-      periodo,
+      titulo: `Relatório ${getTipoLabel(t)} - ${p}`,
+      periodo: p,
       dataGeracao: new Date().toISOString(),
       resumo: {},
       detalhes: [],
       graficos: []
     };
 
-    switch (tipo) {
+    switch (t) {
       case 'financeiro':
         return {
           ...baseData,
@@ -83,17 +69,31 @@ export const RelatorioModal = ({
       default:
         return baseData;
     }
-  };
+  }, []);
 
-  const getTipoLabel = (tipo) => {
-    const labels = {
-      financeiro: 'Financeiro',
-      estoque: 'de Estoque',
-      fornecedores: 'de Fornecedores',
-      metas: 'de Metas'
-    };
-    return labels[tipo] || tipo;
-  };
+  // CORREÇÃO: carregarRelatorio agora usa useCallback para ser uma dependência estável
+  const carregarRelatorio = useCallback(async () => {
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const dadosExemplo = gerarDadosExemplo(tipo, periodo);
+      setRelatorioData(dadosExemplo);
+    } catch (error) {
+      console.error('Erro ao carregar relatório:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [tipo, periodo, gerarDadosExemplo]);
+
+  useEffect(() => {
+    if (aberto) {
+      if (dados) {
+        setRelatorioData(dados);
+      } else if (tipo) {
+        carregarRelatorio();
+      }
+    }
+  }, [aberto, tipo, periodo, dados, carregarRelatorio]);
 
   // --- AÇÕES DOS BOTÕES ---
 
@@ -104,7 +104,7 @@ export const RelatorioModal = ({
       await relatoriosService.exportarParaPDF(relatorioData, relatorioData.titulo || 'Relatorio');
     } catch (error) {
       console.error("Erro ao exportar PDF:", error);
-      alert("Erro ao gerar PDF. Verifique se as bibliotecas jspdf e jspdf-autotable estão instaladas.");
+      alert("Erro ao gerar PDF. Verifique o console.");
     } finally {
       setLoading(false);
     }
@@ -123,11 +123,9 @@ export const RelatorioModal = ({
     }
   };
 
-  // --- COMPARTILHAMENTO INTELIGENTE 2.0 ---
   const handleCompartilhar = async () => {
     if (!relatorioData) return;
 
-    // 1. Montar o texto formatado
     const linhasResumo = Object.entries(relatorioData.resumo || {}).map(([key, value]) => {
       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
       const valorFormatado = typeof value === 'number' 
@@ -146,40 +144,30 @@ ${linhasResumo.join('\n')}
 
 🚀 _Gerado pelo Sistema Luni_`.trim();
 
-    // 2. Detectar se é Celular ou PC
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    // 3. Lógica Dividida
-    if (isMobile && navigator.share) {
-      // NO CELULAR: Usa o menu nativo (que funciona bem lá)
+    if (navigator.share) {
       try {
         await navigator.share({
           title: relatorioData.titulo,
           text: textoMensagem,
         });
-      } catch (err) {
-        console.log('Compartilhamento cancelado.');
+      } catch {
+        // CORREÇÃO: Removido 'err' não utilizado para limpar o ESLint
+        console.log('Compartilhamento cancelado ou não disponível.');
       }
     } else {
-      // NO COMPUTADOR: Força nossa própria lógica (foge do menu do Windows)
-      const desejaWhatsApp = window.confirm(
-        "Opções de Compartilhamento:\n\n" +
-        "OK -> Abrir WhatsApp Web com o resumo.\n" +
-        "CANCELAR -> Apenas copiar o texto para a área de transferência."
-      );
-
-      if (desejaWhatsApp) {
-          // Abre Zap Web
-          const urlZap = `https://web.whatsapp.com/send?text=${encodeURIComponent(textoMensagem)}`;
-          window.open(urlZap, '_blank');
-      } else {
-          // Apenas Copia
-          try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (!isMobile) {
+        const confirmar = window.confirm("O menu de compartilhamento nativo não está disponível. Deseja abrir o WhatsApp Web com o resumo?");
+        if (confirmar) {
+            const urlZap = `https://web.whatsapp.com/send?text=${encodeURIComponent(textoMensagem)}`;
+            window.open(urlZap, '_blank');
+        } else {
             await navigator.clipboard.writeText(textoMensagem);
-            alert('Resumo copiado! Agora é só dar Ctrl+V onde quiser.');
-          } catch (err) {
-            alert('Erro ao copiar.');
-          }
+            alert('Resumo copiado para a área de transferência!');
+        }
+      } else {
+         await navigator.clipboard.writeText(textoMensagem);
+         alert('Resumo copiado!');
       }
     }
   };
@@ -241,8 +229,6 @@ ${linhasResumo.join('\n')}
             <button onClick={handleImprimir} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors">
               <Printer className="w-4 h-4" /> Imprimir
             </button>
-            
-            {/* Botão Compartilhar Destacado */}
             <button 
               onClick={handleCompartilhar} 
               className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg flex items-center gap-2 text-sm transition-colors shadow-lg shadow-green-900/20"
@@ -261,7 +247,6 @@ ${linhasResumo.join('\n')}
             </div>
           ) : relatorioData ? (
             <div className="space-y-8">
-              {/* Resumo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {Object.entries(relatorioData.resumo || {}).map(([key, value]) => (
                   <div key={key} className="bg-gray-800/30 p-4 rounded-xl border border-gray-700">
@@ -277,7 +262,6 @@ ${linhasResumo.join('\n')}
                 ))}
               </div>
 
-              {/* Visualização selecionada */}
               {visualizacao === 'grafico' && relatorioData.graficos && relatorioData.graficos.length > 0 && (
                 <div className="bg-gray-800/30 rounded-xl border border-gray-700 p-6">
                   <h3 className="text-lg font-bold text-white mb-6">Evolução</h3>

@@ -27,7 +27,8 @@ export const DashboardAdmin = ({ onNavigate }) => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // CORREÇÃO: Apenas verificamos a sessão sem declarar a variável 'user' que não era usada
+        await supabase.auth.getUser();
         
         // Datas
         const hoje = new Date();
@@ -126,8 +127,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
     fetchDashboardData();
   }, []);
 
-  // --- AQUI ESTÁ A MUDANÇA ---
-  const nomeUsuario = "Parceiro"; // Antes estava "Admin"
+  const nomeUsuario = "Parceiro";
   const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   // Formatador de nome
@@ -161,7 +161,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
     <div className="min-h-screen bg-[#0a0a0f] text-white w-full overflow-x-hidden">
       <div className="w-full max-w-7xl mx-auto px-4 pt-6 md:px-8 md:pt-10 pb-24 space-y-8 animate-in fade-in duration-700">
 
-        {/* HEADER ATUALIZADO */}
+        {/* HEADER */}
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Olá, {nomeUsuario} 👋</h1>

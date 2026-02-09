@@ -8,7 +8,7 @@ import {
   Target, 
   FileText, 
   ChevronLeft,
-  ShoppingCart // <--- NOVO ÍCONE
+  ShoppingCart 
 } from 'lucide-react';
 
 // --- Importação das Telas ---
@@ -17,8 +17,9 @@ import { Despesas } from './despesas/Despesas';
 import { Estoque } from './estoque/Estoque';
 import { Fornecedores } from './fornecedores/Fornecedores';
 import { Metas } from './metas/Metas'; 
-import { Relatorios } from './relatorios/Relatorios';
-import { PDV } from './pdv/PDV'; // <--- NOVA IMPORTAÇÃO (Certifique-se de criar o arquivo do Passo 1)
+// CORREÇÃO DE CASING: Importando com 'R' maiúsculo para coincidir com o erro do compilador
+import { Relatorios } from './Relatorios/Relatorios';
+import { PDV } from './pdv/PDV'; 
 
 // --- Importação dos Modais ---
 import { DespesaModal } from './despesas/DespesaModal';
@@ -26,7 +27,8 @@ import { FornecedorModal } from './fornecedores/FornecedorModal';
 import { ProdutoModal } from './estoque/ProdutoModal';
 import { EstoqueModal } from './estoque/EstoqueModal';
 import { MetaModal } from './metas/MetaModal';
-import { RelatorioModal } from './relatorios/RelatorioModal';
+// CORREÇÃO DE CASING: Importando com 'R' maiúsculo
+import { RelatorioModal } from './Relatorios/RelatorioModal';
 
 export const FinanceiroModule = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('visao-geral');
@@ -39,23 +41,25 @@ export const FinanceiroModule = ({ onClose }) => {
   });
 
   const handleAbrirModal = (view, dados = null) => {
-    console.log('--- ABRINDO MODAL (View):', view, 'Dados:', dados); 
     setModal({ view, dados, isOpen: true });
   };
 
   const handleFecharModal = () => {
-    setModal({ ...modal, isOpen: false });
+    // Primeiro fechamos visualmente para manter a animação (se houver)
+    setModal(prev => ({ ...prev, isOpen: false }));
+    // Limpamos os dados após um pequeno delay
     setTimeout(() => setModal({ view: null, dados: null, isOpen: false }), 200);
   };
 
   const handleSucesso = () => {
     console.log('Operação salva com sucesso!');
+    handleFecharModal(); // Opcional: fechar o modal automaticamente após salvar
   };
 
   // --- Abas ---
   const tabs = [
     { id: 'visao-geral', label: 'Visão Geral', icon: LayoutDashboard },
-    { id: 'pdv', label: 'PDV', icon: ShoppingCart }, // <--- NOVA ABA ADICIONADA
+    { id: 'pdv', label: 'PDV', icon: ShoppingCart }, 
     { id: 'despesas', label: 'Despesas', icon: Receipt },
     { id: 'estoque', label: 'Estoque', icon: Package },
     { id: 'fornecedores', label: 'Fornecedores', icon: Users },
@@ -66,7 +70,7 @@ export const FinanceiroModule = ({ onClose }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'visao-geral': return <VisaoGeral onAbrirModal={handleAbrirModal} />;
-      case 'pdv': return <PDV />; // <--- RENDERIZAÇÃO DO PDV
+      case 'pdv': return <PDV />; 
       case 'despesas': return <Despesas onAbrirModal={handleAbrirModal} />;
       case 'estoque': return <Estoque onAbrirModal={handleAbrirModal} />;
       case 'fornecedores': return <Fornecedores onAbrirModal={handleAbrirModal} />;
@@ -122,53 +126,57 @@ export const FinanceiroModule = ({ onClose }) => {
       </main>
 
       {/* --- MODAIS --- */}
+      {/* Centralizamos a lógica de renderização condicional para evitar bugs de estado */}
       
-      <DespesaModal
-        aberto={modal.isOpen && (modal.view === 'nova-despesa' || modal.view === 'editar-despesa')}
-        onFechar={handleFecharModal}
-        onSucesso={handleSucesso}
-        despesa={modal.view === 'editar-despesa' ? modal.dados : null}
-      />
+      {modal.isOpen && (
+        <>
+          <DespesaModal
+            aberto={modal.view === 'nova-despesa' || modal.view === 'editar-despesa'}
+            onFechar={handleFecharModal}
+            onSucesso={handleSucesso}
+            despesa={modal.view === 'editar-despesa' ? modal.dados : null}
+          />
 
-      <FornecedorModal
-        aberto={modal.isOpen && (modal.view === 'novo-fornecedor' || modal.view === 'editar-fornecedor')}
-        onFechar={handleFecharModal}
-        onSucesso={handleSucesso}
-        fornecedor={modal.view === 'editar-fornecedor' ? modal.dados : null}
-      />
+          <FornecedorModal
+            aberto={modal.view === 'novo-fornecedor' || modal.view === 'editar-fornecedor'}
+            onFechar={handleFecharModal}
+            onSucesso={handleSucesso}
+            fornecedor={modal.view === 'editar-fornecedor' ? modal.dados : null}
+          />
 
-      <ProdutoModal
-        aberto={modal.isOpen && (modal.view === 'novo-produto' || modal.view === 'editar-produto')}
-        onFechar={handleFecharModal}
-        onSucesso={handleSucesso}
-        produto={modal.view === 'editar-produto' ? modal.dados : null}
-      />
+          <ProdutoModal
+            aberto={modal.view === 'novo-produto' || modal.view === 'editar-produto'}
+            onFechar={handleFecharModal}
+            onSucesso={handleSucesso}
+            produto={modal.view === 'editar-produto' ? modal.dados : null}
+          />
 
-      <EstoqueModal 
-        aberto={modal.isOpen && (modal.view === 'movimentar-estoque' || modal.view === 'entrada-estoque' || modal.view === 'saida-estoque')}
-        onFechar={handleFecharModal}
-        onSucesso={handleSucesso}
-      />
+          <EstoqueModal 
+            aberto={modal.view === 'movimentar-estoque' || modal.view === 'entrada-estoque' || modal.view === 'saida-estoque'}
+            onFechar={handleFecharModal}
+            onSucesso={handleSucesso}
+          />
 
-      <MetaModal
-        aberto={modal.isOpen && (modal.view === 'nova-meta' || modal.view === 'editar-meta')}
-        onFechar={handleFecharModal}
-        onSucesso={handleSucesso}
-        meta={modal.view === 'editar-meta' ? modal.dados : null}
-      />
+          <MetaModal
+            aberto={modal.view === 'nova-meta' || modal.view === 'editar-meta'}
+            onFechar={handleFecharModal}
+            onSucesso={handleSucesso}
+            meta={modal.view === 'editar-meta' ? modal.dados : null}
+          />
 
-      <RelatorioModal
-        aberto={modal.isOpen && (
-          modal.view === 'novo-relatorio' || 
-          modal.view === 'visualizar-relatorio' || 
-          modal.view === 'preview-relatorio'
-        )}
-        onFechar={handleFecharModal}
-        tipo={modal.dados?.tipo || 'financeiro'}
-        periodo={modal.dados?.periodo || 'mes'}
-        dados={modal.dados?.resumo ? modal.dados : null} 
-      />
-
+          <RelatorioModal
+            aberto={
+              modal.view === 'novo-relatorio' || 
+              modal.view === 'visualizar-relatorio' || 
+              modal.view === 'preview-relatorio'
+            }
+            onFechar={handleFecharModal}
+            tipo={modal.dados?.tipo || 'financeiro'}
+            periodo={modal.dados?.periodo || 'mes'}
+            dados={modal.dados?.resumo ? modal.dados : null} 
+          />
+        </>
+      )}
     </div>
   );
 };

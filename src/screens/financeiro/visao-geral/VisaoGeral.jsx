@@ -5,19 +5,19 @@ import { BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
 // Importações da biblioteca de gráficos
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
+// --- CORREÇÃO: COMPONENTE DECLARADO FORA PARA EVITAR RE-RENDER INFINITO ---
+const ChartLoading = () => (
+  <div className="h-[300px] flex items-center justify-center animate-pulse">
+    <div className="w-full h-full bg-gray-700/30 rounded-xl"></div>
+  </div>
+);
+
 export const VisaoGeral = () => {
   // Agora pegamos também os dados dos gráficos do hook
   const { kpis, graficoEvolucao, graficoDistribuicao, loading } = useVisaoGeral();
 
   // Cores para o gráfico de pizza
   const COLORS_PIE = ['#8b5cf6', '#ec4899', '#06b6d4', '#f59e0b', '#10b981'];
-
-  // Componente de Loading para os gráficos
-  const ChartLoading = () => (
-    <div className="h-[300px] flex items-center justify-center animate-pulse">
-      <div className="w-full h-full bg-gray-700/30 rounded-xl"></div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -50,7 +50,7 @@ export const VisaoGeral = () => {
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                       itemStyle={{ color: '#e5e7eb' }}
-                      formatter={(value) => [`R$ ${value.toFixed(2)}`]}
+                      formatter={(value) => [`R$ ${Number(value).toFixed(2)}`]}
                     />
                     <Bar dataKey="Receita" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     <Bar dataKey="Despesa" fill="#ec4899" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -91,7 +91,7 @@ export const VisaoGeral = () => {
                     <Tooltip 
                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                        itemStyle={{ color: '#e5e7eb' }}
-                       formatter={(value) => [`R$ ${value.toFixed(2)}`]}
+                       formatter={(value) => [`R$ ${Number(value).toFixed(2)}`]}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} iconType="circle" />
                   </PieChart>
@@ -111,7 +111,7 @@ export const VisaoGeral = () => {
           <div>
             <h3 className="text-lg font-bold text-white">Luni Insights</h3>
             <p className="text-gray-400 text-sm mt-1">
-              Saldo atual: <strong className="text-white">R$ {kpis.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
+              Saldo atual: <strong className="text-white">R$ {Number(kpis.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
               {kpis.saldo > 0 ? " Ótimo trabalho, caixa positivo! 🚀" : " Atenção ao fluxo de caixa. 👀"}
             </p>
           </div>
