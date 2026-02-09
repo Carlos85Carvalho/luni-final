@@ -6,6 +6,10 @@ import {
 import { supabase } from '../../../services/supabase';
 
 export const ClientDetailsModal = ({ cliente, onClose }) => {
+  // --- CORREÇÃO 1: Estado local para gerenciar os dados na tela ---
+  // Isso evita alterar a prop 'cliente' diretamente
+  const [localCliente, setLocalCliente] = useState(cliente);
+
   // Estados de Dados
   const [historico, setHistorico] = useState([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
@@ -17,6 +21,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
 
   // Estados de Edição
   const [isEditing, setIsEditing] = useState(false);
+  // Inicializamos com os dados do cliente
   const [editedName, setEditedName] = useState(cliente.nome);
   const [editedPhone, setEditedPhone] = useState(cliente.telefone);
   const [saving, setSaving] = useState(false);
@@ -25,10 +30,16 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Atualiza o estado local se a prop mudar (caso abra outro cliente sem desmontar)
+  useEffect(() => {
+    setLocalCliente(cliente);
+    setEditedName(cliente.nome);
+    setEditedPhone(cliente.telefone);
+  }, [cliente]);
+
   // --- EFEITO: Buscar Total Real ao abrir ---
   useEffect(() => {
     const fetchTotalGasto = async () => {
-      // Busca apenas os valores para somar rápido
       const { data, error } = await supabase
         .from('agendamentos')
         .select('valor_total, valor')
@@ -44,7 +55,9 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
       setLoadingTotal(false);
     };
 
-    fetchTotalGasto();
+    if (cliente.id) {
+        fetchTotalGasto();
+    }
   }, [cliente.id]);
 
   // --- FORMATAÇÃO ---
@@ -101,8 +114,12 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     if (error) {
       alert('Erro ao atualizar cliente');
     } else {
-      cliente.nome = editedName; 
-      cliente.telefone = editedPhone;
+      // --- CORREÇÃO 2: Atualiza o estado local em vez da prop ---
+      setLocalCliente(prev => ({
+        ...prev,
+        nome: editedName,
+        telefone: editedPhone
+      }));
       setIsEditing(false);
     }
     setSaving(false);
@@ -152,7 +169,8 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
         <div className="p-6 pb-4 flex justify-between items-start">
           <div className="flex items-center gap-4 w-full">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg border-2 border-[#18181b] shrink-0">
-              {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : '?'}
+              {/* Usa localCliente em vez de cliente para refletir a edição imediatamente */}
+              {localCliente.nome ? localCliente.nome.charAt(0).toUpperCase() : '?'}
             </div>
             
             <div className="flex-1 min-w-0">
@@ -163,8 +181,8 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                 </div>
               ) : (
                 <>
-                  <h2 className="text-xl font-bold text-white leading-tight truncate">{cliente.nome}</h2>
-                  <div onClick={() => abrirWhatsapp(cliente.telefone)} className="flex items-center gap-2 text-green-400 mt-2 cursor-pointer hover:text-green-300 transition-colors bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20 w-fit">
+                  <h2 className="text-xl font-bold text-white leading-tight truncate">{localCliente.nome}</h2>
+                  <div onClick={() => abrirWhatsapp(localCliente.telefone)} className="flex items-center gap-2 text-green-400 mt-2 cursor-pointer hover:text-green-300 transition-colors bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20 w-fit">
                     <MessageCircle size={16} fill="currentColor" className="text-green-500"/>
                     <span className="text-sm font-bold">WhatsApp</span>
                   </div>
@@ -193,7 +211,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
           <div className="animate-in slide-in-from-right-4 duration-300 space-y-6">
             <div className="grid grid-cols-2 gap-3">
               
-              {/* CARD GASTO TOTAL (Corrigido) */}
+              {/* CARD GASTO TOTAL */}
               <div className="bg-white/5 p-4 rounded-2xl text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Gasto Total</div>
                 <div className="text-xl font-bold text-emerald-400 flex justify-center items-center gap-2">
@@ -201,12 +219,12 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                 </div>
               </div>
 
-              {/* CARD DATA DE CADASTRO (Novo) */}
+              {/* CARD DATA DE CADASTRO */}
               <div className="bg-white/5 p-4 rounded-2xl text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Cliente Desde</div>
                 <div className="text-sm font-bold text-blue-400 flex items-center justify-center gap-1 h-7">
                    <CalendarDays size={14} className="mb-0.5"/> 
-                   {formatDate(cliente.created_at)}
+                   {formatDate(localCliente.created_at)}
                 </div>
               </div>
             </div>
@@ -229,7 +247,8 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                 <div className="text-center py-10 space-y-2"><p className="text-gray-500 text-sm">Nenhum agendamento encontrado.</p></div>
               ) : (
                 historico.map((item, idx) => (
-                  <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5 flex justify-between items-center">
+                  // CORREÇÃO 3: Usar ID como chave se possível, ou fallback para idx
+                  <div key={item.id || idx} className="bg-white/5 p-3 rounded-xl border border-white/5 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${item.status === 'cancelado' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
                         <Scissors size={14}/>

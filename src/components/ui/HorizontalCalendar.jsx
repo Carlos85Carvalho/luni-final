@@ -1,31 +1,49 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react'; // 1. Importe useMemo
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const HorizontalCalendar = ({ selectedDate, onSelectDate }) => {
   const scrollRef = useRef(null);
 
-  // Gera dias do mês atual e do próximo
-  const generateDays = () => {
-    const days = [];
+  // 2. CORREÇÃO: useMemo memoriza o array para ele não mudar a cada render
+  const days = useMemo(() => {
+    const list = [];
     const today = new Date();
     const start = new Date(today);
-    start.setDate(today.getDate() - 5); // Começa 5 dias atrás
+    start.setDate(today.getDate() - 5); 
     
     for (let i = 0; i < 30; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      days.push(d);
+      list.push(d);
     }
-    return days;
-  };
-
-  const days = generateDays();
+    return list;
+  }, []); // Array vazio = calcula apenas uma vez quando a tela abre
 
   const isSameDay = (d1, d2) => {
+    if (!d2) return false;
     return d1.getDate() === d2.getDate() && 
            d1.getMonth() === d2.getMonth() && 
            d1.getFullYear() === d2.getFullYear();
   };
+
+  useEffect(() => {
+    if (scrollRef.current && selectedDate) {
+      const index = days.findIndex(d => isSameDay(d, selectedDate));
+      
+      if (index !== -1) {
+        // Cálculo: (Largura 56px + Gap 12px = 68px)
+        const itemWidth = 68; 
+        const containerWidth = scrollRef.current.clientWidth;
+        const scrollPosition = (index * itemWidth) - (containerWidth / 2) + (itemWidth / 2);
+        
+        scrollRef.current.scrollTo({ 
+          left: scrollPosition, 
+          behavior: 'smooth' 
+        });
+      }
+    }
+    // 3. Agora podemos adicionar 'days' aqui com segurança
+  }, [selectedDate, days]); 
 
   const scroll = (direction) => {
     if (scrollRef.current) {

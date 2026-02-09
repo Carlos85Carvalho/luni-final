@@ -1,5 +1,7 @@
 import React from 'react';
 
+// Correção na Linha 4: Usamos o alias "icon: Icon"
+// Isso significa: "Receba a prop 'icon', mas chame ela de 'Icon' aqui dentro."
 export const StatCard = ({ title, value, subtext, icon: Icon, colorTheme, onClick }) => {
   const themes = {
     emerald: { bg: 'from-emerald-900/30 to-teal-900/30', border: 'border-emerald-700/30', text: 'text-emerald-400', glow: 'bg-emerald-500/20' },
@@ -19,7 +21,12 @@ export const StatCard = ({ title, value, subtext, icon: Icon, colorTheme, onClic
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-3">
           <span className={`${t.text} text-xs font-bold uppercase tracking-wide`}>{title}</span>
-          <Icon size={20} className={t.text} />
+          
+          {/* AQUI ESTÁ A CORREÇÃO FINAL: */}
+          {/* Verificamos se Icon existe e usamos a tag <Icon /> com maiúscula. */}
+          {/* O ESLint agora reconhece que a variável 'Icon' está sendo usada. */}
+          {Icon && <Icon size={20} className={t.text} />}
+          
         </div>
         <div className="text-2xl md:text-3xl font-bold text-white mb-1 truncate">{value}</div>
         <div className="text-sm text-gray-400">{subtext}</div>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, QrCode, Banknote, CreditCard, Clock3, RefreshCw, User, Search } from 'lucide-react';
-// CORREÇÃO AQUI: Adicionado mais um "../" para chegar na pasta correta
 import { supabase } from '../../../services/supabase';
 
 // ============================================================================
@@ -37,7 +36,6 @@ export const ClientesSelectionModal = ({ aberto, onClose, onSelecionar }) => {
     if (aberto) {
       const fetchClientes = async () => {
         setLoading(true);
-        // Garante que busca mesmo se a tabela estiver vazia sem quebrar
         const { data, error } = await supabase.from('clientes').select('*').order('nome');
         if (!error) {
             setClientes(data || []);
@@ -188,13 +186,10 @@ export const VendasPendentesModal = ({ aberto, onClose, vendasPendentes = [], on
 
 // --- MODAL DE EDITAR PREÇO ---
 export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
-  const [preco, setPreco] = useState(0);
+  // CORREÇÃO: Inicializa o estado diretamente. Como usamos "key" no pai, o componente recria quando o item muda.
+  const [preco, setPreco] = useState(item?.preco_venda || item?.preco_base || 0);
 
-  useEffect(() => {
-    if (item) {
-        setPreco(item.preco_venda || item.preco_base || 0);
-    }
-  }, [item]);
+  // Removido useEffect que causava o erro.
 
   if (!aberto || !item) return null;
 
@@ -227,16 +222,13 @@ export const PDVModals = ({
   modalState,
   onClose,
   onFinalizarPagamento,
-  onAdicionarServico,
+  // CORREÇÃO: Removidos props não utilizados (onAdicionarServico, agendamentos, servicos)
   onRecuperarVenda,
   onUsarCliente,
   onSalvarPreco,
   setCliente, 
-  
   totalPagamento,
   processandoPagamento,
-  agendamentos,
-  servicos,
   vendasPendentes,
 }) => {
   
