@@ -1,4 +1,3 @@
-// src/screens/financeiro/services/metas.service.js
 import { supabase } from '../../../services/supabase';
 
 export const metasService = {
@@ -43,13 +42,34 @@ export const metasService = {
   },
 
   async createMeta(metaData) {
+    // 1. Tratamento de dados antes de enviar
+    const dadosParaEnviar = {
+      ...metaData,
+      // Garante que o valor seja numérico e não texto "12000"
+      valor: parseFloat(metaData.valor), 
+      // Se tiver ID, remove para o Supabase criar um novo
+      id: undefined 
+    };
+
+    // Verificação de Segurança
+    if (!dadosParaEnviar.salao_id) {
+      console.error("ERRO CRÍTICO: Tentando criar meta sem salao_id!", dadosParaEnviar);
+      throw new Error("ID do salão não fornecido.");
+    }
+
+    console.log("Enviando para Supabase:", dadosParaEnviar);
+
     const { data, error } = await supabase
       .from('metas')
-      .insert([metaData])
+      .insert([dadosParaEnviar])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Isso vai mostrar no console EXATAMENTE qual campo o banco recusou
+      console.error("Erro detalhado do Supabase:", error.message, error.details);
+      throw error;
+    }
     return data;
   },
 
