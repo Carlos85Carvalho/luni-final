@@ -1,4 +1,3 @@
-// src/screens/financeiro/index.jsx
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
@@ -9,17 +8,18 @@ import {
   FileText, 
   ChevronLeft,
   ShoppingCart,
-  TrendingUp // <--- NOVO ÍCONE PARA PERFORMANCE
+  TrendingUp 
 } from 'lucide-react';
 
 // --- Importação das Telas ---
 import { VisaoGeral } from './visao-geral/VisaoGeral';
-import { Performance } from './performance/Performance'; // <--- NOVA IMPORTAÇÃO
+import { Performance } from './performance/Performance'; 
 import { Despesas } from './despesas/Despesas';
 import { Estoque } from './estoque/Estoque';
 import { Fornecedores } from './fornecedores/Fornecedores';
 import { Metas } from './metas/Metas'; 
-import { Relatorios } from './Relatorios/Relatorios';
+// CORREÇÃO: Caminho alterado para 'relatorios' (minúsculo)
+import { Relatorios } from './relatorios/Relatorios'; 
 import { PDV } from './pdv/PDV'; 
 
 // --- Importação dos Modais ---
@@ -28,7 +28,8 @@ import { FornecedorModal } from './fornecedores/FornecedorModal';
 import { ProdutoModal } from './estoque/ProdutoModal';
 import { EstoqueModal } from './estoque/EstoqueModal';
 import { MetaModal } from './metas/MetaModal';
-import { RelatorioModal } from './Relatorios/RelatorioModal';
+// CORREÇÃO: Caminho alterado para 'relatorios' (minúsculo)
+import { RelatorioModal } from './relatorios/RelatorioModal';
 
 export const FinanceiroModule = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('visao-geral');
@@ -54,10 +55,9 @@ export const FinanceiroModule = ({ onClose }) => {
     handleFecharModal(); 
   };
 
-  // --- Abas ---
   const tabs = [
     { id: 'visao-geral', label: 'Visão Geral', icon: LayoutDashboard },
-    { id: 'performance', label: 'Performance', icon: TrendingUp }, // <--- NOVA ABA PERFORMANCE
+    { id: 'performance', label: 'Performance', icon: TrendingUp },
     { id: 'pdv', label: 'PDV', icon: ShoppingCart }, 
     { id: 'despesas', label: 'Despesas', icon: Receipt },
     { id: 'estoque', label: 'Estoque', icon: Package },
@@ -69,7 +69,7 @@ export const FinanceiroModule = ({ onClose }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'visao-geral': return <VisaoGeral onAbrirModal={handleAbrirModal} />;
-      case 'performance': return <Performance />; // <--- RENDERIZAÇÃO DA PERFORMANCE
+      case 'performance': return <Performance />; 
       case 'pdv': return <PDV />; 
       case 'despesas': return <Despesas onAbrirModal={handleAbrirModal} />;
       case 'estoque': return <Estoque onAbrirModal={handleAbrirModal} />;
@@ -82,7 +82,6 @@ export const FinanceiroModule = ({ onClose }) => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white p-4 md:p-8 relative">
-      {/* Header */}
       <header className="mb-8 flex items-center gap-4">
         <button 
           onClick={onClose}
@@ -98,7 +97,6 @@ export const FinanceiroModule = ({ onClose }) => {
         </div>
       </header>
 
-      {/* Menu */}
       <nav className="flex space-x-2 overflow-x-auto pb-4 mb-6 border-b border-gray-800 custom-scrollbar">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -120,12 +118,10 @@ export const FinanceiroModule = ({ onClose }) => {
         })}
       </nav>
 
-      {/* Conteúdo */}
       <main className="min-h-[500px] pb-24">
         {renderContent()}
       </main>
 
-      {/* --- MODAIS --- */}
       {modal.isOpen && (
         <>
           <DespesaModal
