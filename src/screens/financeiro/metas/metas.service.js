@@ -15,23 +15,41 @@ export const metasService = {
   },
 
   async getMetasComProgresso(salaoId, dadosFinanceiros) {
+    // 1. Busca as metas do banco
     const metas = await this.getMetas(salaoId);
     
-    // Calcular valores atuais com base nos dados financeiros
+    // DEBUG: Mostra no console o que tem dentro dos dados financeiros
+    // Isso ajuda a saber se o número de vendas/clientes está chegando
+    console.log("📊 Calculando Metas. Dados disponíveis:", dadosFinanceiros);
+
+    // 2. Calcula o progresso de cada uma
     return metas.map(meta => {
       let valorAtual = 0;
       
-      switch(meta.tipo) {
-        case 'faturamento':
-          valorAtual = dadosFinanceiros?.receita_bruta || 0;
-          break;
-        case 'lucro':
-          valorAtual = dadosFinanceiros?.lucro_liquido || 0;
-          break;
-        case 'despesas':
-          valorAtual = (dadosFinanceiros?.despesas_pagas || 0) + (dadosFinanceiros?.despesas_pendentes || 0);
-          break;
-        // Adicionar mais tipos conforme necessário
+      // Normaliza o texto (tudo minúsculo para evitar erros de digitação)
+      const tipo = meta.tipo ? meta.tipo.toLowerCase().trim() : '';
+      
+      // --- LÓGICA DE FATURAMENTO ---
+      if (tipo.includes('faturamento') || tipo.includes('receita')) {
+        valorAtual = dadosFinanceiros?.receita_bruta || 0;
+      } 
+      // --- LÓGICA DE LUCRO ---
+      else if (tipo.includes('lucro')) {
+        valorAtual = dadosFinanceiros?.lucro_liquido || 0;
+      } 
+      // --- LÓGICA DE DESPESAS ---
+      else if (tipo.includes('despesa') || tipo.includes('gasto')) {
+        valorAtual = (dadosFinanceiros?.despesas_pagas || 0) + (dadosFinanceiros?.despesas_pendentes || 0);
+      }
+      // --- LÓGICA DE VENDAS (Novo) ---
+      else if (tipo.includes('venda')) {
+        // Tenta encontrar o campo de quantidade de vendas
+        valorAtual = dadosFinanceiros?.quantidade_vendas || dadosFinanceiros?.total_vendas || 0;
+      }
+      // --- LÓGICA DE CLIENTES (Novo) ---
+      else if (tipo.includes('cliente')) {
+        // Tenta pegar clientes atendidos, se não tiver, tenta novos clientes
+        valorAtual = dadosFinanceiros?.clientes_atendidos || dadosFinanceiros?.novos_clientes || dadosFinanceiros?.total_clientes || 0;
       }
       
       return {
@@ -42,22 +60,14 @@ export const metasService = {
   },
 
   async createMeta(metaData) {
-    // 1. Tratamento de dados antes de enviar
+    // Tratamento de segurança
     const dadosParaEnviar = {
       ...metaData,
-      // Garante que o valor seja numérico e não texto "12000"
-      valor: parseFloat(metaData.valor), 
-      // Se tiver ID, remove para o Supabase criar um novo
-      id: undefined 
+      valor: parseFloat(metaData.valor), // Garante que é número
+      id: undefined // Remove ID para criar um novo
     };
 
-    // Verificação de Segurança
-    if (!dadosParaEnviar.salao_id) {
-      console.error("ERRO CRÍTICO: Tentando criar meta sem salao_id!", dadosParaEnviar);
-      throw new Error("ID do salão não fornecido.");
-    }
-
-    console.log("Enviando para Supabase:", dadosParaEnviar);
+    if (!dadosParaEnviar.salao_id) throw new Error("ID do salão não fornecido.");
 
     const { data, error } = await supabase
       .from('metas')
@@ -66,8 +76,7 @@ export const metasService = {
       .single();
 
     if (error) {
-      // Isso vai mostrar no console EXATAMENTE qual campo o banco recusou
-      console.error("Erro detalhado do Supabase:", error.message, error.details);
+      console.error("Erro Supabase ao criar meta:", error);
       throw error;
     }
     return data;

@@ -8,12 +8,21 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
   const [salvando, setSalvando] = useState(false);
   const [salaoId, setSalaoId] = useState(null);
 
+  // Lista de tipos (usada para gerar os botões e o título automático)
+  const tiposMeta = [
+    { value: 'faturamento', label: 'Faturamento', icon: DollarSign, cor: 'green' },
+    { value: 'lucro', label: 'Lucro', icon: TrendingUp, cor: 'blue' },
+    { value: 'despesas', label: 'Despesas', icon: Receipt, cor: 'orange' },
+    { value: 'clientes', label: 'Clientes', icon: Users, cor: 'purple' },
+    { value: 'vendas', label: 'Vendas', icon: ShoppingCart, cor: 'red' }
+  ];
+
   const [formData, setFormData] = useState({
     tipo: 'faturamento',
-    titulo: '',
+    // titulo: '', // Título removido do state visual
     valor_meta: '',
     periodo: 'Mensal',
-    cor: 'purple',
+    cor: 'green', // Começa com a cor do faturamento
     inverso: false,
     descricao: ''
   });
@@ -23,7 +32,6 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
     if (meta) {
       setFormData({
         tipo: meta.tipo || 'faturamento',
-        titulo: meta.titulo || '',
         valor_meta: meta.valor_meta?.toString().replace('.', ',') || '',
         periodo: meta.periodo || 'Mensal',
         cor: meta.cor || 'purple',
@@ -34,10 +42,9 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
       // Limpa o formulário se for nova meta
       setFormData({
         tipo: 'faturamento',
-        titulo: '',
         valor_meta: '',
         periodo: 'Mensal',
-        cor: 'purple',
+        cor: 'green',
         inverso: false,
         descricao: ''
       });
@@ -63,15 +70,9 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
     if (aberto) fetchSalao();
   }, [aberto]);
 
-  const tiposMeta = [
-    { value: 'faturamento', label: 'Faturamento', icon: DollarSign, cor: 'green' },
-    { value: 'lucro', label: 'Lucro', icon: TrendingUp, cor: 'blue' },
-    { value: 'despesas', label: 'Despesas', icon: Receipt, cor: 'orange' },
-    { value: 'clientes', label: 'Clientes', icon: Users, cor: 'purple' },
-    { value: 'vendas', label: 'Vendas', icon: ShoppingCart, cor: 'red' }
-  ];
-
   const periodos = ['Diário', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual'];
+  
+  // Cores disponíveis para personalização manual (se o usuário quiser mudar a cor padrão do tipo)
   const cores = [
     { value: 'green', label: 'Verde', class: 'bg-green-500' },
     { value: 'blue', label: 'Azul', class: 'bg-blue-500' },
@@ -88,25 +89,24 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!salaoId || !formData.titulo || !formData.valor_meta) {
-      return alert("Preencha os campos obrigatórios.");
+    // Validação simplificada (não pede mais título)
+    if (!salaoId || !formData.valor_meta) {
+      return alert("Preencha o valor da meta.");
     }
 
     setSalvando(true);
     try {
       const valorMeta = parseMoeda(formData.valor_meta);
       
-      // Determinar valor atual com base no tipo
-      let valorAtual = 0;
-      // Nota: Futuramente, buscaríamos esses valores reais do banco de dados
-      // Por enquanto, fica 0 ou mantém o valor antigo se for edição (idealmente não sobrescrever valor_atual se for edição)
-      
+      // Gera o título automaticamente baseado no Tipo selecionado
+      const labelTipo = tiposMeta.find(t => t.value === formData.tipo)?.label || 'Meta';
+      const tituloAutomatico = `Meta de ${labelTipo}`;
+
       const metaData = {
         salao_id: salaoId,
         tipo: formData.tipo,
-        titulo: formData.titulo,
+        titulo: tituloAutomatico, // Salva o título gerado
         valor_meta: valorMeta,
-        // valor_atual: Não alteramos aqui para não zerar o progresso real se já existir
         periodo: formData.periodo,
         cor: formData.cor,
         inverso: formData.inverso,
@@ -115,7 +115,7 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
       };
 
       if (meta) {
-        // Atualizar meta existente
+        // Atualizar
         const { error } = await supabase
           .from('metas')
           .update(metaData)
@@ -123,13 +123,13 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
         if (error) throw error;
       } else {
-        // Criar nova meta
+        // Criar Nova
         const { error } = await supabase
           .from('metas')
           .insert([{
             ...metaData,
-            valor_atual: valorAtual, // Inicializa com 0
-            data_criacao: new Date().toISOString() // Só cria data_criacao aqui
+            valor_atual: 0, // Inicializa com 0, o Service calcula depois
+            data_criacao: new Date().toISOString()
           }]);
 
         if (error) throw error;
@@ -173,23 +173,11 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          
+          {/* SELEÇÃO DE TIPO (Agora é o principal) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-              Título da Meta*
-            </label>
-            <input
-              type="text"
-              value={formData.titulo}
-              onChange={e => setFormData({...formData, titulo: e.target.value})}
-              className="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm"
-              placeholder="Ex: Meta de Faturamento Mensal"
-              disabled={salvando}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-              Tipo de Meta
+              O que você quer alcançar?
             </label>
             <div className="grid grid-cols-3 gap-2">
               {tiposMeta.map((tipo) => {
@@ -257,7 +245,7 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-              Cor da Meta
+              Cor do Cartão
             </label>
             <div className="flex gap-2">
               {cores.map(cor => (
@@ -273,9 +261,6 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
                   disabled={salvando}
                 >
                   <div className={`w-4 h-4 rounded-full ${cor.class}`}></div>
-                  <span className={`text-xs ${formData.cor === cor.value ? 'text-white' : 'text-gray-400'}`}>
-                    {cor.label}
-                  </span>
                 </button>
               ))}
             </div>
@@ -290,15 +275,17 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
               className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-red-500 focus:ring-red-500"
               disabled={salvando}
             />
-            <label htmlFor="inverso" className="text-sm text-gray-300">
-              Meta inversa (limite máximo)
-            </label>
-            <span className="text-xs text-gray-500 ml-auto">Ex: Limite de despesas</span>
+            <div>
+              <label htmlFor="inverso" className="text-sm text-gray-300 block">
+                Meta de Limite (Inversa)
+              </label>
+              <span className="text-xs text-gray-500">Ex: Não ultrapassar valor X de despesas</span>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-              Descrição
+              Descrição (Opcional)
             </label>
             <textarea
               value={formData.descricao}
@@ -329,7 +316,7 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
             ) : (
               <Save className="w-4 h-4" />
             )}
-            {meta ? 'Atualizar Meta' : 'Criar Meta'}
+            {meta ? 'Salvar Alterações' : 'Criar Meta'}
           </button>
         </div>
       </div>
