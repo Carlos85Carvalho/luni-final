@@ -26,7 +26,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
   const [menuAberto, setMenuAberto] = useState(null);
   const [agendamentoParaEditar, setAgendamentoParaEditar] = useState(null);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
-  const [periodoFinanceiro, setPeriodoFinanceiro] = useState('mes'); // mes, trimestre, ano
   const [dadosFinanceiros, setDadosFinanceiros] = useState({
     mesAtual: 0,
     mesAnterior: 0,
@@ -422,7 +421,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           </div>
         )}
 
-        {/* Aba Financeiro - MELHORADA */}
+        {/* Aba Financeiro */}
         {tab === 'financeiro' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
             
@@ -510,7 +509,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Evolução Mensal (gráfico de linha) */}
+            {/* Evolução Mensal */}
             <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-white font-bold flex items-center gap-2 text-sm">
