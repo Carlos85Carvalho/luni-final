@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../services/supabase';
 // CORREÇÃO: use 'relatorios.service' (minúsculo)
-import { relatoriosService } from './relatorios.service'; 
+import { relatoriosService } from './TEMP_SERVICE'; 
 
 export const useRelatorios = () => {
   const [relatoriosGerados, setRelatoriosGerados] = useState([]);

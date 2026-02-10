@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, CartesianGrid 
 } from 'recharts';
 
-import { relatoriosService } from './relatorios.service';
+import { relatoriosService } from './TEMP_SERVICE';
 
 export const RelatorioModal = ({ 
   aberto, 
