@@ -12,20 +12,21 @@ export const Estoque = ({ onAbrirModal }) => {
   // Estado para os KPIs (Cards do topo)
   const [kpis, setKpis] = useState({
     valorTotal: 0,
+    totalItens: 0, // <--- ADICIONADO: Começa com 0
     estoqueCritico: 0,
     giroEstoque: 0,
     margemMedia: 0
   });
 
-  // ========== BUSCA DADOS DA VIEW (CALCULADORA DO BANCO) ==========
+  // ========== BUSCA DADOS DA VIEW E CALCULA TOTAIS ==========
   useEffect(() => {
     const fetchKPIs = async () => {
       try {
-        // Busca da view que criamos no SQL
+        // Busca da view que criamos no SQL (para valores complexos)
         const { data, error } = await supabase
           .from('vw_dashboard_estoque')
           .select('*')
-          .maybeSingle(); // Pega apenas uma linha
+          .maybeSingle(); 
 
         if (error) {
           console.error('Erro ao buscar KPIs:', error);
@@ -35,11 +36,13 @@ export const Estoque = ({ onAbrirModal }) => {
         if (data) {
           setKpis({
             valorTotal: Number(data.valor_total || 0),
-            estoqueCritico: Number(data.estoque_critico || 0),
-            giroEstoque: Number(data.vendas_mes || 0),
             
             // --- CORREÇÃO AQUI ---
-            // .toFixed(2) transforma 66.66666667 em "66.67"
+            // Usamos a lista 'produtos' que já carregou para contar quantos itens tem
+            totalItens: produtos ? produtos.length : 0, 
+
+            estoqueCritico: Number(data.estoque_critico || 0),
+            giroEstoque: Number(data.vendas_mes || 0),
             margemMedia: Number(data.margem_media || 0).toFixed(2) 
           });
         }
@@ -48,7 +51,7 @@ export const Estoque = ({ onAbrirModal }) => {
       }
     };
 
-    // Chama ao carregar e sempre que a lista de produtos mudar
+    // Chama sempre que a lista de produtos mudar (adicionar/remover item)
     fetchKPIs();
   }, [produtos]); 
 

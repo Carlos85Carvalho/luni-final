@@ -24,21 +24,26 @@ export const RelatoriosHeader = ({
 
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
           <div className="relative flex-1 lg:w-48">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
               value={periodoSelecionado}
-              onChange={(e) => setPeriodoSelecionado(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none text-sm appearance-none"
+              onChange={(e) => {
+                console.log('📅 [HEADER] Período alterado:', e.target.value);
+                setPeriodoSelecionado(e.target.value);
+              }}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-sm appearance-none cursor-pointer"
             >
               {periodos.map(periodo => (
-                <option key={periodo.id} value={periodo.id}>{periodo.label}</option>
+                <option key={periodo.id} value={periodo.id}>
+                  {periodo.label}
+                </option>
               ))}
             </select>
           </div>
 
           <button
             onClick={onExportarTodos}
-            className="px-4 py-2.5 border border-gray-600 text-gray-300 hover:bg-gray-700/50 rounded-lg flex items-center justify-center gap-2 font-medium transition-all"
+            className="px-4 py-2.5 border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white rounded-lg flex items-center justify-center gap-2 font-medium transition-all"
           >
             <Download className="w-4 h-4" />
             Exportar Todos
@@ -47,24 +52,28 @@ export const RelatoriosHeader = ({
       </div>
 
       {periodoSelecionado === 'personalizado' && (
-        <div className="mt-4 p-4 bg-gray-700/30 rounded-xl border border-gray-600">
+        <div className="mt-4 p-4 bg-gray-700/30 rounded-xl border border-gray-600 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-300">Período Personalizado</span>
+            <span className="text-sm text-gray-300 font-medium">Período Personalizado</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Data Inicial</label>
+              <label className="text-xs text-gray-400 mb-1 block font-medium">
+                Data Inicial
+              </label>
               <input
                 type="date"
-                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm"
+                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Data Final</label>
+              <label className="text-xs text-gray-400 mb-1 block font-medium">
+                Data Final
+              </label>
               <input
                 type="date"
-                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm"
+                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
               />
             </div>
           </div>

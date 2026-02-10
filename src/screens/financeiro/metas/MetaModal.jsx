@@ -1,28 +1,27 @@
-// src/screens/financeiro/metas/MetaModal.jsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Loader2, Target, DollarSign, TrendingUp, Receipt, Users, Calendar, ShoppingCart } from 'lucide-react';
+import { X, Save, Loader2, Target, DollarSign, TrendingUp, Receipt, Users, UserPlus, Calendar, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 
 export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
   const [salvando, setSalvando] = useState(false);
   const [salaoId, setSalaoId] = useState(null);
 
-  // Lista de tipos (usada para gerar os botões e o título automático)
+  // LISTA ATUALIZADA: Separamos Clientes em "Atendidos" e "Novos"
   const tiposMeta = [
     { value: 'faturamento', label: 'Faturamento', icon: DollarSign, cor: 'green' },
     { value: 'lucro', label: 'Lucro', icon: TrendingUp, cor: 'blue' },
     { value: 'despesas', label: 'Despesas', icon: Receipt, cor: 'orange' },
-    { value: 'clientes', label: 'Clientes', icon: Users, cor: 'purple' },
+    { value: 'clientes_atendidos', label: 'Clientes Atendidos', icon: Users, cor: 'purple' },
+    { value: 'novos_clientes', label: 'Novos Clientes', icon: UserPlus, cor: 'pink' },
     { value: 'vendas', label: 'Vendas', icon: ShoppingCart, cor: 'red' }
   ];
 
   const [formData, setFormData] = useState({
     tipo: 'faturamento',
-    // titulo: '', // Título removido do state visual
     valor_meta: '',
     periodo: 'Mensal',
-    cor: 'green', // Começa com a cor do faturamento
+    cor: 'green',
     inverso: false,
     descricao: ''
   });
@@ -39,7 +38,6 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
         descricao: meta.descricao || ''
       });
     } else {
-      // Limpa o formulário se for nova meta
       setFormData({
         tipo: 'faturamento',
         valor_meta: '',
@@ -72,12 +70,12 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
   const periodos = ['Diário', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual'];
   
-  // Cores disponíveis para personalização manual (se o usuário quiser mudar a cor padrão do tipo)
   const cores = [
     { value: 'green', label: 'Verde', class: 'bg-green-500' },
     { value: 'blue', label: 'Azul', class: 'bg-blue-500' },
     { value: 'orange', label: 'Laranja', class: 'bg-orange-500' },
     { value: 'purple', label: 'Roxo', class: 'bg-purple-500' },
+    { value: 'pink', label: 'Rosa', class: 'bg-pink-500' },
     { value: 'red', label: 'Vermelho', class: 'bg-red-500' }
   ];
 
@@ -89,7 +87,6 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validação simplificada (não pede mais título)
     if (!salaoId || !formData.valor_meta) {
       return alert("Preencha o valor da meta.");
     }
@@ -98,14 +95,13 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
     try {
       const valorMeta = parseMoeda(formData.valor_meta);
       
-      // Gera o título automaticamente baseado no Tipo selecionado
       const labelTipo = tiposMeta.find(t => t.value === formData.tipo)?.label || 'Meta';
       const tituloAutomatico = `Meta de ${labelTipo}`;
 
       const metaData = {
         salao_id: salaoId,
         tipo: formData.tipo,
-        titulo: tituloAutomatico, // Salva o título gerado
+        titulo: tituloAutomatico,
         valor_meta: valorMeta,
         periodo: formData.periodo,
         cor: formData.cor,
@@ -115,23 +111,19 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
       };
 
       if (meta) {
-        // Atualizar
         const { error } = await supabase
           .from('metas')
           .update(metaData)
           .eq('id', meta.id);
-
         if (error) throw error;
       } else {
-        // Criar Nova
         const { error } = await supabase
           .from('metas')
           .insert([{
             ...metaData,
-            valor_atual: 0, // Inicializa com 0, o Service calcula depois
+            valor_atual: 0,
             data_criacao: new Date().toISOString()
           }]);
-
         if (error) throw error;
       }
 
@@ -174,7 +166,6 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
         {/* Form */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
           
-          {/* SELEÇÃO DE TIPO (Agora é o principal) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
               O que você quer alcançar?

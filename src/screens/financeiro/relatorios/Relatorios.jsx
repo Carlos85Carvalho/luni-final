@@ -66,26 +66,70 @@ export const Relatorios = ({ onAbrirModal }) => {
     { id: 'hoje', label: 'Hoje' },
     { id: 'semana', label: 'Esta Semana' },
     { id: 'mes', label: 'Este Mês' },
-    { id: 'trimestre', label: 'Este Trimestre' },
-    { id: 'ano', label: 'Este Ano' },
-    { id: 'personalizado', label: 'Personalizado' }
+    { id: 'ano', label: 'Este Ano' }
   ];
 
-  const handleGerarRelatorio = async (tipo) => {
-    const relatorio = await gerarRelatorio(tipo, periodoSelecionado);
-    if (relatorio) {
-      onAbrirModal('visualizar-relatorio', { tipo, periodo: periodoSelecionado, dados: relatorio });
+  // Função para visualizar ou gerar relatório
+  const handleAcaoRelatorio = async (tipo) => {
+    console.log('🟢 [RELATORIOS] Ação iniciada para tipo:', tipo);
+    console.log('🟢 [RELATORIOS] Período selecionado:', periodoSelecionado);
+    
+    try {
+      // Gera o relatório através do hook
+      const dadosRelatorio = await gerarRelatorio(tipo, periodoSelecionado);
+      
+      console.log('🟢 [RELATORIOS] Dados retornados do hook:', dadosRelatorio);
+
+      // Verificar se retornou dados válidos
+      if (!dadosRelatorio) {
+        console.error('❌ [RELATORIOS] Hook retornou null');
+        alert('Erro ao gerar relatório. Verifique o console (F12) para mais detalhes.');
+        return;
+      }
+
+      if (!dadosRelatorio.resumo) {
+        console.warn('⚠️ [RELATORIOS] Relatório sem dados no resumo');
+        alert(`Não há dados para o relatório de ${tipo} no período: ${periodoSelecionado}`);
+        return;
+      }
+
+      // Verificar se resumo tem algum valor não-zero
+      const temDados = Object.values(dadosRelatorio.resumo).some(v => {
+        if (typeof v === 'number') return v !== 0;
+        return true;
+      });
+
+      if (!temDados) {
+        console.warn('⚠️ [RELATORIOS] Todos os valores do resumo são zero');
+        alert(`Não há registros para o período selecionado (${periodoSelecionado}). Tente outro período ou verifique se há dados cadastrados.`);
+        return;
+      }
+
+      console.log('✅ [RELATORIOS] Dados válidos, abrindo modal...');
+      
+      // Abrir modal com os dados
+      onAbrirModal('visualizar-relatorio', { 
+        tipo, 
+        periodo: periodoSelecionado, 
+        dados: dadosRelatorio 
+      });
+
+      console.log('✅ [RELATORIOS] Modal aberto com sucesso');
+
+    } catch (error) {
+      console.error('❌ [RELATORIOS] Erro ao processar relatório:', error);
+      alert('Erro ao processar relatório. Verifique o console (F12) para mais detalhes.');
     }
   };
 
   const handleExportar = (tipo) => {
-    // Lógica de exportação
-    console.log(`Exportando relatório ${tipo}`);
+    console.log('📥 [RELATORIOS] Exportando relatório:', tipo);
+    // TODO: Implementar exportação direta
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header com Filtro de Período */}
       <RelatoriosHeader 
         periodoSelecionado={periodoSelecionado}
         setPeriodoSelecionado={setPeriodoSelecionado}
@@ -93,22 +137,27 @@ export const Relatorios = ({ onAbrirModal }) => {
         onExportarTodos={() => handleExportar('todos')}
       />
 
-      {/* Grid de Tipos de Relatório */}
+      {/* Grid de Cards */}
       <RelatoriosGrid
         tiposRelatorio={tiposRelatorio}
         periodoSelecionado={periodoSelecionado}
-        onGerarRelatorio={handleGerarRelatorio}
-        onVisualizarPreview={(tipo) => onAbrirModal('preview-relatorio', { tipo, periodo: periodoSelecionado })}
+        onGerarRelatorio={handleAcaoRelatorio}
+        onVisualizarPreview={handleAcaoRelatorio}
         loading={loading}
       />
 
-      {/* Histórico de Relatórios Gerados */}
-      <RelatoriosHistorico
-        relatoriosGerados={relatoriosGerados}
-        loading={loading}
-        onVisualizar={(relatorio) => onAbrirModal('visualizar-relatorio', relatorio)}
-        onExportar={(relatorio) => handleExportar(relatorio.tipo)}
-      />
+      {/* Histórico Recente */}
+      {relatoriosGerados.length > 0 && (
+        <RelatoriosHistorico
+          relatoriosGerados={relatoriosGerados}
+          loading={loading}
+          onVisualizar={(item) => {
+            console.log('🟢 [RELATORIOS] Visualizando do histórico:', item);
+            onAbrirModal('visualizar-relatorio', { dados: item.dados });
+          }}
+          onExportar={(item) => handleExportar(item.tipo)}
+        />
+      )}
     </div>
   );
 };

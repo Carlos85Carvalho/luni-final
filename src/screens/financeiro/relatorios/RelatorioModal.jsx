@@ -1,10 +1,13 @@
 // src/screens/financeiro/relatorios/RelatorioModal.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, Printer, Share2, FileText, Loader2, BarChart3 } from 'lucide-react'; 
+import { 
+  X, Download, Printer, Share2, FileText, 
+  Loader2, BarChart3, Table as TableIcon 
+} from 'lucide-react'; 
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, 
-  ResponsiveContainer, CartesianGrid 
+  ResponsiveContainer, CartesianGrid, Cell 
 } from 'recharts';
 
 import { relatoriosService } from './relatorios.service';
@@ -12,112 +15,74 @@ import { relatoriosService } from './relatorios.service';
 export const RelatorioModal = ({ 
   aberto, 
   onFechar, 
-  tipo = 'financeiro', 
-  periodo = 'mes',
   dados 
 }) => {
   const [loading, setLoading] = useState(false);
-  const [relatorioData, setRelatorioData] = useState(null);
   const [visualizacao, setVisualizacao] = useState('grafico');
+  const [relatorioData, setRelatorioData] = useState(null);
 
-  const getTipoLabel = (t) => {
-    const labels = {
-      financeiro: 'Financeiro',
-      estoque: 'de Estoque',
-      fornecedores: 'de Fornecedores',
-      metas: 'de Metas'
-    };
-    return labels[t] || t;
-  };
-
-  const gerarDadosExemplo = useCallback((t, p) => {
-    const baseData = {
-      titulo: `Relatório ${getTipoLabel(t)} - ${p}`,
-      periodo: p,
-      dataGeracao: new Date().toISOString(),
-      resumo: {},
-      detalhes: [],
-      graficos: []
-    };
-
-    switch (t) {
-      case 'financeiro':
-        return {
-          ...baseData,
-          titulo: 'Relatório Financeiro',
-          resumo: { receitaTotal: 75000, despesaTotal: 45000, lucroLiquido: 30000, margemLucro: 40 },
-          detalhes: [
-            { categoria: 'Cortes', valor: 25000 },
-            { categoria: 'Coloração', valor: 18000 },
-            { categoria: 'Produtos', valor: 20000 }
-          ],
-          graficos: [
-            { mes: 'Jan', receita: 65000, despesa: 42000 },
-            { mes: 'Fev', receita: 72000, despesa: 45000 }
-          ]
-        };
-      case 'estoque':
-        return {
-          ...baseData,
-          titulo: 'Relatório de Estoque',
-          resumo: { totalItens: 1500, valorEstoque: 45000, itensCriticos: 12 },
-          detalhes: [
-            { produto: 'Shampoo X', estoque: 10, status: 'Crítico' },
-            { produto: 'Condicionador Y', estoque: 50, status: 'Normal' }
-          ]
-        };
-      default:
-        return baseData;
-    }
-  }, []);
-
-  // CORREÇÃO: carregarRelatorio agora usa useCallback para ser uma dependência estável
-  const carregarRelatorio = useCallback(async () => {
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const dadosExemplo = gerarDadosExemplo(tipo, periodo);
-      setRelatorioData(dadosExemplo);
-    } catch (error) {
-      console.error('Erro ao carregar relatório:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [tipo, periodo, gerarDadosExemplo]);
-
+  // Sincronizar dados quando o modal abrir ou dados mudarem
   useEffect(() => {
-    if (aberto) {
-      if (dados) {
-        setRelatorioData(dados);
-      } else if (tipo) {
-        carregarRelatorio();
-      }
+    console.log('🟣 [MODAL] useEffect disparado');
+    console.log('🟣 [MODAL] aberto:', aberto);
+    console.log('🟣 [MODAL] dados recebidos:', dados);
+    
+    if (aberto && dados) {
+      // Extrair dados se vierem aninhados
+      const extraido = dados.dados ? dados.dados : dados;
+      console.log('🟣 [MODAL] Dados extraídos:', extraido);
+      setRelatorioData(extraido);
+    } else if (!aberto) {
+      console.log('🟣 [MODAL] Modal fechado, limpando dados');
+      setRelatorioData(null);
     }
-  }, [aberto, tipo, periodo, dados, carregarRelatorio]);
+  }, [aberto, dados]);
 
-  // --- AÇÕES DOS BOTÕES ---
+  if (!aberto) return null;
 
+  // ===== HANDLERS =====
+  
   const handleExportarPDF = async () => {
-    if (!relatorioData) return;
+    if (!relatorioData) {
+      alert('Nenhum dado para exportar');
+      return;
+    }
+    
+    console.log('📄 [MODAL] Exportando PDF...');
+    
     try {
       setLoading(true);
-      await relatoriosService.exportarParaPDF(relatorioData, relatorioData.titulo || 'Relatorio');
+      await relatoriosService.exportarParaPDF(
+        relatorioData, 
+        relatorioData.titulo || 'Relatorio'
+      );
+      console.log('✅ [MODAL] PDF exportado');
     } catch (error) {
-      console.error("Erro ao exportar PDF:", error);
-      alert("Erro ao gerar PDF. Verifique o console.");
+      console.error('❌ [MODAL] Erro ao exportar PDF:', error);
+      alert('Erro ao gerar PDF');
     } finally {
       setLoading(false);
     }
   };
 
   const handleExportarExcel = async () => {
-    if (!relatorioData) return;
+    if (!relatorioData) {
+      alert('Nenhum dado para exportar');
+      return;
+    }
+    
+    console.log('📊 [MODAL] Exportando Excel...');
+    
     try {
       setLoading(true);
-      await relatoriosService.exportarParaExcel(relatorioData, relatorioData.titulo || 'Relatorio');
+      await relatoriosService.exportarParaExcel(
+        relatorioData, 
+        relatorioData.titulo || 'Relatorio'
+      );
+      console.log('✅ [MODAL] Excel exportado');
     } catch (error) {
-      console.error("Erro ao exportar Excel:", error);
-      alert("Erro ao gerar Excel.");
+      console.error('❌ [MODAL] Erro ao exportar Excel:', error);
+      alert('Erro ao gerar Excel');
     } finally {
       setLoading(false);
     }
@@ -125,188 +90,236 @@ export const RelatorioModal = ({
 
   const handleCompartilhar = async () => {
     if (!relatorioData) return;
-
-    const linhasResumo = Object.entries(relatorioData.resumo || {}).map(([key, value]) => {
-      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-      const valorFormatado = typeof value === 'number' 
-        ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) 
-        : value;
-      const prefixo = (key.toLowerCase().includes('valor') || key.toLowerCase().includes('receita') || key.toLowerCase().includes('despesa') || key.toLowerCase().includes('lucro')) ? 'R$ ' : '';
-      return `• ${label}: ${prefixo}${valorFormatado}`;
-    });
-
-    const textoMensagem = `
-📊 *${relatorioData.titulo}*
-📅 Data: ${new Date().toLocaleDateString('pt-BR')}
-
-*Resumo:*
-${linhasResumo.join('\n')}
-
-🚀 _Gerado pelo Sistema Luni_`.trim();
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: relatorioData.titulo,
-          text: textoMensagem,
+    
+    const msg = `📊 *${relatorioData.titulo}*\n🚀 _Gerado pelo Sistema Luni_`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({ 
+          title: relatorioData.titulo, 
+          text: msg 
         });
-      } catch {
-        // CORREÇÃO: Removido 'err' não utilizado para limpar o ESLint
-        console.log('Compartilhamento cancelado ou não disponível.');
-      }
-    } else {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (!isMobile) {
-        const confirmar = window.confirm("O menu de compartilhamento nativo não está disponível. Deseja abrir o WhatsApp Web com o resumo?");
-        if (confirmar) {
-            const urlZap = `https://web.whatsapp.com/send?text=${encodeURIComponent(textoMensagem)}`;
-            window.open(urlZap, '_blank');
-        } else {
-            await navigator.clipboard.writeText(textoMensagem);
-            alert('Resumo copiado para a área de transferência!');
-        }
       } else {
-         await navigator.clipboard.writeText(textoMensagem);
-         alert('Resumo copiado!');
+        await navigator.clipboard.writeText(msg);
+        alert('Resumo copiado para área de transferência!');
       }
+    } catch {
+      // Removido o parâmetro 'error' não utilizado para sanar o erro do ESLint
+      console.log('Compartilhamento cancelado ou falhou');
     }
   };
 
-  const handleImprimir = () => {
-    window.print();
-  };
-
-  if (!aberto) return null;
+  // ===== RENDERIZAÇÃO =====
 
   return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
       <div className="bg-gray-900 border border-gray-700 w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
         
-        {/* Header */}
+        {/* ===== HEADER ===== */}
         <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-900/95 sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-500/20 rounded-lg">
               <FileText className="w-6 h-6 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">{relatorioData?.titulo || 'Relatório'}</h2>
+              <h2 className="text-xl font-bold text-white">
+                {relatorioData?.titulo || 'Carregando...'}
+              </h2>
               <p className="text-sm text-gray-400">
-                Gerado em {relatorioData?.dataGeracao ? new Date(relatorioData.dataGeracao).toLocaleDateString('pt-BR') : '--'}
+                {relatorioData?.dataGeracao 
+                  ? `Gerado em ${new Date(relatorioData.dataGeracao).toLocaleDateString('pt-BR')}` 
+                  : '--'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex bg-gray-800/50 rounded-lg p-1">
+            {/* Toggle Gráfico/Tabela */}
+            <div className="flex bg-gray-800/50 rounded-lg p-1 border border-gray-700">
               <button
                 onClick={() => setVisualizacao('grafico')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${visualizacao === 'grafico' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
+                  visualizacao === 'grafico' 
+                    ? 'bg-purple-600 text-white shadow-lg' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
               >
-                <BarChart3 className="w-4 h-4 inline-block mr-2" /> Gráfico
+                <BarChart3 size={16} />
+                Gráfico
               </button>
               <button
                 onClick={() => setVisualizacao('tabela')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${visualizacao === 'tabela' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
+                  visualizacao === 'tabela' 
+                    ? 'bg-purple-600 text-white shadow-lg' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
               >
-                <FileText className="w-4 h-4 inline-block mr-2" /> Tabela
+                <TableIcon size={16} />
+                Tabela
               </button>
             </div>
-            <button onClick={onFechar} className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors">
+            
+            <button 
+              onClick={onFechar} 
+              className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
+            >
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="p-4 border-b border-gray-800 bg-gray-900/90">
-          <div className="flex flex-wrap gap-2">
-            <button onClick={handleExportarPDF} disabled={loading} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors disabled:opacity-50">
-              <Download className="w-4 h-4" /> PDF
-            </button>
-            <button onClick={handleExportarExcel} disabled={loading} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors disabled:opacity-50">
-              <Download className="w-4 h-4" /> Excel
-            </button>
-            <button onClick={handleImprimir} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm transition-colors">
-              <Printer className="w-4 h-4" /> Imprimir
-            </button>
-            <button 
-              onClick={handleCompartilhar} 
-              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg flex items-center gap-2 text-sm transition-colors shadow-lg shadow-green-900/20"
-            >
-              <Share2 className="w-4 h-4" /> Compartilhar
-            </button>
-          </div>
+        {/* ===== TOOLBAR ===== */}
+        <div className="p-4 border-b border-gray-800 bg-gray-900/90 flex flex-wrap gap-2">
+          <button
+            onClick={handleExportarPDF}
+            disabled={loading}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm disabled:opacity-50"
+          >
+            <Download size={16} /> PDF
+          </button>
+          
+          <button
+            onClick={handleExportarExcel}
+            disabled={loading}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm disabled:opacity-50"
+          >
+            <Download size={16} /> Excel
+          </button>
+          
+          <button
+            onClick={() => window.print()}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm"
+          >
+            <Printer size={16} /> Imprimir
+          </button>
+          
+          <button
+            onClick={handleCompartilhar}
+            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg flex items-center gap-2 text-sm shadow-lg shadow-green-900/20"
+          >
+            <Share2 size={16} /> Compartilhar
+          </button>
         </div>
 
-        {/* Conteúdo */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        {/* ===== CONTEÚDO ===== */}
+        <div className="flex-1 overflow-y-auto p-6 bg-[#0f0f12] custom-scrollbar">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-12 h-12 text-purple-400 animate-spin mb-4" />
-              <p className="text-gray-400">Processando...</p>
+              <p className="text-gray-400">Processando dados...</p>
             </div>
-          ) : relatorioData ? (
-            <div className="space-y-8">
+          ) : relatorioData?.resumo ? (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              
+              {/* ===== CARDS DE RESUMO (KPIs) ===== */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {Object.entries(relatorioData.resumo || {}).map(([key, value]) => (
-                  <div key={key} className="bg-gray-800/30 p-4 rounded-xl border border-gray-700">
-                    <p className="text-sm text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                    <p className="text-xl font-bold text-white mt-2">
-                      {(typeof value === 'number' && (key.toLowerCase().includes('valor') || key.toLowerCase().includes('receita') || key.toLowerCase().includes('despesa') || key.toLowerCase().includes('lucro')))
-                        ? `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                        : (typeof value === 'number' && (key.toLowerCase().includes('margem') || key.toLowerCase().includes('percentual')))
-                          ? `${value.toFixed(1)}%`
+                {Object.entries(relatorioData.resumo).map(([key, value]) => {
+                  const isMoeda = key.toLowerCase().match(/valor|receita|despesa|lucro|faturamento|total|ticket/);
+                  const isPct = key.toLowerCase().match(/margem|percentual|participacao/);
+                  
+                  return (
+                    <div 
+                      key={key} 
+                      className="bg-gray-800/40 p-5 rounded-xl border border-gray-700 shadow-lg hover:bg-gray-800/60 transition-colors"
+                    >
+                      <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                      </p>
+                      <p className={`text-2xl font-bold ${
+                        key.toLowerCase().includes('lucro') && value < 0 
+                          ? 'text-red-400' 
+                          : 'text-white'
+                      }`}>
+                        {typeof value === 'number' 
+                          ? (isMoeda 
+                              ? value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                              : (isPct ? `${value.toFixed(2)}%` : value))
                           : value}
-                    </p>
-                  </div>
-                ))}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
 
-              {visualizacao === 'grafico' && relatorioData.graficos && relatorioData.graficos.length > 0 && (
-                <div className="bg-gray-800/30 rounded-xl border border-gray-700 p-6">
-                  <h3 className="text-lg font-bold text-white mb-6">Evolução</h3>
+              {/* ===== GRÁFICOS ===== */}
+              {visualizacao === 'grafico' && relatorioData.graficos?.length > 0 && (
+                <div className="bg-gray-800/20 rounded-xl border border-gray-700 p-6">
+                  <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-purple-400" />
+                    Análise Estratégica
+                  </h3>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={relatorioData.graficos}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="mes" stroke="#9ca3af" />
-                        <YAxis stroke="#9ca3af" />
+                        <CartesianGrid 
+                          strokeDasharray="3 3" 
+                          stroke="rgba(255,255,255,0.05)" 
+                          vertical={false} 
+                        />
+                        <XAxis 
+                          dataKey={relatorioData.graficos[0].mes ? "mes" : "name"} 
+                          stroke="#6b7280" 
+                          fontSize={12} 
+                          tickLine={false} 
+                          axisLine={false} 
+                        />
+                        <YAxis 
+                          stroke="#6b7280" 
+                          fontSize={12} 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} 
+                        />
                         <Tooltip 
                           contentStyle={{ 
-                            backgroundColor: '#1f2937',
-                            borderRadius: '12px',
-                            border: '1px solid rgba(255,255,255,0.1)'
-                          }}
+                            backgroundColor: '#111827', 
+                            borderRadius: '12px', 
+                            border: '1px solid #374151' 
+                          }} 
+                          formatter={(v) => [
+                            v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 
+                            'Total'
+                          ]} 
                         />
-                        <Bar dataKey="receita" fill="#10b981" name="Receita" />
-                        <Bar dataKey="despesa" fill="#ef4444" name="Despesa" />
+                        {relatorioData.graficos[0].receita !== undefined ? (
+                          <>
+                            <Bar dataKey="receita" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="despesa" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          </>
+                        ) : (
+                          <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                            {relatorioData.graficos.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill || '#8b5cf6'} />
+                            ))}
+                          </Bar>
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               )}
 
-              {visualizacao === 'tabela' && relatorioData.detalhes && (
-                <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
+              {/* ===== TABELA DE DETALHES ===== */}
+              {visualizacao === 'tabela' && relatorioData.detalhes?.length > 0 && (
+                <div className="bg-gray-800/20 rounded-xl border border-gray-700 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full text-left text-sm text-gray-300">
                       <thead className="bg-gray-700/50">
-                        <tr>
-                          {relatorioData.detalhes.length > 0 && Object.keys(relatorioData.detalhes[0]).map(key => (
-                            <th key={key} className="py-3 px-6 text-left text-xs font-semibold text-gray-400 uppercase">
-                              {key}
-                            </th>
+                        <tr className="text-gray-400 uppercase text-xs font-bold">
+                          {Object.keys(relatorioData.detalhes[0]).map(k => (
+                            <th key={k} className="py-4 px-6">{k}</th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody>
-                        {relatorioData.detalhes.map((item, index) => (
-                          <tr key={index} className="border-t border-gray-700/50 hover:bg-gray-700/30">
-                            {Object.values(item).map((value, i) => (
-                              <td key={i} className="py-3 px-6 text-gray-300">
-                                {typeof value === 'number' 
-                                  ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-                                  : value}
+                      <tbody className="divide-y divide-gray-700">
+                        {relatorioData.detalhes.map((item, i) => (
+                          <tr key={i} className="hover:bg-gray-700/30 transition-colors">
+                            {Object.values(item).map((v, idx) => (
+                              <td key={idx} className="py-4 px-6">
+                                {typeof v === 'number' && v > 100 
+                                  ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                                  : v}
                               </td>
                             ))}
                           </tr>
@@ -319,25 +332,23 @@ ${linhasResumo.join('\n')}
             </div>
           ) : (
             <div className="text-center py-20">
-              <FileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">Nenhum dado disponível para este relatório</p>
+              <FileText className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-white mb-2">Sem dados para exibir</h3>
+              <p className="text-gray-500">
+                Gere um novo relatório para carregar as informações do banco.
+              </p>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-800 bg-gray-900/95">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-400">
-              Relatório gerado pelo sistema Luni • Para uso interno
-            </p>
-            <button
-              onClick={onFechar}
-              className="px-6 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
-            >
-              Fechar
-            </button>
-          </div>
+        {/* ===== FOOTER ===== */}
+        <div className="p-6 border-t border-gray-800 bg-gray-900/95 text-right">
+          <button
+            onClick={onFechar}
+            className="px-8 py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl border border-gray-700 transition-all"
+          >
+            Fechar
+          </button>
         </div>
       </div>
     </div>,

@@ -15,18 +15,15 @@ export const metasService = {
   },
 
   async getMetasComProgresso(salaoId, dadosFinanceiros) {
-    // 1. Busca as metas do banco
     const metas = await this.getMetas(salaoId);
     
-    // DEBUG: Mostra no console o que tem dentro dos dados financeiros
-    // Isso ajuda a saber se o número de vendas/clientes está chegando
+    // Debug para ver o que chegou
     console.log("📊 Calculando Metas. Dados disponíveis:", dadosFinanceiros);
 
-    // 2. Calcula o progresso de cada uma
     return metas.map(meta => {
       let valorAtual = 0;
       
-      // Normaliza o texto (tudo minúsculo para evitar erros de digitação)
+      // Normaliza o texto (tudo minúsculo para evitar erros)
       const tipo = meta.tipo ? meta.tipo.toLowerCase().trim() : '';
       
       // --- LÓGICA DE FATURAMENTO ---
@@ -41,15 +38,17 @@ export const metasService = {
       else if (tipo.includes('despesa') || tipo.includes('gasto')) {
         valorAtual = (dadosFinanceiros?.despesas_pagas || 0) + (dadosFinanceiros?.despesas_pendentes || 0);
       }
-      // --- LÓGICA DE VENDAS (Novo) ---
+      // --- LÓGICA DE VENDAS ---
       else if (tipo.includes('venda')) {
-        // Tenta encontrar o campo de quantidade de vendas
         valorAtual = dadosFinanceiros?.quantidade_vendas || dadosFinanceiros?.total_vendas || 0;
       }
-      // --- LÓGICA DE CLIENTES (Novo) ---
-      else if (tipo.includes('cliente')) {
-        // Tenta pegar clientes atendidos, se não tiver, tenta novos clientes
-        valorAtual = dadosFinanceiros?.clientes_atendidos || dadosFinanceiros?.novos_clientes || dadosFinanceiros?.total_clientes || 0;
+      // --- LÓGICA DE NOVOS CLIENTES (Específico) ---
+      else if (tipo === 'novos_clientes' || (tipo.includes('novo') && tipo.includes('cliente'))) {
+        valorAtual = dadosFinanceiros?.novos_clientes || 0;
+      }
+      // --- LÓGICA DE CLIENTES ATENDIDOS (Geral) ---
+      else if (tipo === 'clientes_atendidos' || tipo.includes('cliente')) {
+        valorAtual = dadosFinanceiros?.clientes_atendidos || dadosFinanceiros?.total_clientes || 0;
       }
       
       return {
@@ -60,11 +59,10 @@ export const metasService = {
   },
 
   async createMeta(metaData) {
-    // Tratamento de segurança
     const dadosParaEnviar = {
       ...metaData,
-      valor: parseFloat(metaData.valor), // Garante que é número
-      id: undefined // Remove ID para criar um novo
+      valor: parseFloat(metaData.valor),
+      id: undefined
     };
 
     if (!dadosParaEnviar.salao_id) throw new Error("ID do salão não fornecido.");
@@ -76,7 +74,7 @@ export const metasService = {
       .single();
 
     if (error) {
-      console.error("Erro Supabase ao criar meta:", error);
+      console.error("Erro Supabase:", error);
       throw error;
     }
     return data;

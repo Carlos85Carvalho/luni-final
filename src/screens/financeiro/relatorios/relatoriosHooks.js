@@ -1,124 +1,103 @@
-// src/screens/financeiro/relatorios/RelatoriosHooks.js
-import { useState, useCallback, useEffect } from 'react';
+// src/screens/financeiro/relatorios/relatoriosHooks.js
+import { useState, useCallback } from 'react';
 import { supabase } from '../../../services/supabase';
-// CORREÇÃO: use 'relatorios.service' (minúsculo)
-import { relatoriosService } from './relatorios.service'; 
+import { relatoriosService } from './relatorios.service';
 
 export const useRelatorios = () => {
-  const [relatoriosGerados, setRelatoriosGerados] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [relatoriosGerados, setRelatoriosGerados] = useState([]);
 
-  // Carrega o histórico de relatórios salvos no banco
-  const carregarRelatoriosGerados = useCallback(async () => {
+  const gerarRelatorio = useCallback(async (tipo, periodo) => {
+    console.log('🔵 [HOOK] ========== INICIANDO GERAÇÃO ==========');
+    console.log('🔵 [HOOK] Parâmetros:', { tipo, periodo });
+    
     setLoading(true);
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // 1. Buscar usuário autenticado
+      console.log('🔵 [HOOK] Buscando usuário autenticado...');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('❌ [HOOK] Erro ao buscar usuário:', userError);
+        throw new Error('Erro ao buscar usuário autenticado');
+      }
+      
+      if (!user) {
+        console.error('❌ [HOOK] Usuário não autenticado');
+        throw new Error('Usuário não autenticado');
+      }
+      
+      console.log('✅ [HOOK] Usuário autenticado:', user.id);
 
-      const { data: usuario } = await supabase
+      // 2. Buscar dados do usuário para pegar o salao_id
+      console.log('🔵 [HOOK] Buscando dados do usuário...');
+      const { data: usuario, error: usuarioError } = await supabase
         .from('usuarios')
         .select('salao_id')
         .eq('id', user.id)
         .single();
 
-      if (!usuario?.salao_id) return;
+      if (usuarioError) {
+        console.error('❌ [HOOK] Erro ao buscar dados do usuário:', usuarioError);
+        throw new Error('Erro ao buscar dados do usuário');
+      }
 
-      const { data } = await supabase
-        .from('relatorios')
-        .select('*')
-        .eq('salao_id', usuario.salao_id)
-        .order('data_criacao', { ascending: false })
-        .limit(10);
+      if (!usuario?.salao_id) {
+        console.error('❌ [HOOK] Salão não encontrado para o usuário');
+        throw new Error('Salão não encontrado');
+      }
 
-      setRelatoriosGerados(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar histórico de relatórios:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      console.log('✅ [HOOK] Salão encontrado:', usuario.salao_id);
 
-  useEffect(() => {
-    carregarRelatoriosGerados();
-  }, [carregarRelatoriosGerados]);
-
-  // Função Principal: Gera o relatório usando o Service e salva no histórico
-  const gerarRelatorio = useCallback(async (tipo, periodo, filtros = {}) => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('salao_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!usuario?.salao_id) return null;
-
-      // 1. Gera os dados completos usando o service
+      // 3. Gerar relatório usando o serviço
+      console.log('🔵 [HOOK] Chamando serviço para gerar relatório...');
       const dadosRelatorio = await relatoriosService.gerarRelatorioCompleto(
         usuario.salao_id,
         tipo,
-        periodo,
-        filtros
+        periodo
       );
 
-      // 2. Salva no histórico do banco de dados
-      if (dadosRelatorio) {
-        const { error } = await supabase.from('relatorios').insert([{
-          salao_id: usuario.salao_id,
-          tipo,
-          periodo,
-          dados: dadosRelatorio, // Salva o JSON gerado
-          data_criacao: new Date().toISOString()
-        }]);
+      console.log('✅ [HOOK] Relatório gerado pelo serviço:', dadosRelatorio);
 
-        if (error) {
-          console.error('Erro ao salvar histórico:', error);
-        } else {
-          // Atualiza a lista na tela sem precisar recarregar
-          carregarRelatoriosGerados();
-        }
+      // 4. Verificar se o relatório tem dados
+      if (!dadosRelatorio || !dadosRelatorio.resumo) {
+        console.warn('⚠️ [HOOK] Relatório gerado mas sem dados no resumo');
+        return dadosRelatorio;
       }
 
+      // 5. Salvar no histórico local
+      const novoHistorico = {
+        id: Date.now(),
+        tipo,
+        titulo: dadosRelatorio.titulo,
+        periodo,
+        data: new Date().toISOString(),
+        dados: dadosRelatorio
+      };
+
+      console.log('🔵 [HOOK] Adicionando ao histórico:', novoHistorico);
+      setRelatoriosGerados(prev => [novoHistorico, ...prev]);
+
+      console.log('🎉 [HOOK] ========== GERAÇÃO CONCLUÍDA ==========');
       return dadosRelatorio;
 
     } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
-      alert('Erro ao gerar o relatório. Tente novamente.');
+      console.error('❌ [HOOK] Erro ao gerar relatório:', error);
+      console.error('❌ [HOOK] Stack trace:', error.stack);
+      
+      alert(`Erro ao gerar relatório: ${error.message}`);
       return null;
+
     } finally {
       setLoading(false);
+      console.log('🔵 [HOOK] Loading definido como false');
     }
-  }, [carregarRelatoriosGerados]);
-
-  // Função para exportar (PDF ou Excel) usando o Service
-  const exportarRelatorio = async (dados, formato = 'pdf') => {
-    if (!dados) return;
-    
-    try {
-      // Cria um nome de arquivo amigável: Relatorio_Financeiro_mes_2023-10-25
-      const nomeArquivo = `Relatorio_${dados.tipo}_${dados.periodo}`;
-      const titulo = dados.titulo || `Relatório ${dados.tipo}`;
-
-      if (formato === 'pdf') {
-        await relatoriosService.exportarParaPDF(dados, titulo);
-      } else {
-        await relatoriosService.exportarParaExcel(dados, nomeArquivo);
-      }
-    } catch (error) {
-      console.error('Erro ao exportar:', error);
-      alert('Erro ao exportar o arquivo.');
-    }
-  };
+  }, []);
 
   return {
-    relatoriosGerados,
     loading,
-    gerarRelatorio,
-    exportarRelatorio,
-    refresh: carregarRelatoriosGerados
+    relatoriosGerados,
+    gerarRelatorio
   };
 };
