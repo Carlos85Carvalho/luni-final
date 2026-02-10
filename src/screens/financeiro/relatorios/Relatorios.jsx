@@ -1,6 +1,6 @@
 // src/screens/financeiro/relatorios/Relatorios.jsx
 import { useState } from 'react';
-import { useRelatorios } from './relatoriosHooks';
+import { useRelatorios } from './TEMP_HOOKS';
 import { RelatoriosHeader } from './RelatoriosHeader';
 import { RelatoriosGrid } from './RelatoriosGrid';
 import { RelatoriosHistorico } from './RelatoriosHistorico';
