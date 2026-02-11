@@ -13,11 +13,9 @@ export const relatoriosService = {
     if (!salaoId) return { agendamentos: [], vendas: [], despesas: [] };
 
     try {
-      // CORREÇÃO: O nome exato da sua coluna no banco
       const colunaDataVenda = 'data_venda'; 
 
       const [agendamentosResult, vendasResult, despesasResult, itensVendaResult] = await Promise.all([
-        // 1. Agendamentos (Usa coluna 'data')
         supabase
           .from('agendamentos')
           .select('*, clientes(nome)')
@@ -26,15 +24,13 @@ export const relatoriosService = {
           .lte('data', dataFim)
           .neq('status', 'cancelado'),
         
-        // 2. Vendas (Usa coluna 'data_venda')
         supabase
           .from('vendas')
           .select('*, venda_itens(*)')
           .eq('salao_id', salaoId)
-          .gte(colunaDataVenda, dataInicio) // <--- CORRIGIDO
-          .lte(colunaDataVenda, dataFim),   // <--- CORRIGIDO
+          .gte(colunaDataVenda, dataInicio)
+          .lte(colunaDataVenda, dataFim),
 
-        // 3. Despesas (Usa coluna 'data_vencimento')
         supabase
           .from('despesas')
           .select('*')
@@ -42,48 +38,34 @@ export const relatoriosService = {
           .gte('data_vencimento', dataInicio)
           .lte('data_vencimento', dataFim),
 
-        // 4. Itens Soltos (Usa 'vendas.data_venda')
         supabase
           .from('venda_itens')
           .select('*, vendas!inner(*)')
           .eq('vendas.salao_id', salaoId)
-          .gte(`vendas.${colunaDataVenda}`, dataInicio) // <--- CORRIGIDO
-          .lte(`vendas.${colunaDataVenda}`, dataFim)    // <--- CORRIGIDO
+          .gte(`vendas.${colunaDataVenda}`, dataInicio)
+          .lte(`vendas.${colunaDataVenda}`, dataFim)
       ]);
 
-      // === DIAGNÓSTICO ===
-      console.log('🕵️‍♂️ [DEBUG] Resultados:', {
-        agendamentos: agendamentosResult.data?.length,
-        vendas: vendasResult.data?.length,
-        itens: itensVendaResult.data?.length
-      });
-
-      // Lógica de Reconstrução (caso venda_itens exista mas vendas venha vazio por algum filtro)
       let listaVendas = vendasResult.data || [];
       
       if (listaVendas.length === 0 && itensVendaResult.data?.length > 0) {
-        console.log('💡 [DEBUG] Reconstruindo vendas...');
         const vendasMap = {};
-        
         itensVendaResult.data.forEach(item => {
           const vendaId = item.venda_id;
           if (!vendasMap[vendaId]) {
             vendasMap[vendaId] = {
               id: vendaId,
-              // Usa data_venda ou created_at como fallback
               data_venda: item.vendas?.data_venda || item.vendas?.created_at, 
               salao_id: item.vendas?.salao_id,
               valor_total: 0,
-              itens_venda: [] // Mantivemos o padrão interno
+              itens_venda: []
             };
           }
           vendasMap[vendaId].itens_venda.push(item);
-          // Soma segura
           const preco = Number(item.preco) || Number(item.valor) || Number(item.valor_unitario) || 0;
           const qtd = Number(item.quantidade) || Number(item.qtd) || 1;
           vendasMap[vendaId].valor_total += (preco * qtd);
         });
-        
         listaVendas = Object.values(vendasMap);
       }
 
@@ -181,9 +163,6 @@ export const relatoriosService = {
 
     const totalVendas = dados.vendas.reduce((acc, v) => {
       let valor = Number(v.total) || Number(v.valor_total) || 0;
-      
-      // Se total da venda for 0, soma os itens
-      // Verifica venda_itens (do banco) ou itens_venda (reconstruído)
       const itens = v.venda_itens || v.itens_venda || [];
       
       if (valor === 0 && itens.length > 0) {
@@ -339,7 +318,6 @@ export const relatoriosService = {
       
       let valor = Number(item.valor_total) || Number(item.total) || Number(item.valor) || 0;
       
-      // Soma itens se o valor principal for zero
       const itens = item.venda_itens || item.itens_venda || [];
       if (tipoOrigem === 'Produto' && valor === 0 && itens.length > 0) {
         valor = itens.reduce((s, i) => {
@@ -357,6 +335,33 @@ export const relatoriosService = {
     }));
   },
 
+  // ==================== NOVAS REGRAS DE FORMATAÇÃO E PDF ====================
+
+  formatarMoeda(valor) {
+    return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  },
+
+  formatarLabel(label) {
+    const dicionario = {
+      receitaTotal: 'Receita Total',
+      lucroLiquido: 'Lucro Líquido',
+      despesaTotal: 'Total de Despesas',
+      totalServicos: 'Total em Serviços',
+      totalVendas: 'Total em Produtos',
+      margemLucro: 'Margem de Lucro',
+      qtdServicos: 'Qtd. Atendimentos',
+      qtdVendas: 'Itens Vendidos',
+      itensCadastrados: 'Total de Itens',
+      valorTotalEstoque: 'Capital Imobilizado',
+      produtosCriticos: 'Produtos em Alerta',
+      clientesAtendidos: 'Clientes Únicos',
+      ticketMedio: 'Ticket Médio',
+      total: 'Total de Fornecedores',
+      ativos: 'Fornecedores Ativos'
+    };
+    return dicionario[label] || label.replace(/([A-Z])/g, ' $1').trim();
+  },
+
   async exportarParaExcel(dados, nomeArquivo) {
     try {
       const workbook = XLSX.utils.book_new();
@@ -369,18 +374,87 @@ export const relatoriosService = {
   async exportarParaPDF(dados, titulo) {
     try {
       const doc = new jsPDF();
-      doc.setFontSize(18); doc.text(titulo, 14, 22);
-      doc.setFontSize(10); doc.text(`Gerado: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+      const corLuni = [139, 92, 246]; // Roxo Luni
+
+      // 1. Cabeçalho Estilizado
+      doc.setFillColor(corLuni[0], corLuni[1], corLuni[2]);
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text(titulo.toUpperCase(), 14, 25);
+      
+      doc.setFontSize(10);
+      doc.text(`Luni - Gestão Inteligente para Salões`, 14, 32);
+      doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 160, 32);
+
+      let yPos = 50;
+
+      // 2. Seção de Resumo (KPIs Formatados)
       if (dados.resumo) {
-        const body = Object.entries(dados.resumo).map(([k, v]) => [k, typeof v === 'number' ? v.toFixed(2) : v]);
-        autoTable(doc, { startY: 40, head: [['Métrica', 'Valor']], body });
+        doc.setTextColor(corLuni[0], corLuni[1], corLuni[2]);
+        doc.setFontSize(14);
+        doc.text("RESUMO EXECUTIVO", 14, yPos);
+        
+        const resumoBody = Object.entries(dados.resumo).map(([k, v]) => {
+          let valor = v;
+          if (k.toLowerCase().includes('margem')) valor = `${Number(v).toFixed(2)}%`;
+          else if (typeof v === 'number' && k.toLowerCase().match(/valor|receita|despesa|lucro|faturamento|total|ticket|custo|gasto/)) {
+            valor = this.formatarMoeda(v);
+          }
+          return [this.formatarLabel(k), valor];
+        });
+
+        autoTable(doc, {
+          startY: yPos + 5,
+          head: [['Indicador', 'Resultado']],
+          body: resumoBody,
+          theme: 'striped',
+          headStyles: { fillColor: corLuni },
+          styles: { fontSize: 10, cellPadding: 4 },
+          columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+        });
+        yPos = doc.lastAutoTable.finalY + 15;
       }
-      if (dados.detalhes?.length) {
-        const head = [Object.keys(dados.detalhes[0])];
-        const body = dados.detalhes.map(obj => Object.values(obj).map(v => typeof v === 'number' ? v.toFixed(2) : v));
-        autoTable(doc, { startY: doc.lastAutoTable?.finalY + 15 || 100, head, body });
+
+      // 3. Seção de Detalhamento
+      if (dados.detalhes && dados.detalhes.length > 0) {
+        doc.setTextColor(corLuni[0], corLuni[1], corLuni[2]);
+        doc.setFontSize(14);
+        doc.text("DETALHAMENTO", 14, yPos);
+
+        const colunas = Object.keys(dados.detalhes[0]);
+        const body = dados.detalhes.map(obj => 
+          Object.values(obj).map(v => {
+            if (typeof v === 'number' && v > 100) return this.formatarMoeda(v);
+            return v;
+          })
+        );
+
+        autoTable(doc, {
+          startY: yPos + 5,
+          head: [colunas.map(c => c.replace('_', ' ').toUpperCase())],
+          body: body,
+          theme: 'grid',
+          headStyles: { fillColor: [75, 85, 99] }, 
+          styles: { fontSize: 9, cellPadding: 3 }
+        });
       }
-      doc.save(`${titulo}.pdf`);
-    } catch (e) { console.error('Erro PDF', e); }
+
+      // Rodapé com numeração
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount}`, 190, 285, { align: 'right' });
+      }
+
+      // IMPORTANTE: Agora retornamos o objeto para o Modal permitir compartilhamento real
+      return doc;
+    } catch (error) {
+      console.error('Erro na geração do PDF:', error);
+      return null;
+    }
   }
 };

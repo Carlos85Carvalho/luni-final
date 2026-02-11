@@ -6,38 +6,25 @@ import {
 import { supabase } from '../../../services/supabase';
 
 export const ClientDetailsModal = ({ cliente, onClose }) => {
-  // --- CORREÇÃO 1: Estado local para gerenciar os dados na tela ---
-  // Isso evita alterar a prop 'cliente' diretamente
   const [localCliente, setLocalCliente] = useState(cliente);
-
-  // Estados de Dados
   const [historico, setHistorico] = useState([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [visualizarHistorico, setVisualizarHistorico] = useState(false);
-  
-  // Estado para garantir o valor total correto
   const [gastoTotalReal, setGastoTotalReal] = useState(cliente.gasto_total || 0);
   const [loadingTotal, setLoadingTotal] = useState(true);
-
-  // Estados de Edição
   const [isEditing, setIsEditing] = useState(false);
-  // Inicializamos com os dados do cliente
   const [editedName, setEditedName] = useState(cliente.nome);
   const [editedPhone, setEditedPhone] = useState(cliente.telefone);
   const [saving, setSaving] = useState(false);
-
-  // Estados de Exclusão
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Atualiza o estado local se a prop mudar (caso abra outro cliente sem desmontar)
   useEffect(() => {
     setLocalCliente(cliente);
     setEditedName(cliente.nome);
     setEditedPhone(cliente.telefone);
   }, [cliente]);
 
-  // --- EFEITO: Buscar Total Real ao abrir ---
   useEffect(() => {
     const fetchTotalGasto = async () => {
       const { data, error } = await supabase
@@ -60,7 +47,6 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     }
   }, [cliente.id]);
 
-  // --- FORMATAÇÃO ---
   const formatMoney = (val) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   };
@@ -74,7 +60,6 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     });
   };
 
-  // --- BUSCA HISTÓRICO ---
   const fetchHistoricoCliente = async () => {
     setLoadingHistorico(true);
     setVisualizarHistorico(true);
@@ -91,7 +76,6 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     setLoadingHistorico(false);
   };
 
-  // --- AÇÕES DO USUÁRIO ---
   const abrirWhatsapp = (telefone) => {
     if (!telefone) return;
     const numeroLimpo = telefone.replace(/\D/g, '');
@@ -103,7 +87,6 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     return Number(item.valor_total) || Number(item.valor) || 0;
   };
 
-  // --- CRUD (ATUALIZAR E DELETAR) ---
   const handleSave = async () => {
     setSaving(true);
     const { error } = await supabase
@@ -114,7 +97,6 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     if (error) {
       alert('Erro ao atualizar cliente');
     } else {
-      // --- CORREÇÃO 2: Atualiza o estado local em vez da prop ---
       setLocalCliente(prev => ({
         ...prev,
         nome: editedName,
@@ -146,7 +128,6 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in" onClick={onClose}>
       <div className="bg-[#18181b] border border-white/10 w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         
-        {/* --- TELA DE CONFIRMAÇÃO DE EXCLUSÃO --- */}
         {showDeleteConfirm && (
           <div className="absolute inset-0 z-50 bg-[#18181b]/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
             <div className="bg-red-500/10 p-4 rounded-full mb-4">
@@ -165,11 +146,9 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
           </div>
         )}
 
-        {/* --- HEADER --- */}
         <div className="p-6 pb-4 flex justify-between items-start">
           <div className="flex items-center gap-4 w-full">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg border-2 border-[#18181b] shrink-0">
-              {/* Usa localCliente em vez de cliente para refletir a edição imediatamente */}
               {localCliente.nome ? localCliente.nome.charAt(0).toUpperCase() : '?'}
             </div>
             
@@ -206,12 +185,11 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
           </div>
         </div>
         
-        <div className="p-6 pt-2 overflow-y-auto">
+        {/* --- AJUSTE AQUI: Adicionado pb-32 no mobile para limpar a barra e o botão flutuante --- */}
+        <div className="p-6 pt-2 overflow-y-auto pb-32 sm:pb-10">
         {!visualizarHistorico ? (
           <div className="animate-in slide-in-from-right-4 duration-300 space-y-6">
             <div className="grid grid-cols-2 gap-3">
-              
-              {/* CARD GASTO TOTAL */}
               <div className="bg-white/5 p-4 rounded-2xl text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Gasto Total</div>
                 <div className="text-xl font-bold text-emerald-400 flex justify-center items-center gap-2">
@@ -219,12 +197,11 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                 </div>
               </div>
 
-              {/* CARD DATA DE CADASTRO */}
               <div className="bg-white/5 p-4 rounded-2xl text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Cliente Desde</div>
                 <div className="text-sm font-bold text-blue-400 flex items-center justify-center gap-1 h-7">
-                   <CalendarDays size={14} className="mb-0.5"/> 
-                   {formatDate(localCliente.created_at)}
+                    <CalendarDays size={14} className="mb-0.5"/> 
+                    {formatDate(localCliente.created_at)}
                 </div>
               </div>
             </div>
@@ -240,14 +217,13 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
               <button onClick={() => setVisualizarHistorico(false)} className="text-xs text-purple-400 font-bold uppercase hover:underline">Voltar</button>
             </div>
 
-            <div className="space-y-3 flex-1 overflow-y-auto min-h-[200px]">
+            <div className="space-y-3 flex-1">
               {loadingHistorico ? (
                 <div className="flex justify-center py-10"><Loader2 className="animate-spin text-purple-500" size={30}/></div>
               ) : historico.length === 0 ? (
                 <div className="text-center py-10 space-y-2"><p className="text-gray-500 text-sm">Nenhum agendamento encontrado.</p></div>
               ) : (
                 historico.map((item, idx) => (
-                  // CORREÇÃO 3: Usar ID como chave se possível, ou fallback para idx
                   <div key={item.id || idx} className="bg-white/5 p-3 rounded-xl border border-white/5 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${item.status === 'cancelado' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>

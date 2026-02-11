@@ -43,13 +43,16 @@ export const RelatorioModal = ({
 
   if (!aberto) return null;
 
-  // ===== HANDLERS =====
+  // ===== HANDLERS ATUALIZADOS PARA AS NOVAS REGRAS =====
   
   const handleExportarPDF = async () => {
     if (!relatorioData) return;
     try {
       setLoading(true);
-      await relatoriosService.exportarParaPDF(relatorioData, relatorioData.titulo || 'Relatorio');
+      const doc = await relatoriosService.exportarParaPDF(relatorioData, relatorioData.titulo || 'Relatorio');
+      if (doc) {
+        doc.save(`${relatorioData.titulo || 'Relatorio'}.pdf`);
+      }
     } catch {
       alert('Erro ao gerar PDF');
     } finally {
@@ -71,16 +74,37 @@ export const RelatorioModal = ({
 
   const handleCompartilhar = async () => {
     if (!relatorioData) return;
-    const msg = `📊 *${relatorioData.titulo}*\n🚀 _Gerado pelo Sistema Luni_`;
+    
     try {
-      if (navigator.share) {
-        await navigator.share({ title: relatorioData.titulo, text: msg });
+      setLoading(true);
+      // 1. Gera o PDF profissional usando o novo serviço
+      const doc = await relatoriosService.exportarParaPDF(relatorioData, relatorioData.titulo);
+      
+      if (!doc) throw new Error("Erro ao gerar PDF");
+
+      // 2. Transforma o PDF em um arquivo real para o WhatsApp
+      const pdfBlob = doc.output('blob');
+      const nomeArquivo = `${relatorioData.titulo.replace(/\s/g, '_')}.pdf`;
+      const arquivo = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
+
+      // 3. Verifica se o navegador suporta envio de arquivos (Mobile/WhatsApp)
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        await navigator.share({
+          files: [arquivo],
+          title: relatorioData.titulo,
+          text: 'Segue o relatório profissional gerado pelo Sistema Luni 🚀'
+        });
       } else {
+        // Fallback para Desktop: baixa o PDF e copia o texto
+        const msg = `📊 *${relatorioData.titulo}*\n🚀 _Gerado pelo Sistema Luni_`;
         await navigator.clipboard.writeText(msg);
-        alert('Resumo copiado para área de transferência!');
+        doc.save(nomeArquivo);
+        alert('O arquivo foi baixado. Link de resumo copiado para o WhatsApp Web!');
       }
     } catch {
-      console.log('Compartilhamento cancelado');
+      console.log('Compartilhamento cancelado ou erro na geração');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -144,7 +168,7 @@ export const RelatorioModal = ({
           <button onClick={() => window.print()} disabled={!relatorioData} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-lg flex items-center gap-2 text-sm disabled:opacity-50">
             <Printer size={16} /> Imprimir
           </button>
-          <button onClick={handleCompartilhar} disabled={!relatorioData} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg flex items-center gap-2 text-sm shadow-lg shadow-green-900/20 disabled:opacity-50">
+          <button onClick={handleCompartilhar} disabled={!relatorioData || loading} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg flex items-center gap-2 text-sm shadow-lg shadow-green-900/20 disabled:opacity-50">
             <Share2 size={16} /> Compartilhar
           </button>
         </div>
@@ -168,7 +192,7 @@ export const RelatorioModal = ({
                   return (
                     <div key={key} className="bg-gray-800/40 p-5 rounded-xl border border-gray-700 shadow-lg hover:bg-gray-800/60 transition-colors">
                       <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                        {relatoriosService.formatarLabel(key)}
                       </p>
                       <p className={`text-2xl font-bold ${key.toLowerCase().includes('lucro') && value < 0 ? 'text-red-400' : 'text-white'}`}>
                         {typeof value === 'number' ? (isMoeda ? value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : (isPct ? `${value.toFixed(2)}%` : value)) : value}
@@ -178,7 +202,7 @@ export const RelatorioModal = ({
                 })}
               </div>
 
-              {/* ===== GRÁFICOS ESTILIZADOS - AJUSTES DE VISIBILIDADE APLICADOS ===== */}
+              {/* ===== GRÁFICOS ESTILIZADOS - REGRAS DE NITIDEZ APLICADAS ===== */}
               {visualizacao === 'grafico' && relatorioData.graficos?.length > 0 && (
                 <div className="bg-gray-800/20 rounded-xl border border-gray-700 p-6">
                   <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
@@ -195,16 +219,16 @@ export const RelatorioModal = ({
                         />
                         <XAxis 
                           dataKey={relatorioData.graficos[0].mes ? "mes" : "name"} 
-                          stroke="#ffffff" // Branco para maior nitidez
+                          stroke="#ffffff" // Nitidez Máxima
                           fontSize={11} 
-                          fontWeight="bold"
+                          fontWeight="bold" // Nitidez Máxima
                           tickLine={false} 
                           axisLine={{ stroke: '#374151' }} 
                         />
                         <YAxis 
-                          stroke="#ffffff" // Branco para maior nitidez
+                          stroke="#ffffff" // Nitidez Máxima
                           fontSize={11} 
-                          fontWeight="bold"
+                          fontWeight="bold" // Nitidez Máxima
                           tickLine={false} 
                           axisLine={{ stroke: '#374151' }}
                           tickFormatter={(v) => typeof v === 'number' && v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`}
@@ -218,8 +242,8 @@ export const RelatorioModal = ({
                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                             color: '#ffffff'
                           }}
-                          labelStyle={{ color: '#ffffff', fontWeight: 'bold', marginBottom: '4px' }} //
-                          itemStyle={{ color: '#ffffff', fontSize: '12px' }} //
+                          labelStyle={{ color: '#ffffff', fontWeight: 'bold', marginBottom: '4px' }}
+                          itemStyle={{ color: '#ffffff', fontSize: '12px' }}
                           formatter={(v) => [
                             typeof v === 'number' ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : v, 
                             ''
