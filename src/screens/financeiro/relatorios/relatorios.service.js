@@ -8,169 +8,133 @@ export const relatoriosService = {
   // ==================== BUSCAS DE DADOS ====================
   
   async getDadosFinanceiros(salaoId, dataInicio, dataFim) {
-    console.log('📊 [SERVICE] Buscando dados financeiros:', { salaoId, dataInicio, dataFim });
+    console.log('📊 [SERVICE] Buscando dados financeiros (Coluna: data_venda)...');
     
-    if (!salaoId) {
-      console.error('❌ [SERVICE] salaoId não fornecido');
-      return { agendamentos: [], vendas: [], despesas: [] };
-    }
+    if (!salaoId) return { agendamentos: [], vendas: [], despesas: [] };
 
     try {
-      const [agendamentosResult, vendasResult, despesasResult] = await Promise.all([
-        // 1. Agendamentos
+      // CORREÇÃO: O nome exato da sua coluna no banco
+      const colunaDataVenda = 'data_venda'; 
+
+      const [agendamentosResult, vendasResult, despesasResult, itensVendaResult] = await Promise.all([
+        // 1. Agendamentos (Usa coluna 'data')
         supabase
           .from('agendamentos')
-          .select('*')
+          .select('*, clientes(nome)')
           .eq('salao_id', salaoId)
           .gte('data', dataInicio)
           .lte('data', dataFim)
           .neq('status', 'cancelado'),
         
-        // 2. Vendas
+        // 2. Vendas (Usa coluna 'data_venda')
         supabase
           .from('vendas')
-          .select('*, itens_venda(*)')
+          .select('*, venda_itens(*)')
           .eq('salao_id', salaoId)
-          .gte('data', dataInicio)
-          .lte('data', dataFim),
+          .gte(colunaDataVenda, dataInicio) // <--- CORRIGIDO
+          .lte(colunaDataVenda, dataFim),   // <--- CORRIGIDO
 
-        // 3. Despesas
+        // 3. Despesas (Usa coluna 'data_vencimento')
         supabase
           .from('despesas')
           .select('*')
           .eq('salao_id', salaoId)
           .gte('data_vencimento', dataInicio)
-          .lte('data_vencimento', dataFim)
+          .lte('data_vencimento', dataFim),
+
+        // 4. Itens Soltos (Usa 'vendas.data_venda')
+        supabase
+          .from('venda_itens')
+          .select('*, vendas!inner(*)')
+          .eq('vendas.salao_id', salaoId)
+          .gte(`vendas.${colunaDataVenda}`, dataInicio) // <--- CORRIGIDO
+          .lte(`vendas.${colunaDataVenda}`, dataFim)    // <--- CORRIGIDO
       ]);
 
-      // Verificar erros individuais
-      if (agendamentosResult.error) {
-        console.error('❌ [SERVICE] Erro agendamentos:', agendamentosResult.error);
-      }
-      if (vendasResult.error) {
-        console.error('❌ [SERVICE] Erro vendas:', vendasResult.error);
-      }
-      if (despesasResult.error) {
-        console.error('❌ [SERVICE] Erro despesas:', despesasResult.error);
+      // === DIAGNÓSTICO ===
+      console.log('🕵️‍♂️ [DEBUG] Resultados:', {
+        agendamentos: agendamentosResult.data?.length,
+        vendas: vendasResult.data?.length,
+        itens: itensVendaResult.data?.length
+      });
+
+      // Lógica de Reconstrução (caso venda_itens exista mas vendas venha vazio por algum filtro)
+      let listaVendas = vendasResult.data || [];
+      
+      if (listaVendas.length === 0 && itensVendaResult.data?.length > 0) {
+        console.log('💡 [DEBUG] Reconstruindo vendas...');
+        const vendasMap = {};
+        
+        itensVendaResult.data.forEach(item => {
+          const vendaId = item.venda_id;
+          if (!vendasMap[vendaId]) {
+            vendasMap[vendaId] = {
+              id: vendaId,
+              // Usa data_venda ou created_at como fallback
+              data_venda: item.vendas?.data_venda || item.vendas?.created_at, 
+              salao_id: item.vendas?.salao_id,
+              valor_total: 0,
+              itens_venda: [] // Mantivemos o padrão interno
+            };
+          }
+          vendasMap[vendaId].itens_venda.push(item);
+          // Soma segura
+          const preco = Number(item.preco) || Number(item.valor) || Number(item.valor_unitario) || 0;
+          const qtd = Number(item.quantidade) || Number(item.qtd) || 1;
+          vendasMap[vendaId].valor_total += (preco * qtd);
+        });
+        
+        listaVendas = Object.values(vendasMap);
       }
 
-      const dados = {
+      return {
         agendamentos: agendamentosResult.data || [],
-        vendas: vendasResult.data || [],
+        vendas: listaVendas,
         despesas: despesasResult.data || []
       };
 
-      console.log('✅ [SERVICE] Dados carregados:', {
-        agendamentos: dados.agendamentos.length,
-        vendas: dados.vendas.length,
-        despesas: dados.despesas.length
-      });
-
-      // LOG DETALHADO: Mostra um exemplo de cada tipo de dado
-      if (dados.agendamentos.length > 0) {
-        console.log('📝 [SERVICE] Exemplo agendamento:', dados.agendamentos[0]);
-      }
-      if (dados.vendas.length > 0) {
-        console.log('📝 [SERVICE] Exemplo venda:', dados.vendas[0]);
-      }
-      if (dados.despesas.length > 0) {
-        console.log('📝 [SERVICE] Exemplo despesa:', dados.despesas[0]);
-      }
-
-      return dados;
-
     } catch (error) {
-      console.error('❌ [SERVICE] Erro geral ao buscar dados:', error);
+      console.error('❌ [SERVICE] Erro geral:', error);
       return { agendamentos: [], vendas: [], despesas: [] };
     }
   },
 
   async getDadosEstoque(salaoId) {
-    console.log('📦 [SERVICE] Buscando estoque para salao:', salaoId);
-    
     try {
-      const { data, error } = await supabase
-        .from('produtos')
-        .select('*')
-        .eq('salao_id', salaoId);
-
-      if (error) {
-        console.error('❌ [SERVICE] Erro ao buscar estoque:', error);
-        return [];
-      }
-
-      console.log('✅ [SERVICE] Produtos carregados:', data?.length || 0);
+      const { data } = await supabase.from('vw_lucro_produtos').select('*').eq('salao_id', salaoId);
       return data || [];
-
-    } catch (error) {
-      console.error('❌ [SERVICE] Erro geral ao buscar estoque:', error);
-      return [];
-    }
+    } catch { return []; }
   },
 
   async getDadosClientes(salaoId, dataInicio, dataFim) {
-    console.log('👥 [SERVICE] Buscando clientes:', { salaoId, dataInicio, dataFim });
-    
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('agendamentos')
         .select('cliente_id, valor, valor_total, clientes(nome)')
         .eq('salao_id', salaoId)
         .gte('data', dataInicio)
         .lte('data', dataFim)
         .neq('status', 'cancelado');
-
-      if (error) {
-        console.error('❌ [SERVICE] Erro ao buscar clientes:', error);
-        return [];
-      }
-
-      console.log('✅ [SERVICE] Dados clientes carregados:', data?.length || 0);
       return data || [];
-
-    } catch (error) {
-      console.error('❌ [SERVICE] Erro geral ao buscar clientes:', error);
-      return [];
-    }
+    } catch { return []; }
   },
 
   async getDadosFornecedores(salaoId) {
-    console.log('🚚 [SERVICE] Buscando fornecedores para salao:', salaoId);
-    
     try {
-      const { data, error } = await supabase
-        .from('fornecedores')
-        .select('*, despesas(*)')
-        .eq('salao_id', salaoId);
-
-      if (error) {
-        console.error('❌ [SERVICE] Erro ao buscar fornecedores:', error);
-        return [];
-      }
-
-      console.log('✅ [SERVICE] Fornecedores carregados:', data?.length || 0);
+      const { data } = await supabase.from('fornecedores').select('*, despesas(*)').eq('salao_id', salaoId);
       return data || [];
-
-    } catch (error) {
-      console.error('❌ [SERVICE] Erro geral ao buscar fornecedores:', error);
-      return [];
-    }
+    } catch { return []; }
   },
 
   // ==================== GERAÇÃO DE RELATÓRIO ====================
   
   async gerarRelatorioCompleto(salaoId, tipo, periodo, filtros = {}) {
-    console.log('🎯 [SERVICE] ========== INICIANDO GERAÇÃO DE RELATÓRIO ==========');
-    console.log('🎯 [SERVICE] Parâmetros:', { salaoId, tipo, periodo, filtros });
-    
     const { dataInicio, dataFim } = this.calcularPeriodo(periodo);
     
     let relatorio = {
-      tipo,
-      periodo,
+      tipo, periodo, filtros,
       titulo: `Relatório de ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`,
-      dataGeracao: new Date().toISOString(),
-      filtros
+      dataGeracao: new Date().toISOString()
     };
 
     try {
@@ -180,55 +144,32 @@ export const relatoriosService = {
           const dadosFin = await this.getDadosFinanceiros(salaoId, dataInicio, dataFim);
           const processado = this.processarRelatorioFinanceiro(dadosFin);
           relatorio = { ...relatorio, ...processado };
-          
-          if (tipo === 'vendas') {
-            relatorio.titulo = "Relatório de Vendas Detalhado";
-          }
-          
-          console.log('✅ [SERVICE] Relatório financeiro processado:', processado);
+          if (tipo === 'vendas') relatorio.titulo = "Relatório de Vendas Detalhado";
           break;
         }
-        
         case 'estoque': {
           const dadosEst = await this.getDadosEstoque(salaoId);
-          const processado = this.processarRelatorioEstoque(dadosEst);
-          relatorio = { ...relatorio, ...processado };
-          console.log('✅ [SERVICE] Relatório estoque processado:', processado);
+          relatorio = { ...relatorio, ...this.processarRelatorioEstoque(dadosEst) };
           break;
         }
-        
         case 'clientes': {
           const dadosCli = await this.getDadosClientes(salaoId, dataInicio, dataFim);
-          const processado = this.processarRelatorioClientes(dadosCli);
-          relatorio = { ...relatorio, ...processado };
-          console.log('✅ [SERVICE] Relatório clientes processado:', processado);
+          relatorio = { ...relatorio, ...this.processarRelatorioClientes(dadosCli) };
           break;
         }
-        
         case 'fornecedores': {
           const dadosForn = await this.getDadosFornecedores(salaoId);
-          const processado = this.processarRelatorioFornecedores(dadosForn);
-          relatorio = { ...relatorio, ...processado };
-          console.log('✅ [SERVICE] Relatório fornecedores processado:', processado);
+          relatorio = { ...relatorio, ...this.processarRelatorioFornecedores(dadosForn) };
           break;
         }
-        
         default: {
-          console.warn('⚠️ [SERVICE] Tipo não implementado, usando financeiro:', tipo);
           const dadosFin = await this.getDadosFinanceiros(salaoId, dataInicio, dataFim);
-          const processado = this.processarRelatorioFinanceiro(dadosFin);
-          relatorio = { ...relatorio, ...processado };
-          break;
+          relatorio = { ...relatorio, ...this.processarRelatorioFinanceiro(dadosFin) };
         }
       }
-
-      console.log('🎉 [SERVICE] ========== RELATÓRIO GERADO COM SUCESSO ==========');
-      console.log('📄 [SERVICE] Relatório final:', relatorio);
-      
       return relatorio;
-
     } catch (error) {
-      console.error('❌ [SERVICE] Erro ao gerar relatório:', error);
+      console.error('❌ Erro geração:', error);
       return relatorio;
     }
   },
@@ -236,54 +177,44 @@ export const relatoriosService = {
   // ==================== PROCESSAMENTO ====================
   
   processarRelatorioFinanceiro(dados) {
-    console.log('🔄 [SERVICE] Processando relatório financeiro...');
-    
-    if (!dados || !dados.agendamentos) {
-      console.warn('⚠️ [SERVICE] Dados inválidos para processamento');
-      return { 
-        resumo: {
-          receitaTotal: 0,
-          lucroLiquido: 0,
-          despesaTotal: 0,
-          margemLucro: 0,
-          qtdServicos: 0,
-          qtdVendas: 0
-        }, 
-        detalhes: [], 
-        graficos: [] 
-      };
-    }
-
-    // Calcular totais com logs detalhados
-    const totalServicos = dados.agendamentos.reduce((acc, r) => {
-      const valor = Number(r.valor_total) || Number(r.valor) || 0;
-      return acc + valor;
-    }, 0);
-    console.log('💰 [SERVICE] Total Serviços:', totalServicos);
+    if (!dados) return { resumo: {}, detalhes: [], graficos: [] };
 
     const totalVendas = dados.vendas.reduce((acc, v) => {
-      const valor = Number(v.valor_total) || Number(v.total) || 0;
+      let valor = Number(v.total) || Number(v.valor_total) || 0;
+      
+      // Se total da venda for 0, soma os itens
+      // Verifica venda_itens (do banco) ou itens_venda (reconstruído)
+      const itens = v.venda_itens || v.itens_venda || [];
+      
+      if (valor === 0 && itens.length > 0) {
+        valor = itens.reduce((s, i) => {
+          const p = Number(i.preco) || Number(i.valor) || Number(i.valor_unitario) || 0;
+          const q = Number(i.quantidade) || Number(i.qtd) || 1;
+          return s + (p * q);
+        }, 0);
+      }
       return acc + valor;
     }, 0);
-    console.log('🛒 [SERVICE] Total Vendas:', totalVendas);
 
-    const receitaTotal = totalServicos + totalVendas;
-    console.log('💵 [SERVICE] Receita Total:', receitaTotal);
+    const totalServicos = dados.agendamentos.reduce((acc, r) => {
+      return acc + (Number(r.valor_total) || Number(r.valor) || 0);
+    }, 0);
 
     const despesaTotal = dados.despesas.reduce((acc, d) => {
-      const valor = Number(d.valor) || 0;
-      return acc + valor;
+      return acc + (Number(d.valor) || 0);
     }, 0);
-    console.log('💸 [SERVICE] Total Despesas:', despesaTotal);
 
+    const receitaTotal = totalServicos + totalVendas;
     const lucroLiquido = receitaTotal - despesaTotal;
     const margemLucro = receitaTotal > 0 ? (lucroLiquido / receitaTotal * 100) : 0;
 
-    const resultado = {
+    return {
       resumo: { 
         receitaTotal, 
         lucroLiquido, 
         despesaTotal,
+        totalServicos,
+        totalVendas, 
         margemLucro,
         qtdServicos: dados.agendamentos.length,
         qtdVendas: dados.vendas.length
@@ -299,14 +230,9 @@ export const relatoriosService = {
         { name: 'Despesas', valor: despesaTotal, fill: '#EF4444' }
       ]
     };
-
-    console.log('✅ [SERVICE] Resultado processamento:', resultado);
-    return resultado;
   },
 
   processarRelatorioEstoque(produtos) {
-    console.log('🔄 [SERVICE] Processando relatório de estoque...');
-    
     const valorTotalEstoque = produtos.reduce((acc, p) => {
       const qtd = Number(p.quantidade_atual) || 0;
       const custo = Number(p.custo) || Number(p.custo_unitario) || 0;
@@ -315,7 +241,7 @@ export const relatoriosService = {
 
     const produtosCriticos = produtos.filter(p => {
       const atual = Number(p.quantidade_atual) || 0;
-      const minimo = Number(p.estoque_minimo) || Number(p.quantidade_minima) || 5;
+      const minimo = Number(p.estoque_minimo) || 5;
       return atual <= minimo;
     });
 
@@ -326,62 +252,40 @@ export const relatoriosService = {
         produtosCriticos: produtosCriticos.length 
       },
       detalhes: produtos.map(p => ({
-        nome: p.nome,
+        nome: p.nome_produto || p.nome,
         qtd: p.quantidade_atual || 0,
         custo: p.custo || p.custo_unitario || 0,
-        status: (p.quantidade_atual || 0) <= (p.estoque_minimo || p.quantidade_minima || 5) ? 'CRÍTICO' : 'OK'
+        status: (p.quantidade_atual || 0) <= (p.estoque_minimo || 5) ? 'CRÍTICO' : 'OK'
       }))
     };
   },
 
   processarRelatorioClientes(dados) {
-    console.log('🔄 [SERVICE] Processando relatório de clientes...');
-    
     const mapClientes = {};
-    
     dados.forEach(item => {
       const nome = item.clientes?.nome || 'Cliente Não Identificado';
-      if (!mapClientes[nome]) {
-        mapClientes[nome] = { total: 0, visitas: 0 };
-      }
+      if (!mapClientes[nome]) mapClientes[nome] = { total: 0, visitas: 0 };
       mapClientes[nome].total += (Number(item.valor_total) || Number(item.valor) || 0);
       mapClientes[nome].visitas += 1;
     });
 
     const lista = Object.entries(mapClientes)
-      .map(([nome, info]) => ({
-        cliente: nome,
-        gasto_total: info.total,
-        visitas: info.visitas
-      }))
+      .map(([nome, info]) => ({ cliente: nome, gasto_total: info.total, visitas: info.visitas }))
       .sort((a, b) => b.gasto_total - a.gasto_total);
 
     const totalGasto = lista.reduce((acc, c) => acc + c.gasto_total, 0);
     const ticketMedio = lista.length > 0 ? (totalGasto / lista.length) : 0;
 
     return {
-      resumo: { 
-        clientesAtendidos: lista.length, 
-        ticketMedio 
-      },
+      resumo: { clientesAtendidos: lista.length, ticketMedio },
       detalhes: lista.slice(0, 15),
-      graficos: lista.slice(0, 5).map(c => ({ 
-        name: c.cliente, 
-        valor: c.gasto_total 
-      }))
+      graficos: lista.slice(0, 5).map(c => ({ name: c.cliente, valor: c.gasto_total, fill: '#8B5CF6' }))
     };
   },
 
   processarRelatorioFornecedores(fornecedores) {
-    console.log('🔄 [SERVICE] Processando relatório de fornecedores...');
-    
-    const ativos = fornecedores.filter(f => f.ativo !== false);
-
     return {
-      resumo: { 
-        total: fornecedores.length, 
-        ativos: ativos.length 
-      },
+      resumo: { total: fornecedores.length, ativos: fornecedores.filter(f => f.ativo !== false).length },
       detalhes: fornecedores.map(f => ({
         nome: f.nome,
         contato: f.telefone || f.email || '-',
@@ -402,146 +306,81 @@ export const relatoriosService = {
       case 'hoje':
         dataInicio = new Date(hoje);
         dataFim = new Date(hoje);
-        dataFim.setHours(23, 59, 59, 999);
         break;
-      
-      case 'semana': {
+      case 'semana': { 
         const diff = hoje.getDay() === 0 ? 6 : hoje.getDay() - 1;
         dataInicio.setDate(hoje.getDate() - diff);
-        dataInicio.setHours(0, 0, 0, 0);
         dataFim = new Date(dataInicio);
         dataFim.setDate(dataInicio.getDate() + 6);
-        dataFim.setHours(23, 59, 59, 999);
         break;
       }
-      
       case 'mes':
         dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-        dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59, 999);
+        dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
         break;
-      
       case 'ano':
         dataInicio = new Date(hoje.getFullYear(), 0, 1);
-        dataFim = new Date(hoje.getFullYear(), 11, 31, 23, 59, 59, 999);
+        dataFim = new Date(hoje.getFullYear(), 11, 31);
         break;
-      
       default:
         dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-        dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59, 999);
+        dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
     }
-
-    const resultado = {
-      dataInicio: dataInicio.toISOString(), 
-      dataFim: dataFim.toISOString()
-    };
-
-    console.log('📅 [SERVICE] Período calculado:', {
-      periodo,
-      dataInicio: dataInicio.toLocaleDateString('pt-BR'),
-      dataFim: dataFim.toLocaleDateString('pt-BR')
-    });
-
-    return resultado;
+    dataInicio.setHours(0, 0, 0, 0);
+    dataFim.setHours(23, 59, 59, 999);
+    
+    return { dataInicio: dataInicio.toISOString(), dataFim: dataFim.toISOString() };
   },
 
   agruparPorCategoria(items, tipoOrigem) {
     const agrupado = items.reduce((acc, item) => {
-      const categoria = item.categoria || item.servico || 'Geral';
+      const categoria = item.nome_produto || item.nome || item.descricao || item.categoria || item.servico || 'Geral';
       if (!acc[categoria]) acc[categoria] = 0;
       
-      const valor = Number(item.valor_total) || 
-                   Number(item.valor) || 
-                   Number(item.total) || 0;
+      let valor = Number(item.valor_total) || Number(item.total) || Number(item.valor) || 0;
+      
+      // Soma itens se o valor principal for zero
+      const itens = item.venda_itens || item.itens_venda || [];
+      if (tipoOrigem === 'Produto' && valor === 0 && itens.length > 0) {
+        valor = itens.reduce((s, i) => {
+            const p = Number(i.preco) || Number(i.valor) || 0;
+            const q = Number(i.quantidade) || Number(i.qtd) || 1;
+            return s + (p * q);
+        }, 0);
+      }
       acc[categoria] += valor;
       return acc;
     }, {});
     
     return Object.entries(agrupado).map(([cat, val]) => ({
-      categoria: cat,
-      tipo: tipoOrigem,
-      total: val
+      categoria: cat, tipo: tipoOrigem, total: val
     }));
   },
 
-  // ==================== EXPORTAÇÃO ====================
-  
-  async exportarParaExcel(dados, nomeArquivo = 'relatorio') {
-    console.log('📊 [SERVICE] Exportando para Excel:', nomeArquivo);
-    
+  async exportarParaExcel(dados, nomeArquivo) {
     try {
       const workbook = XLSX.utils.book_new();
-      
-      if (dados.resumo) {
-        const resumoSheet = XLSX.utils.json_to_sheet([dados.resumo]);
-        XLSX.utils.book_append_sheet(workbook, resumoSheet, 'Resumo');
-      }
-      
-      if (dados.detalhes && dados.detalhes.length > 0) {
-        const detalhesSheet = XLSX.utils.json_to_sheet(dados.detalhes);
-        XLSX.utils.book_append_sheet(workbook, detalhesSheet, 'Detalhes');
-      }
-      
-      XLSX.writeFile(workbook, `${nomeArquivo}_${new Date().getTime()}.xlsx`);
-      console.log('✅ [SERVICE] Excel exportado com sucesso');
-      
-    } catch (error) {
-      console.error('❌ [SERVICE] Erro ao exportar Excel:', error);
-      throw error;
-    }
+      if (dados.resumo) XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([dados.resumo]), 'Resumo');
+      if (dados.detalhes?.length) XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(dados.detalhes), 'Detalhes');
+      XLSX.writeFile(workbook, `${nomeArquivo}_${Date.now()}.xlsx`);
+    } catch (e) { console.error('Erro Excel', e); }
   },
 
   async exportarParaPDF(dados, titulo) {
-    console.log('📄 [SERVICE] Exportando para PDF:', titulo);
-    
     try {
       const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text(titulo, 14, 22);
-      
-      doc.setFontSize(10);
-      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
-      
+      doc.setFontSize(18); doc.text(titulo, 14, 22);
+      doc.setFontSize(10); doc.text(`Gerado: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
       if (dados.resumo) {
-        const resumoData = Object.entries(dados.resumo).map(([key, value]) => [
-          key.toUpperCase(),
-          typeof value === 'number' 
-            ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) 
-            : value
-        ]);
-        
-        autoTable(doc, {
-          startY: 40,
-          head: [['Métrica', 'Valor']],
-          body: resumoData,
-          headStyles: { fillColor: [124, 58, 237] }
-        });
+        const body = Object.entries(dados.resumo).map(([k, v]) => [k, typeof v === 'number' ? v.toFixed(2) : v]);
+        autoTable(doc, { startY: 40, head: [['Métrica', 'Valor']], body });
       }
-
-      if (dados.detalhes && dados.detalhes.length > 0) {
-        const headers = Object.keys(dados.detalhes[0]).map(k => k.toUpperCase());
-        const body = dados.detalhes.map(item => 
-          Object.values(item).map(val => 
-            typeof val === 'number' 
-              ? val.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) 
-              : val
-          )
-        );
-        
-        autoTable(doc, {
-          startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 100,
-          head: [headers],
-          body: body,
-          headStyles: { fillColor: [40, 40, 40] }
-        });
+      if (dados.detalhes?.length) {
+        const head = [Object.keys(dados.detalhes[0])];
+        const body = dados.detalhes.map(obj => Object.values(obj).map(v => typeof v === 'number' ? v.toFixed(2) : v));
+        autoTable(doc, { startY: doc.lastAutoTable?.finalY + 15 || 100, head, body });
       }
-      
-      doc.save(`${titulo.replace(/\s+/g, '_')}.pdf`);
-      console.log('✅ [SERVICE] PDF exportado com sucesso');
-      
-    } catch (error) {
-      console.error('❌ [SERVICE] Erro ao exportar PDF:', error);
-      throw error;
-    }
+      doc.save(`${titulo}.pdf`);
+    } catch (e) { console.error('Erro PDF', e); }
   }
 };

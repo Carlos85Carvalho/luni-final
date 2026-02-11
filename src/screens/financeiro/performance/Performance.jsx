@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// IMPORTANTE: Mantendo o caminho correto que arrumamos antes
 import { supabase } from '../../../services/supabase';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -20,7 +19,6 @@ const THEME = {
   primary: "text-purple-500"
 };
 
-// ==================== UTILITÁRIOS ====================
 const formatCurrency = (value) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -29,28 +27,19 @@ const getPrimeiroDiaMes = () => {
   return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
 };
 
-const getHoje = () => {
-  return new Date().toISOString().split('T')[0];
-};
+const getHoje = () => new Date().toISOString().split('T')[0];
 
 export const Performance = () => {
-  // --- ESTADOS ---
   const [loading, setLoading] = useState(true);
-  
-  // Filtros de Data (Agora manuais e automáticos)
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
   const [dataFim, setDataFim] = useState(getHoje());
-  const [periodoSelecionado, setPeriodoSelecionado] = useState('mes'); // Para marcar o botão ativo
-
+  const [periodoSelecionado, setPeriodoSelecionado] = useState('mes');
   const [profissionalId, setProfissionalId] = useState('todos');
   const [profissionais, setProfissionais] = useState([]);
-  
-  // Dados
   const [dadosRanking, setDadosRanking] = useState([]);
   const [dadosServicos, setDadosServicos] = useState([]);
   const [resumo, setResumo] = useState({ faturamento: 0, atendimentos: 0 });
 
-  // 1. Carregar Lista de Profissionais
   useEffect(() => {
     const fetchProfs = async () => {
       const { data } = await supabase.from('profissionais').select('id, nome');
@@ -59,7 +48,6 @@ export const Performance = () => {
     fetchProfs();
   }, []);
 
-  // 2. Função para aplicar filtros rápidos (Botões)
   const aplicarFiltroRapido = (tipo) => {
     const hoje = new Date();
     const d = new Date();
@@ -67,55 +55,34 @@ export const Performance = () => {
     let fim = hoje.toISOString().split('T')[0];
 
     switch (tipo) {
-      case 'hoje':
-        inicio = fim;
-        break;
-      case 'semana':
-        d.setDate(d.getDate() - 7);
-        inicio = d.toISOString().split('T')[0];
-        break;
-      case 'mes':
-        inicio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-        break;
-      case 'ano':
-        inicio = new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0];
-        break;
-      default:
-        return;
+      case 'hoje': inicio = fim; break;
+      case 'semana': d.setDate(d.getDate() - 7); inicio = d.toISOString().split('T')[0]; break;
+      case 'mes': inicio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]; break;
+      case 'ano': inicio = new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0]; break;
+      default: return;
     }
-
     setDataInicio(inicio);
     setDataFim(fim);
     setPeriodoSelecionado(tipo);
   };
 
-  // 3. Buscar Dados Reais
   useEffect(() => {
     const fetchDados = async () => {
       setLoading(true);
       try {
-        // Ajuste para pegar o dia todo (00:00 até 23:59)
         const inicioQuery = `${dataInicio}T00:00:00`;
         const fimQuery = `${dataFim}T23:59:59`;
-
-        // Busca valor E valor_total para garantir que não venha zerado
         let query = supabase
           .from('agendamentos')
-          .select(`
-            id, data, valor, valor_total, servico, profissional_id, status,
-            profissionais (nome)
-          `)
+          .select(`id, data, valor, valor_total, servico, profissional_id, status, profissionais (nome)`)
           .gte('data', inicioQuery)
           .lte('data', fimQuery)
           .neq('status', 'cancelado'); 
 
-        if (profissionalId !== 'todos') {
-          query = query.eq('profissional_id', profissionalId);
-        }
+        if (profissionalId !== 'todos') query = query.eq('profissional_id', profissionalId);
 
         const { data: agendamentos, error } = await query;
         if (error) throw error;
-
         processarDados(agendamentos || []);
       } catch (error) {
         console.error("Erro ao carregar performance:", error);
@@ -123,28 +90,18 @@ export const Performance = () => {
         setLoading(false);
       }
     };
-
     fetchDados();
   }, [dataInicio, dataFim, profissionalId]);
 
-  // 4. Processamento dos Dados
   const processarDados = (dados) => {
-    // CORREÇÃO DOS VALORES: Tenta pegar valor_total, se não tiver, pega valor
     const getValor = (item) => Number(item.valor_total) || Number(item.valor) || 0;
-
-    // A. Resumo Topo
     const totalFat = dados.reduce((acc, curr) => acc + getValor(curr), 0);
-    setResumo({
-      faturamento: totalFat,
-      atendimentos: dados.length
-    });
+    setResumo({ faturamento: totalFat, atendimentos: dados.length });
 
-    // B. Ranking de Profissionais
     const mapRanking = {};
     dados.forEach(item => {
       const nome = item.profissionais?.nome || 'Outros'; 
       const valor = getValor(item);
-      
       if (!mapRanking[nome]) mapRanking[nome] = 0;
       mapRanking[nome] += valor;
     });
@@ -152,10 +109,8 @@ export const Performance = () => {
     const rankingArray = Object.entries(mapRanking)
       .map(([nome, valor]) => ({ nome, valor }))
       .sort((a, b) => b.valor - a.valor);
-
     setDadosRanking(rankingArray);
 
-    // C. Mix de Serviços
     const mapServicos = {};
     dados.forEach(item => {
       const servico = item.servico || 'Outros';
@@ -167,28 +122,20 @@ export const Performance = () => {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
-
     setDadosServicos(servicosArray);
   };
 
   return (
     <div className={`min-h-full ${THEME.bg} p-4 md:p-8 space-y-6 animate-in fade-in duration-500`}>
-      
-      {/* HEADER DE CONTROLE */}
+      {/* HEADER */}
       <div className={`${THEME.card} p-6 rounded-3xl border ${THEME.border} flex flex-col gap-6 shadow-xl`}>
-        
-        {/* Título e Filtro de Profissional */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <TrendingUp className="text-purple-500" /> 
-              Performance
+              <TrendingUp className="text-purple-500" /> Performance
             </h2>
-            <p className="text-gray-400 text-sm mt-1">
-              Visão geral financeira e operacional
-            </p>
+            <p className="text-gray-400 text-sm mt-1">Visão geral financeira e operacional</p>
           </div>
-
           <div className="relative w-full md:w-auto">
             <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500" />
             <select
@@ -197,61 +144,36 @@ export const Performance = () => {
               className={`pl-10 pr-4 py-2.5 ${THEME.inputBg} border border-white/10 rounded-xl text-white text-sm outline-none focus:border-purple-500 w-full md:min-w-[200px]`}
             >
               <option value="todos">Todos os Profissionais</option>
-              {profissionais.map(p => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
+              {profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </div>
         </div>
-
         <div className="h-[1px] bg-white/5 w-full"></div>
-
-        {/* ÁREA DE FILTROS DE DATA (Restaurada) */}
         <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-          
-          {/* Botões Rápidos */}
           <div className={`bg-[#0f0f12] p-1 rounded-xl border border-white/10 flex w-full lg:w-auto overflow-x-auto`}>
             {['hoje', 'semana', 'mes', 'ano'].map((p) => (
               <button
                 key={p}
                 onClick={() => aplicarFiltroRapido(p)}
                 className={`flex-1 lg:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all capitalize whitespace-nowrap ${
-                  periodoSelecionado === p 
-                    ? 'bg-purple-600 text-white shadow-lg' 
-                    : 'text-gray-400 hover:text-white'
+                  periodoSelecionado === p ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 {p === 'mes' ? 'Mês' : p}
               </button>
             ))}
           </div>
-
-          {/* Seleção Manual de Datas */}
           <div className="flex items-center gap-2 bg-[#0f0f12] p-1.5 rounded-xl border border-white/10 w-full lg:w-auto">
             <div className="relative flex-1">
               <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
-              <input 
-                type="date" 
-                value={dataInicio}
-                onChange={(e) => {
-                  setDataInicio(e.target.value);
-                  setPeriodoSelecionado('custom'); // Desmarca os botões rápidos
-                }}
-                className="bg-transparent text-white text-xs pl-8 pr-2 py-1.5 outline-none w-full"
-              />
+              <input type="date" value={dataInicio} onChange={(e) => { setDataInicio(e.target.value); setPeriodoSelecionado('custom'); }}
+                className="bg-transparent text-white text-xs pl-8 pr-2 py-1.5 outline-none w-full" />
             </div>
             <span className="text-gray-600 text-xs">até</span>
             <div className="relative flex-1">
               <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
-              <input 
-                type="date" 
-                value={dataFim}
-                onChange={(e) => {
-                  setDataFim(e.target.value);
-                  setPeriodoSelecionado('custom');
-                }}
-                className="bg-transparent text-white text-xs pl-8 pr-2 py-1.5 outline-none w-full"
-              />
+              <input type="date" value={dataFim} onChange={(e) => { setDataFim(e.target.value); setPeriodoSelecionado('custom'); }}
+                className="bg-transparent text-white text-xs pl-8 pr-2 py-1.5 outline-none w-full" />
             </div>
           </div>
         </div>
@@ -263,39 +185,42 @@ export const Performance = () => {
         </div>
       ) : (
         <>
-          {/* GRÁFICOS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* CARD 1: Faturamento */}
             <div className={`${THEME.card} p-6 rounded-3xl border ${THEME.border} shadow-lg flex flex-col h-[400px]`}>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-yellow-500" /> Ranking Financeiro
                   </h3>
-                  <p className="text-xs text-gray-500">Total no período: <span className="text-emerald-400 font-bold">{formatCurrency(resumo.faturamento)}</span></p>
+                  <p className="text-xs text-gray-500">Total: <span className="text-emerald-400 font-bold">{formatCurrency(resumo.faturamento)}</span></p>
                 </div>
               </div>
-              
               <div className="flex-1 w-full min-h-0">
                 {dadosRanking.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart layout="vertical" data={dadosRanking} margin={{ left: 0, right: 20 }}>
+                    <BarChart layout="vertical" data={dadosRanking} margin={{ left: -20, right: 30, top: 10, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
                       <XAxis type="number" hide />
                       <YAxis 
                         dataKey="nome" 
                         type="category" 
-                        width={100} 
-                        tick={{ fill: '#9ca3af', fontSize: 12 }} 
+                        width={100}
+                        tick={{ fill: '#ffffff', fontSize: 11, fontWeight: 'bold' }} // BRANCO PURO para nitidez
                         axisLine={false} 
                         tickLine={false} 
                       />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '12px', color: '#fff' }}
+                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                        contentStyle={{ 
+                          backgroundColor: '#18181b', 
+                          border: '1px solid #333', 
+                          borderRadius: '12px'
+                        }}
+                        labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} // Título do Tooltip Branco
+                        itemStyle={{ color: '#ffffff' }} // Valor do Tooltip Branco
                         formatter={(value) => [formatCurrency(value), 'Faturamento']}
                       />
-                      <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={24}>
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20} background={{ fill: 'rgba(255, 255, 255, 0.02)', radius: [0, 4, 4, 0] }}>
                         {dadosRanking.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
@@ -303,115 +228,72 @@ export const Performance = () => {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                    <Filter className="w-10 h-10 mb-2 opacity-20" />
-                    <p>Sem dados neste período</p>
-                  </div>
+                  <div className="h-full flex flex-col items-center justify-center text-gray-500"><Filter className="w-10 h-10 mb-2 opacity-20" /><p>Sem dados</p></div>
                 )}
               </div>
             </div>
 
-            {/* CARD 2: Serviços */}
             <div className={`${THEME.card} p-6 rounded-3xl border ${THEME.border} shadow-lg flex flex-col h-[400px]`}>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Scissors className="w-5 h-5 text-pink-500" /> Serviços Realizados
                   </h3>
-                  <p className="text-xs text-gray-500">{resumo.atendimentos} atendimentos concluídos</p>
+                  <p className="text-xs text-gray-500">{resumo.atendimentos} atendimentos</p>
                 </div>
               </div>
-
               <div className="flex-1 w-full min-h-0">
                 {dadosServicos.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={dadosServicos}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {dadosServicos.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
+                      <Pie data={dadosServicos} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                        {dadosServicos.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '12px' }} />
-                      <Legend 
-                        verticalAlign="middle" 
-                        align="right" 
-                        layout="vertical"
-                        wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }}
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '12px' }}
+                        itemStyle={{ color: '#ffffff' }}
                       />
+                      <Legend verticalAlign="bottom" align="center" layout="horizontal" wrapperStyle={{ fontSize: '10px', color: '#9ca3af', paddingTop: '20px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                    <Scissors className="w-10 h-10 mb-2 opacity-20" />
-                    <p>Nenhum serviço registrado</p>
-                  </div>
+                  <div className="h-full flex flex-col items-center justify-center text-gray-500"><Scissors className="w-10 h-10 mb-2 opacity-20" /><p>Nenhum serviço</p></div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* TABELA DE DETALHAMENTO */}
+          {/* TABELA */}
           <div className={`${THEME.card} rounded-3xl border ${THEME.border} overflow-hidden shadow-lg`}>
             <div className="p-6 border-b border-white/5 bg-white/5">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-400"/> Detalhamento da Equipe
-              </h3>
+              <h3 className="font-bold text-white flex items-center gap-2"><Users className="w-5 h-5 text-blue-400"/> Detalhamento da Equipe</h3>
             </div>
-            
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-gray-400">
                 <thead className="bg-[#0f0f12] text-xs uppercase font-bold text-gray-500">
-                  <tr>
-                    <th className="p-4">Profissional</th>
-                    <th className="p-4 text-right">Faturamento</th>
-                    <th className="p-4 text-right">Participação</th>
-                  </tr>
+                  <tr><th className="p-4">Profissional</th><th className="p-4 text-right">Faturamento</th><th className="p-4 text-right">Participação</th></tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {dadosRanking.length > 0 ? dadosRanking.map((prof, i) => {
-                    const percentual = resumo.faturamento > 0 
-                      ? (prof.valor / resumo.faturamento) * 100 
-                      : 0;
-                    
+                  {dadosRanking.map((prof, i) => {
+                    const percentual = resumo.faturamento > 0 ? (prof.valor / resumo.faturamento) * 100 : 0;
                     return (
                       <tr key={i} className="hover:bg-white/5 transition-colors">
                         <td className="p-4 font-medium text-white flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-xs text-purple-400">
-                            {prof.nome.charAt(0)}
-                          </div>
+                          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-xs text-purple-400">{prof.nome.charAt(0)}</div>
                           {prof.nome}
                         </td>
-                        <td className="p-4 text-right text-emerald-400 font-bold">
-                          {formatCurrency(prof.valor)}
-                        </td>
+                        <td className="p-4 text-right text-emerald-400 font-bold">{formatCurrency(prof.valor)}</td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-xs w-8">{percentual.toFixed(0)}%</span>
                             <div className="w-20 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-purple-500 rounded-full" 
-                                style={{ width: `${percentual}%` }}
-                              ></div>
+                              <div className="h-full bg-purple-500 rounded-full" style={{ width: `${percentual}%` }}></div>
                             </div>
                           </div>
                         </td>
                       </tr>
                     );
-                  }) : (
-                    <tr>
-                      <td colSpan="3" className="p-8 text-center text-gray-500">
-                        Nenhum dado encontrado para o período selecionado.
-                      </td>
-                    </tr>
-                  )}
+                  })}
                 </tbody>
               </table>
             </div>

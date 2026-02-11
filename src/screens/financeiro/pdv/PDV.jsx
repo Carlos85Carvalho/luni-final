@@ -1,3 +1,4 @@
+// src/screens/metas/pdv/PDV.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../services/supabase';
 import { PDVGrid } from './PDVGrid';
@@ -29,7 +30,6 @@ export const PDV = () => {
   });
 
   // ========== BUSCA DE DADOS (REFATORADA) ==========
-  // Criamos a função fora do useEffect para poder chamá-la ao finalizar a venda
   const fetchDados = useCallback(async (silencioso = false) => {
     try {
       if (!silencioso) setCarregando(true);
@@ -52,7 +52,6 @@ export const PDV = () => {
         supabase
           .from('produtos')
           .select('*')
-          // .gt('estoque', 0) // Filtro de estoque (opcional)
           .order('nome')
       ]);
 
@@ -107,32 +106,41 @@ export const PDV = () => {
   
   const total = Math.max(0, subtotal - valorDescontoCalculado);
 
-  // ========== FINALIZAR VENDA ==========
+  // ========== FINALIZAR VENDA (CORRIGIDA) ==========
   const handleFinalizarVenda = async (formaPagamento) => {
     setProcessando(true);
+    console.log('🛒 [PDV] Iniciando finalização de venda...');
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      // Garante ID do salão
       const salaoId = user?.user_metadata?.salao_id || carrinho[0]?.salao_id || user?.id;
 
-      // 1. Cria a Venda
+      // 1. Cria a Venda (CORRIGIDO: nome da coluna para data_venda)
+      const vendaPayload = {
+        cliente_id: cliente?.id || null,
+        salao_id: salaoId,
+        total: total,
+        subtotal: subtotal,
+        desconto: valorDescontoCalculado,
+        forma_pagamento: formaPagamento,
+        status: 'concluida',
+        data_venda: new Date().toISOString(), // <--- CORREÇÃO AQUI
+      };
+
+      console.log('🛒 [PDV] Payload da Venda:', vendaPayload);
+
       const { data: venda, error: errVenda } = await supabase
         .from('vendas')
-        .insert({
-          cliente_id: cliente?.id || null,
-          salao_id: salaoId,
-          total: total,
-          subtotal: subtotal,
-          desconto: valorDescontoCalculado,
-          forma_pagamento: formaPagamento,
-          status: 'concluida',
-          data_venda: new Date()
-        })
+        .insert(vendaPayload)
         .select()
         .single();
 
-      if (errVenda) throw errVenda;
+      if (errVenda) {
+        console.error('❌ Erro ao criar venda:', errVenda);
+        throw new Error(`Erro ao criar venda: ${errVenda.message}`);
+      }
+
+      console.log('✅ Venda criada com ID:', venda.id);
 
       // 2. Salva os Itens
       const itensVenda = carrinho.map(item => ({
@@ -141,16 +149,22 @@ export const PDV = () => {
         agendamento_id: item.tipo === 'agendamento' ? item.id : null,
         nome_item: item.nome,
         quantidade: item.qtd,
-        preco_unitario: item.preco_venda
+        preco: item.preco_venda, 
+        preco_unitario: item.preco_venda,
+        valor_total: item.preco_venda * item.qtd
       }));
+
+      console.log('🛒 [PDV] Salvando itens:', itensVenda);
 
       const { error: errItens } = await supabase
         .from('venda_itens')
         .insert(itensVenda);
       
-      if (errItens) throw errItens;
+      if (errItens) {
+        console.error('❌ Erro ao salvar itens:', errItens);
+      }
 
-      // 3. Atualiza Estoque
+      // 3. Atualiza Estoque e Status Agendamento
       const updates = carrinho.map(async (item) => {
         if (item.tipo === 'produto') {
           const novoEstoque = (item.estoque || 0) - item.qtd;
@@ -192,14 +206,11 @@ export const PDV = () => {
       // SUCESSO!
       alert('✅ Venda realizada com sucesso!');
       
-      // === AQUI ESTÁ A CORREÇÃO ===
-      // Em vez de recarregar a página, limpamos o estado e atualizamos os dados
       setCarrinho([]);
       setCliente(null);
       setDesconto(0);
       setModalState({ isOpen: false, view: null, dados: null });
       
-      // Chama a função de busca novamente para atualizar o estoque na tela
       await fetchDados(true); 
       
     } catch (error) {
@@ -441,6 +452,12 @@ export const PDV = () => {
         onFinalizarPagamento={handleFinalizarVenda}
         processandoPagamento={processando}
         carrinho={carrinho}
+        onRecuperarVenda={(venda) => console.log('Recuperar', venda)}
+        onUsarCliente={(c) => setCliente(c)}
+        onSalvarPreco={(id, novoPreco) => {
+           setCarrinho(prev => prev.map(item => item.id === id ? { ...item, preco_venda: novoPreco } : item));
+        }}
+        vendasPendentes={[]} 
       />
     </div>
   );

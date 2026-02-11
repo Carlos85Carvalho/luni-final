@@ -4,6 +4,7 @@ import { useRelatorios } from './relatoriosHooks';
 import { RelatoriosHeader } from './RelatoriosHeader';
 import { RelatoriosGrid } from './RelatoriosGrid';
 import { RelatoriosHistorico } from './RelatoriosHistorico';
+import { RelatorioModal } from './RelatorioModal';
 import { 
   DollarSign, 
   Package, 
@@ -13,8 +14,13 @@ import {
   Users 
 } from 'lucide-react';
 
-export const Relatorios = ({ onAbrirModal }) => {
+export const Relatorios = () => {
   const [periodoSelecionado, setPeriodoSelecionado] = useState('mes');
+  
+  // Estado local para controlar o Modal
+  const [modalAberto, setModalAberto] = useState(false);
+  const [dadosModal, setDadosModal] = useState(null);
+
   const { relatoriosGerados, loading, gerarRelatorio } = useRelatorios();
 
   const tiposRelatorio = [
@@ -69,75 +75,53 @@ export const Relatorios = ({ onAbrirModal }) => {
     { id: 'ano', label: 'Este Ano' }
   ];
 
-  // Função para visualizar ou gerar relatório
+  // Função Principal: Gera e Abre o Modal
   const handleAcaoRelatorio = async (tipo) => {
-    console.log('🟢 [RELATORIOS] Ação iniciada para tipo:', tipo);
-    console.log('🟢 [RELATORIOS] Período selecionado:', periodoSelecionado);
+    console.log('🟢 [RELATORIOS] Iniciando geração:', tipo);
     
     try {
-      // Gera o relatório através do hook
+      // 1. Busca os dados (o loading já é tratado pelo hook)
       const dadosRelatorio = await gerarRelatorio(tipo, periodoSelecionado);
       
-      console.log('🟢 [RELATORIOS] Dados retornados do hook:', dadosRelatorio);
+      console.log('🟢 [RELATORIOS] Dados recebidos do hook:', dadosRelatorio);
 
-      // Verificar se retornou dados válidos
+      // 2. Validações de segurança
       if (!dadosRelatorio) {
-        console.error('❌ [RELATORIOS] Hook retornou null');
-        alert('Erro ao gerar relatório. Verifique o console (F12) para mais detalhes.');
+        console.error('❌ [RELATORIOS] Hook retornou null/undefined');
         return;
       }
 
-      if (!dadosRelatorio.resumo) {
-        console.warn('⚠️ [RELATORIOS] Relatório sem dados no resumo');
-        alert(`Não há dados para o relatório de ${tipo} no período: ${periodoSelecionado}`);
-        return;
-      }
-
-      // Verificar se resumo tem algum valor não-zero
-      const temDados = Object.values(dadosRelatorio.resumo).some(v => {
-        if (typeof v === 'number') return v !== 0;
-        return true;
-      });
-
-      if (!temDados) {
-        console.warn('⚠️ [RELATORIOS] Todos os valores do resumo são zero');
-        alert(`Não há registros para o período selecionado (${periodoSelecionado}). Tente outro período ou verifique se há dados cadastrados.`);
-        return;
-      }
-
-      console.log('✅ [RELATORIOS] Dados válidos, abrindo modal...');
+      // 3. Atualiza o estado local com os dados REAIS
+      setDadosModal(dadosRelatorio);
       
-      // Abrir modal com os dados
-      onAbrirModal('visualizar-relatorio', { 
-        tipo, 
-        periodo: periodoSelecionado, 
-        dados: dadosRelatorio 
-      });
-
-      console.log('✅ [RELATORIOS] Modal aberto com sucesso');
+      // 4. Abre o modal
+      setModalAberto(true);
 
     } catch (error) {
-      console.error('❌ [RELATORIOS] Erro ao processar relatório:', error);
-      alert('Erro ao processar relatório. Verifique o console (F12) para mais detalhes.');
+      console.error('❌ [RELATORIOS] Erro crítico:', error);
+      alert('Erro ao processar relatório.');
     }
   };
 
-  const handleExportar = (tipo) => {
-    console.log('📥 [RELATORIOS] Exportando relatório:', tipo);
-    // TODO: Implementar exportação direta
+  // Função para abrir histórico (já tem os dados salvos)
+  const handleVisualizarHistorico = (itemHistorico) => {
+    console.log('🟢 [RELATORIOS] Abrindo histórico:', itemHistorico);
+    setDadosModal(itemHistorico.dados);
+    setModalAberto(true);
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 relative">
+      
       {/* Header com Filtro de Período */}
       <RelatoriosHeader 
         periodoSelecionado={periodoSelecionado}
         setPeriodoSelecionado={setPeriodoSelecionado}
         periodos={periodos}
-        onExportarTodos={() => handleExportar('todos')}
+        onExportarTodos={() => console.log('Exportar todos')}
       />
 
-      {/* Grid de Cards */}
+      {/* Grid de Cards (Botões) */}
       <RelatoriosGrid
         tiposRelatorio={tiposRelatorio}
         periodoSelecionado={periodoSelecionado}
@@ -146,18 +130,23 @@ export const Relatorios = ({ onAbrirModal }) => {
         loading={loading}
       />
 
-      {/* Histórico Recente */}
+      {/* Lista de Histórico */}
       {relatoriosGerados.length > 0 && (
         <RelatoriosHistorico
           relatoriosGerados={relatoriosGerados}
           loading={loading}
-          onVisualizar={(item) => {
-            console.log('🟢 [RELATORIOS] Visualizando do histórico:', item);
-            onAbrirModal('visualizar-relatorio', { dados: item.dados });
-          }}
-          onExportar={(item) => handleExportar(item.tipo)}
+          onVisualizar={handleVisualizarHistorico}
+          onExportar={(item) => console.log('Exportar', item)}
         />
       )}
+
+      {/* MODAL RENDERIZADO AQUI - Passagem direta de props */}
+      <RelatorioModal 
+        aberto={modalAberto}
+        onFechar={() => setModalAberto(false)}
+        dados={dadosModal}
+      />
+      
     </div>
   );
 };
