@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, QrCode, Banknote, CreditCard, Clock3, RefreshCw, User, Search } from 'lucide-react';
+import { X, QrCode, Banknote, CreditCard, Clock3, RefreshCw, User, Search, MessageCircle, CheckCircle, FileText } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 
 // ============================================================================
@@ -186,10 +186,7 @@ export const VendasPendentesModal = ({ aberto, onClose, vendasPendentes = [], on
 
 // --- MODAL DE EDITAR PREÇO ---
 export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
-  // CORREÇÃO: Inicializa o estado diretamente. Como usamos "key" no pai, o componente recria quando o item muda.
   const [preco, setPreco] = useState(item?.preco_venda || item?.preco_base || 0);
-
-  // Removido useEffect que causava o erro.
 
   if (!aberto || !item) return null;
 
@@ -215,6 +212,82 @@ export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
 };
 
 // ============================================================================
+// NOVO COMPONENTE: MODAL DE SUCESSO / WHATSAPP
+// ============================================================================
+export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
+  if (!aberto || !dadosVenda) return null;
+
+  const { cliente, total, carrinho, vendaId } = dadosVenda;
+
+  const enviarWhatsApp = () => {
+    if (!cliente?.telefone) {
+      alert("Este cliente não possui telefone cadastrado.");
+      return;
+    }
+
+    // Formata o número (remove caracteres não numéricos)
+    const telefone = cliente.telefone.replace(/\D/g, '');
+    
+    // Constrói o resumo do pedido
+    const itensTexto = carrinho.map(item => `• ${item.qtd}x ${item.nome} (R$ ${item.preco_venda.toFixed(2)})`).join('\n');
+    
+    // Mensagem formatada
+    const mensagem = `*COMPROVANTE DE VENDA*\n\n` +
+      `Olá ${cliente.nome}, obrigado pela preferência!\n\n` +
+      `*Itens do Pedido:*\n${itensTexto}\n\n` +
+      `*Total: R$ ${total.toFixed(2)}*\n\n` +
+      `_Seu pedido #${vendaId || 'Recente'} foi concluído com sucesso._`;
+
+    // Cria o link do WhatsApp
+    const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+    
+    // Abre em nova aba
+    window.open(link, '_blank');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4 backdrop-blur-md">
+      <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 flex flex-col items-center text-center">
+        
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+          <CheckCircle size={40} className="text-green-600" />
+        </div>
+
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Venda Realizada!</h2>
+        <p className="text-gray-500 mb-8">O pagamento foi confirmado com sucesso.</p>
+
+        {cliente ? (
+          <div className="w-full space-y-3">
+             <button 
+              onClick={enviarWhatsApp}
+              className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-200 transition-all active:scale-95"
+            >
+              <MessageCircle size={20} />
+              Enviar Comprovante (WhatsApp)
+            </button>
+            <p className="text-xs text-gray-400 mt-2">
+              Isso abrirá o WhatsApp com o comprovante em texto. Para PDF, anexe o arquivo gerado.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 bg-gray-50 p-3 rounded-lg w-full">
+            Venda realizada sem cliente identificado. <br/>Não é possível enviar comprovante.
+          </p>
+        )}
+
+        <button 
+          onClick={onClose} 
+          className="mt-6 text-gray-400 hover:text-gray-600 font-medium text-sm underline"
+        >
+          Fechar e Iniciar Nova Venda
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+// ============================================================================
 // 3. COMPONENTE AGREGADOR PRINCIPAL
 // ============================================================================
 
@@ -222,7 +295,6 @@ export const PDVModals = ({
   modalState,
   onClose,
   onFinalizarPagamento,
-  // CORREÇÃO: Removidos props não utilizados (onAdicionarServico, agendamentos, servicos)
   onRecuperarVenda,
   onUsarCliente,
   onSalvarPreco,
@@ -230,6 +302,7 @@ export const PDVModals = ({
   totalPagamento,
   processandoPagamento,
   vendasPendentes,
+  // carrinho FOI REMOVIDO DAQUI
 }) => {
   
   const { view, dados, isOpen } = modalState || {};
@@ -264,6 +337,12 @@ export const PDVModals = ({
         onClose={onClose}
         item={dados}
         onSalvar={onSalvarPreco}
+      />
+
+      <VendaConcluidaModal
+        aberto={isOpen && view === 'sucesso'}
+        onClose={onClose}
+        dadosVenda={dados} 
       />
     </>
   );

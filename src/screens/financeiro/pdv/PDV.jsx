@@ -106,7 +106,7 @@ export const PDV = () => {
   
   const total = Math.max(0, subtotal - valorDescontoCalculado);
 
-  // ========== FINALIZAR VENDA (CORRIGIDA) ==========
+  // ========== FINALIZAR VENDA (LÓGICA ATUALIZADA) ==========
   const handleFinalizarVenda = async (formaPagamento) => {
     setProcessando(true);
     console.log('🛒 [PDV] Iniciando finalização de venda...');
@@ -115,7 +115,7 @@ export const PDV = () => {
       const { data: { user } } = await supabase.auth.getUser();
       const salaoId = user?.user_metadata?.salao_id || carrinho[0]?.salao_id || user?.id;
 
-      // 1. Cria a Venda (CORRIGIDO: nome da coluna para data_venda)
+      // 1. Cria a Venda
       const vendaPayload = {
         cliente_id: cliente?.id || null,
         salao_id: salaoId,
@@ -124,7 +124,7 @@ export const PDV = () => {
         desconto: valorDescontoCalculado,
         forma_pagamento: formaPagamento,
         status: 'concluida',
-        data_venda: new Date().toISOString(), // <--- CORREÇÃO AQUI
+        data_venda: new Date().toISOString(),
       };
 
       console.log('🛒 [PDV] Payload da Venda:', vendaPayload);
@@ -203,13 +203,22 @@ export const PDV = () => {
 
       await Promise.all(updates);
 
-      // SUCESSO!
-      alert('✅ Venda realizada com sucesso!');
-      
+      // --- ALTERAÇÃO AQUI: ABRE O MODAL DE SUCESSO AO INVÉS DE ALERT ---
+      setModalState({ 
+        view: 'sucesso', 
+        isOpen: true, 
+        dados: { 
+           vendaId: venda.id, 
+           total, 
+           carrinho: [...carrinho], // Salva cópia dos itens para o comprovante
+           cliente 
+        } 
+      });
+
+      // Limpa os estados (o modal continua aberto com a cópia dos dados)
       setCarrinho([]);
       setCliente(null);
       setDesconto(0);
-      setModalState({ isOpen: false, view: null, dados: null });
       
       await fetchDados(true); 
       
@@ -310,7 +319,7 @@ export const PDV = () => {
     return matchBusca;
   });
 
-  // ========== RENDER ==========
+  // ========== RENDER (VISUAL ORIGINAL) ==========
   if (carregando) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
