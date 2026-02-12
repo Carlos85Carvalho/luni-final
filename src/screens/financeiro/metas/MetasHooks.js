@@ -1,23 +1,22 @@
 // src/screens/financeiro/metas/MetasHooks.js
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../services/supabase';
-// Adicionei os imports que faltavam do lucide-react
+import { metasService } from './metas.service'; // IMPORTANTE: Importar o serviço que calcula os valores
 import { DollarSign, TrendingUp, Receipt, Users, ShoppingCart, Scissors, Target } from 'lucide-react';
 
 export const useMetas = () => {
   const [metas, setMetas] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Função auxiliar para criar metas padrão caso não existam no banco
+  // Função auxiliar para criar metas padrão na tela (apenas visual) caso não existam
   const criarMetasPadrao = useCallback(() => {
-    // Valores padrão zerados se não houver resumo financeiro disponível
     const metasPadrao = [
       {
         id: 'meta-fat-1',
         tipo: 'faturamento',
         titulo: 'Meta de Faturamento',
-        valor_meta: 50000,
-        valor_atual: 0, // Será atualizado quando integrar com o dashboard real
+        valor: 50000, // Ajustado para 'valor' para bater com o padrão do banco
+        valor_atual: 0,
         periodo: 'Mensal',
         cor: 'green',
         data_criacao: new Date().toISOString()
@@ -26,7 +25,7 @@ export const useMetas = () => {
         id: 'meta-lucro-1',
         tipo: 'lucro',
         titulo: 'Meta de Lucro',
-        valor_meta: 15000,
+        valor: 15000,
         valor_atual: 0,
         periodo: 'Mensal',
         cor: 'blue',
@@ -36,15 +35,14 @@ export const useMetas = () => {
         id: 'meta-desp-1',
         tipo: 'despesas',
         titulo: 'Limite de Despesas',
-        valor_meta: 35000,
+        valor: 35000,
         valor_atual: 0,
         periodo: 'Mensal',
         cor: 'orange',
-        inverso: true, // Meta de teto (não ultrapassar)
+        inverso: true,
         data_criacao: new Date().toISOString()
       }
     ];
-    
     setMetas(metasPadrao);
   }, []);
 
@@ -65,24 +63,19 @@ export const useMetas = () => {
         return;
       }
 
-      // Busca as metas salvas no banco
-      const { data, error } = await supabase
-        .from('metas')
-        .select('*')
-        .eq('salao_id', usuario.salao_id)
-        .order('data_criacao', { ascending: false });
+      // --- AQUI ESTÁ A CORREÇÃO PRINCIPAL ---
+      // Em vez de chamar o supabase direto, chamamos o serviço que calcula o progresso
+      const metasComProgresso = await metasService.getMetasComProgresso(usuario.salao_id);
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setMetas(data);
+      if (metasComProgresso && metasComProgresso.length > 0) {
+        setMetas(metasComProgresso);
       } else {
-        // Se não tiver metas salvas, mostra as padrão (mock)
         criarMetasPadrao();
       }
     } catch (error) {
       console.error('Erro ao carregar metas:', error);
-      criarMetasPadrao();
+      // Em caso de erro, tenta manter o que já tinha ou mostra padrão
+      // criarMetasPadrao(); // Opcional: só descomente se quiser limpar a tela em caso de erro
     } finally {
       setLoading(false);
     }
@@ -101,44 +94,55 @@ export const useMetas = () => {
 
 export const useMetaCalculations = () => {
   const calcularProgresso = (meta) => {
-    if (!meta || !meta.valor_meta || meta.valor_meta === 0) return 0;
+    // Garante que usa a propriedade correta (valor ou valor_meta)
+    const metaAlvo = meta.valor || meta.valor_meta; 
+
+    if (!meta || !metaAlvo || metaAlvo === 0) return 0;
     
     const atual = parseFloat(meta.valor_atual || 0);
-    const alvo = parseFloat(meta.valor_meta);
+    const alvo = parseFloat(metaAlvo);
 
-    if (meta.inverso) {
-      // Para despesas: quanto menor melhor. 
-      // Se atual <= meta, está 100% ok. Se passou, o progresso cai.
-      return atual <= alvo 
-        ? 100 
-        : Math.max(0, 100 - ((atual - alvo) / alvo * 100));
-    }
-    // Para receitas: quanto maior melhor.
-    return Math.min(100, (atual / alvo) * 100);
+    // Se for meta inversa (ex: despesa), o cálculo de "progresso visual" é diferente
+    // Mas geralmente em barras de progresso, queremos mostrar quanto já foi "gasto" do limite
+    // Então a lógica padrão (atual / alvo) funciona visualmente para dizer "já gastei 50% do limite"
+    
+    // Trava em 100% para não quebrar o layout
+    return Math.min(100, Math.max(0, (atual / alvo) * 100));
   };
 
-  const getStatusMeta = (progresso, inverso = false) => {
+  const getStatusMeta = (meta) => {
+    const progresso = calcularProgresso(meta);
+    const inverso = meta.inverso; // Se for despesa, é inverso
+
     if (inverso) {
-      if (progresso >= 90) return { label: 'Dentro do Limite', color: 'text-green-400', bg: 'bg-green-500/20' };
-      if (progresso >= 70) return { label: 'Atenção', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
-      return { label: 'Acima do Limite', color: 'text-red-400', bg: 'bg-red-500/20' };
+        // Para despesas: 
+        // < 70% gasto = Bom (Verde)
+        // 70% a 90% gasto = Atenção (Amarelo)
+        // > 90% gasto = Perigo (Vermelho)
+      if (progresso < 70) return { label: 'Dentro do Limite', color: 'text-green-400', bg: 'bg-green-500/20' };
+      if (progresso < 90) return { label: 'Atenção', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
+      return { label: 'Limite Excedido', color: 'text-red-400', bg: 'bg-red-500/20' };
     }
+    
+    // Para receitas:
+    // > 100% = Atingida (Verde)
+    // > 50% = Em Progresso (Azul)
+    // < 50% = Em Risco (Vermelho) ou Inicial
     if (progresso >= 100) return { label: 'Atingida', color: 'text-green-400', bg: 'bg-green-500/20' };
-    if (progresso >= 70) return { label: 'Em Progresso', color: 'text-blue-400', bg: 'bg-blue-500/20' };
+    if (progresso >= 50) return { label: 'Em Progresso', color: 'text-blue-400', bg: 'bg-blue-500/20' };
     return { label: 'Em Risco', color: 'text-red-400', bg: 'bg-red-500/20' };
   };
 
   const getIcon = (tipo) => {
-    const icons = {
-      faturamento: DollarSign,
-      lucro: TrendingUp,
-      despesas: Receipt,
-      clientes: Users,
-      vendas: ShoppingCart,
-      servicos: Scissors,
-      default: Target
-    };
-    return icons[tipo] || icons.default;
+    if (!tipo) return Target;
+    const t = tipo.toLowerCase().trim();
+    if (t.includes('faturamento') || t.includes('receita')) return DollarSign;
+    if (t.includes('lucro')) return TrendingUp;
+    if (t.includes('despesa') || t.includes('gasto')) return Receipt;
+    if (t.includes('cliente')) return Users;
+    if (t.includes('venda')) return ShoppingCart;
+    if (t.includes('serviço')) return Scissors;
+    return Target;
   };
 
   const getColorClass = (cor) => {

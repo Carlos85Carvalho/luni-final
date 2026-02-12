@@ -198,29 +198,39 @@ export const Performance = () => {
               <div className="flex-1 w-full min-h-0">
                 {dadosRanking.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart layout="vertical" data={dadosRanking} margin={{ left: -20, right: 30, top: 10, bottom: 10 }}>
+                    {/* AQUI FORAM FEITOS OS AJUSTES DE MARGEM E LARGURA */}
+                    <BarChart 
+                      layout="vertical" 
+                      data={dadosRanking} 
+                      margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
                       <XAxis type="number" hide />
                       <YAxis 
                         dataKey="nome" 
                         type="category" 
-                        width={100}
-                        tick={{ fill: '#ffffff', fontSize: 11, fontWeight: 'bold' }} // BRANCO PURO para nitidez
+                        width={110} 
+                        tick={{ fill: '#ffffff', fontSize: 11, fontWeight: 'bold' }} 
                         axisLine={false} 
                         tickLine={false} 
                       />
                       <Tooltip 
-                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                        cursor={{ fill: 'transparent' }} // Remove o highlight feio ao clicar/passar o mouse
                         contentStyle={{ 
                           backgroundColor: '#18181b', 
                           border: '1px solid #333', 
                           borderRadius: '12px'
                         }}
-                        labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} // Título do Tooltip Branco
-                        itemStyle={{ color: '#ffffff' }} // Valor do Tooltip Branco
+                        labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} 
+                        itemStyle={{ color: '#ffffff' }} 
                         formatter={(value) => [formatCurrency(value), 'Faturamento']}
                       />
-                      <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20} background={{ fill: 'rgba(255, 255, 255, 0.02)', radius: [0, 4, 4, 0] }}>
+                      <Bar 
+                        dataKey="valor" 
+                        radius={[0, 4, 4, 0]} 
+                        barSize={20} 
+                        background={{ fill: '#27272a', radius: [0, 4, 4, 0] }}
+                      >
                         {dadosRanking.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
