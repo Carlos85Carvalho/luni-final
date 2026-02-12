@@ -163,19 +163,33 @@ export const Performance = () => {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 bg-[#0f0f12] p-1.5 rounded-xl border border-white/10 w-full lg:w-auto">
-            <div className="relative flex-1">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
-              <input type="date" value={dataInicio} onChange={(e) => { setDataInicio(e.target.value); setPeriodoSelecionado('custom'); }}
-                className="bg-transparent text-white text-xs pl-8 pr-2 py-1.5 outline-none w-full" />
+
+          {/* --- AQUI ESTÁ A PARTE DA DATA MELHORADA --- */}
+          <div className="flex items-center bg-[#0f0f12] rounded-xl border border-white/10 p-1 w-full lg:w-auto">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors relative group w-full lg:w-auto">
+              <Calendar className="w-3.5 h-3.5 text-purple-500" />
+              <input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => { setDataInicio(e.target.value); setPeriodoSelecionado('custom'); }}
+                className="bg-transparent text-white text-xs font-medium outline-none [color-scheme:dark] cursor-pointer w-full"
+              />
             </div>
-            <span className="text-gray-600 text-xs">até</span>
-            <div className="relative flex-1">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
-              <input type="date" value={dataFim} onChange={(e) => { setDataFim(e.target.value); setPeriodoSelecionado('custom'); }}
-                className="bg-transparent text-white text-xs pl-8 pr-2 py-1.5 outline-none w-full" />
+
+            <span className="text-gray-600 text-xs px-2 font-medium">até</span>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors relative group w-full lg:w-auto">
+              <Calendar className="w-3.5 h-3.5 text-purple-500" />
+              <input
+                type="date"
+                value={dataFim}
+                onChange={(e) => { setDataFim(e.target.value); setPeriodoSelecionado('custom'); }}
+                className="bg-transparent text-white text-xs font-medium outline-none [color-scheme:dark] cursor-pointer w-full"
+              />
             </div>
           </div>
+          {/* ------------------------------------------- */}
+
         </div>
       </div>
 
@@ -198,12 +212,7 @@ export const Performance = () => {
               <div className="flex-1 w-full min-h-0">
                 {dadosRanking.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    {/* AQUI FORAM FEITOS OS AJUSTES DE MARGEM E LARGURA */}
-                    <BarChart 
-                      layout="vertical" 
-                      data={dadosRanking} 
-                      margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
-                    >
+                    <BarChart layout="vertical" data={dadosRanking} margin={{ left: 0, right: 10, top: 10, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
                       <XAxis type="number" hide />
                       <YAxis 
@@ -215,7 +224,7 @@ export const Performance = () => {
                         tickLine={false} 
                       />
                       <Tooltip 
-                        cursor={{ fill: 'transparent' }} // Remove o highlight feio ao clicar/passar o mouse
+                        cursor={{ fill: 'transparent' }}
                         contentStyle={{ 
                           backgroundColor: '#18181b', 
                           border: '1px solid #333', 

@@ -109,7 +109,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     agendamentosMesAtual.forEach(a => {
       if (!a.horario) return;
       const hora = parseInt(a.horario.split(':')[0]);
-      const periodo = hora < 12 ? 'Manhã (6h-12h)' : hora < 18 ? 'Tarde (12h-18h)' : 'Noite (18h-22h)';
+      const periodo = hora < 12 ? 'Manhã' : hora < 18 ? 'Tarde' : 'Noite';
       horariosPorValor[periodo] = (horariosPorValor[periodo] || 0) + Number(a.valor_total || a.valor || 0);
     });
     const horariosMaisProdutivos = Object.entries(horariosPorValor)
@@ -154,8 +154,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     setLoading(true);
     const hoje = new Date();
     const hojeStr = getDataLocal(hoje);
-    
-    // Buscar últimos 6 meses para análises financeiras
     const seisMesesAtras = new Date(hoje.getFullYear(), hoje.getMonth() - 6, 1).toISOString();
 
     try {
@@ -170,14 +168,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
       if (error) throw error;
 
       const agendaHoje = todosAgendamentos?.filter(a => a.data && a.data.substring(0,10) === hojeStr && a.status !== 'cancelado') || [];
-      
       const proximos = todosAgendamentos?.filter(a => {
         if (!a.data) return false;
         const dataAg = new Date(`${a.data.substring(0,10)}T${a.horario}`);
         return dataAg >= hoje && (a.status === 'agendado' || a.status === 'confirmado');
       }) || [];
 
-      // Filtrar apenas mês atual para o resumo principal
       const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString();
       const agendamentosMesAtual = todosAgendamentos?.filter(a => a.data && a.data >= inicioMes) || [];
 
@@ -212,7 +208,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         total_clientes: clientesUnicos
       });
 
-      // Calcular dados financeiros detalhados
       const dadosFinan = calcularDadosFinanceiros(todosAgendamentos || []);
       setDadosFinanceiros(dadosFinan);
 
@@ -250,11 +245,9 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
   const agendamentosFiltrados = useMemo(() => {
     let resultado = agendamentos;
-
     if (busca.trim()) {
       resultado = resultado.filter(ag => ag.cliente_nome.toLowerCase().includes(busca.toLowerCase()) || ag.servico?.toLowerCase().includes(busca.toLowerCase()));
     }
-
     const hoje = new Date();
     const hojeStr = getDataLocal(hoje);
     const agoraHora = hoje.toLocaleTimeString('pt-BR', { hour12: false }).slice(0, 5);
@@ -266,12 +259,10 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         return (d > hojeStr || (d === hojeStr && ag.horario >= agoraHora)) && ag.status !== 'concluido' && ag.status !== 'cancelado';
       }).slice(0, 10);
     }
-    
     if (visualizacao === 'dia') {
       const alvo = getDataLocal(selectedDate);
       return resultado.filter(ag => ag.data && ag.data.substring(0, 10) === alvo);
     }
-    
     if (visualizacao === 'semana') {
       const d = new Date();
       const seg = new Date(d.setDate(d.getDate() - d.getDate() + 1));
@@ -280,12 +271,10 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
       const domStr = getDataLocal(dom);
       return resultado.filter(ag => ag.data && ag.data.substring(0, 10) >= segStr && ag.data.substring(0, 10) <= domStr);
     }
-    
     if (visualizacao === 'todos') {
       const inicioMesStr = hoje.toISOString().substring(0, 8) + '01';
       return resultado.filter(a => a.data && a.data >= inicioMesStr);
     }
-
     return resultado;
   }, [agendamentos, busca, visualizacao, selectedDate]);
 
@@ -349,7 +338,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           <button onClick={() => setTab('financeiro')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${tab === 'financeiro' ? 'bg-[#5B2EFF] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}><Wallet size={14}/> Financeiro</button>
         </div>
 
-        {/* Aba Agenda */}
+        {/* Aba Agenda (Mantida Simples) */}
         {tab === 'agenda' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -421,116 +410,126 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           </div>
         )}
 
-        {/* Aba Financeiro */}
+        {/* Aba Financeiro - MELHORADA */}
         {tab === 'financeiro' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
             
-            {/* Card principal - Produção Mensal */}
-            <div className="bg-gradient-to-br from-emerald-600/20 via-green-600/10 to-teal-600/10 border border-emerald-500/30 p-8 rounded-3xl text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl"></div>
+            {/* Card Principal - Produção Mensal (Visual Glassmorphism com gradiente) */}
+            <div className="bg-[#18181b] border border-emerald-500/20 p-8 rounded-3xl text-center relative overflow-hidden shadow-2xl group">
+              {/* Efeitos de fundo */}
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] group-hover:bg-emerald-500/20 transition-all duration-1000"></div>
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px]"></div>
+              
               <div className="relative z-10">
-                <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
-                  <TrendingUp size={32} className="text-emerald-300"/>
+                <div className="w-16 h-16 bg-[#1c1c24] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-inner">
+                  <TrendingUp size={32} className="text-emerald-400"/>
                 </div>
-                <p className="text-emerald-300 text-xs font-bold uppercase mb-2">Produção Mensal</p>
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-2">
-                  R$ {dadosFinanceiros.mesAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Produção Mensal</p>
+                <h2 className="text-5xl font-black text-white mb-2 tracking-tight">
+                  <span className="text-emerald-500 text-3xl font-medium mr-1">R$</span>
+                  {dadosFinanceiros.mesAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </h2>
-                <div className="flex items-center justify-center gap-2 mt-3">
-                  {dadosFinanceiros.taxaCrescimento >= 0 ? (
-                    <div className="flex items-center gap-1 text-emerald-300 text-sm font-bold">
-                      <ArrowUpRight size={16} />
-                      <span>+{dadosFinanceiros.taxaCrescimento.toFixed(1)}%</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-red-300 text-sm font-bold">
-                      <ArrowDownRight size={16} />
-                      <span>{dadosFinanceiros.taxaCrescimento.toFixed(1)}%</span>
-                    </div>
-                  )}
-                  <span className="text-xs text-emerald-200/60">vs mês anterior</span>
+                
+                {/* Indicador de Crescimento */}
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${dadosFinanceiros.taxaCrescimento >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                    {dadosFinanceiros.taxaCrescimento >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                    <span>{Math.abs(dadosFinanceiros.taxaCrescimento).toFixed(1)}%</span>
+                  </div>
+                  <span className="text-xs text-gray-500">vs mês anterior</span>
                 </div>
 
-                {/* Barra de progresso da meta */}
-                <div className="mt-6 bg-white/10 rounded-full h-3 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.min(porcentagemMeta, 100)}%` }}
-                  ></div>
+                {/* Barra de Meta */}
+                <div className="mt-8 relative">
+                  <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase mb-2">
+                    <span>Progresso da Meta</span>
+                    <span>{porcentagemMeta.toFixed(0)}%</span>
+                  </div>
+                  <div className="bg-white/5 rounded-full h-3 overflow-hidden border border-white/5">
+                    <div 
+                      className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                      style={{ width: `${Math.min(porcentagemMeta, 100)}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-right">Meta: R$ {dadosFinanceiros.metaMensal.toLocaleString('pt-BR')}</p>
                 </div>
-                <p className="text-xs text-emerald-200/80 mt-2">
-                  {porcentagemMeta.toFixed(0)}% da meta mensal (R$ {dadosFinanceiros.metaMensal.toLocaleString('pt-BR')})
-                </p>
               </div>
             </div>
 
-            {/* Cards de métricas principais */}
+            {/* Cards de Métricas (Grid Moderno) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-[#1c1c24] border border-white/10 p-5 rounded-2xl hover:border-purple-500/30 transition-all">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-purple-500/10 rounded-lg">
+              <div className="bg-[#18181b] border border-white/5 p-5 rounded-3xl hover:bg-[#1c1c24] transition-colors group">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-colors">
                     <DollarSign size={18} className="text-purple-400"/>
                   </div>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">Ticket Médio</p>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Ticket Médio</p>
                 </div>
                 <p className="text-2xl font-bold text-white">
-                  R$ {resumo.total_clientes > 0 ? (dadosFinanceiros.mesAtual / resumo.total_clientes).toFixed(2) : '0.00'}
+                  R$ {resumo.total_clientes > 0 ? (dadosFinanceiros.mesAtual / resumo.total_clientes).toFixed(0) : '0'}
                 </p>
               </div>
 
-              <div className="bg-[#1c1c24] border border-white/10 p-5 rounded-2xl hover:border-blue-500/30 transition-all">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-blue-500/10 rounded-lg">
+              <div className="bg-[#18181b] border border-white/5 p-5 rounded-3xl hover:bg-[#1c1c24] transition-colors group">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
                     <Users size={18} className="text-blue-400"/>
                   </div>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">Clientes</p>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Clientes</p>
                 </div>
                 <p className="text-2xl font-bold text-white">{resumo.total_clientes}</p>
               </div>
 
-              <div className="bg-[#1c1c24] border border-white/10 p-5 rounded-2xl hover:border-green-500/30 transition-all">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg">
-                    <CheckCheck size={18} className="text-green-400"/>
+              <div className="bg-[#18181b] border border-white/5 p-5 rounded-3xl hover:bg-[#1c1c24] transition-colors group">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-xl group-hover:bg-emerald-500/20 transition-colors">
+                    <CheckCheck size={18} className="text-emerald-400"/>
                   </div>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">Confirmação</p>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Confirmação</p>
                 </div>
                 <p className="text-2xl font-bold text-white">{dadosFinanceiros.taxaConfirmacao.toFixed(0)}%</p>
               </div>
 
-              <div className="bg-[#1c1c24] border border-white/10 p-5 rounded-2xl hover:border-red-500/30 transition-all">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-red-500/10 rounded-lg">
+              <div className="bg-[#18181b] border border-white/5 p-5 rounded-3xl hover:bg-[#1c1c24] transition-colors group">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-red-500/10 rounded-xl group-hover:bg-red-500/20 transition-colors">
                     <XCircle size={18} className="text-red-400"/>
                   </div>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">Cancelamento</p>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Cancelamento</p>
                 </div>
                 <p className="text-2xl font-bold text-white">{dadosFinanceiros.taxaCancelamento.toFixed(0)}%</p>
               </div>
             </div>
 
-            {/* Evolução Mensal */}
-            <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-white font-bold flex items-center gap-2 text-sm">
-                  <BarChart3 size={16} className="text-purple-400"/> 
-                  Evolução dos Últimos 6 Meses
+            {/* Evolução Mensal (Gráfico de Barras Estilizado) */}
+            <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                  <BarChart3 size={16} className="text-indigo-400"/> 
+                  Evolução Semestral
                 </h3>
               </div>
-              <div className="flex items-end justify-between gap-2 h-48">
+              
+              <div className="flex items-end justify-between gap-3 h-48 px-2">
                 {dadosFinanceiros.evolucaoMensal.map((item, idx) => {
                   const maxValor = Math.max(...dadosFinanceiros.evolucaoMensal.map(m => m.valor));
                   const altura = maxValor > 0 ? (item.valor / maxValor) * 100 : 0;
                   return (
-                    <div key={idx} className="flex-1 flex flex-col items-center group relative">
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        R$ {item.valor.toFixed(2)}
+                    <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                      {/* Tooltip on Hover */}
+                      <div className="absolute -top-10 bg-[#1c1c24] border border-white/10 text-white px-3 py-1.5 rounded-xl text-xs font-bold opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:-translate-y-2 shadow-xl z-20 whitespace-nowrap">
+                        R$ {item.valor.toFixed(0)}
+                        <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1c1c24] border-r border-b border-white/10 rotate-45"></div>
                       </div>
-                      <div 
-                        className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all group-hover:from-purple-500 group-hover:to-purple-300" 
-                        style={{ height: `${Math.max(5, altura)}%` }}
-                      ></div>
-                      <span className="text-[10px] text-gray-500 mt-2 font-bold">{item.mes}</span>
+                      
+                      {/* Barra */}
+                      <div className="w-full relative h-full flex items-end">
+                         <div 
+                            className="w-full bg-gradient-to-t from-indigo-600/80 to-purple-500/80 rounded-t-xl transition-all duration-500 group-hover:from-indigo-500 group-hover:to-purple-400 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]" 
+                            style={{ height: `${Math.max(4, altura)}%` }}
+                          ></div>
+                      </div>
+                      <span className="text-[10px] text-gray-500 mt-3 font-bold uppercase tracking-wider">{item.mes}</span>
                     </div>
                   );
                 })}
@@ -538,25 +537,26 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Serviços Mais Rentáveis */}
-              <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6">
-                <h3 className="text-white font-bold mb-4 text-sm flex items-center gap-2">
+              
+              {/* Serviços Mais Rentáveis (Lista com Barras) */}
+              <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6">
+                <h3 className="text-white font-bold mb-6 text-sm flex items-center gap-2 uppercase tracking-wider">
                   <Award size={16} className="text-yellow-400"/> 
-                  Serviços Mais Rentáveis
+                  Top Serviços
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-5">
                   {dadosFinanceiros.servicosMaisRentaveis.map((item, idx) => {
                     const maxValor = dadosFinanceiros.servicosMaisRentaveis[0]?.valor || 1;
                     const porcentagem = (item.valor / maxValor) * 100;
                     return (
-                      <div key={idx} className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-gray-300 font-medium truncate flex-1">{item.servico}</span>
-                          <span className="text-sm font-bold text-emerald-400 ml-2">R$ {item.valor.toFixed(2)}</span>
+                      <div key={idx} className="group">
+                        <div className="flex justify-between items-end mb-2">
+                          <span className="text-xs text-gray-300 font-medium">{item.servico}</span>
+                          <span className="text-xs font-bold text-white">R$ {item.valor.toFixed(0)}</span>
                         </div>
-                        <div className="bg-white/5 rounded-full h-2 overflow-hidden">
+                        <div className="bg-white/5 rounded-full h-2 overflow-hidden w-full">
                           <div 
-                            className="bg-gradient-to-r from-yellow-500 to-orange-400 h-full rounded-full transition-all duration-1000"
+                            className="bg-gradient-to-r from-yellow-600 to-orange-500 h-full rounded-full transition-all duration-1000 group-hover:brightness-110"
                             style={{ width: `${porcentagem}%` }}
                           ></div>
                         </div>
@@ -564,31 +564,31 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                     );
                   })}
                   {dadosFinanceiros.servicosMaisRentaveis.length === 0 && (
-                    <p className="text-gray-500 text-sm text-center py-4">Nenhum serviço registrado este mês</p>
+                    <p className="text-gray-500 text-xs text-center py-4">Sem dados</p>
                   )}
                 </div>
               </div>
 
-              {/* Horários Mais Produtivos */}
-              <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6">
-                <h3 className="text-white font-bold mb-4 text-sm flex items-center gap-2">
+              {/* Horários Produtivos */}
+              <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6">
+                <h3 className="text-white font-bold mb-6 text-sm flex items-center gap-2 uppercase tracking-wider">
                   <Zap size={16} className="text-cyan-400"/> 
-                  Horários Mais Produtivos
+                  Horários de Pico
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {dadosFinanceiros.horariosMaisProdutivos.map((item, idx) => {
                     const maxValor = dadosFinanceiros.horariosMaisProdutivos[0]?.valor || 1;
                     const porcentagem = (item.valor / maxValor) * 100;
-                    const cores = ['from-cyan-500 to-blue-400', 'from-purple-500 to-pink-400', 'from-orange-500 to-red-400'];
+                    const cores = ['from-cyan-600 to-blue-500', 'from-purple-600 to-pink-500', 'from-orange-500 to-red-500'];
                     return (
-                      <div key={idx} className="space-y-2">
-                        <div className="flex justify-between items-center">
+                      <div key={idx} className="group">
+                        <div className="flex justify-between items-end mb-2">
                           <span className="text-xs text-gray-300 font-medium">{item.periodo}</span>
-                          <span className="text-sm font-bold text-emerald-400">R$ {item.valor.toFixed(2)}</span>
+                          <span className="text-xs font-bold text-white">R$ {item.valor.toFixed(0)}</span>
                         </div>
-                        <div className="bg-white/5 rounded-full h-2 overflow-hidden">
+                        <div className="bg-white/5 rounded-full h-2 overflow-hidden w-full">
                           <div 
-                            className={`bg-gradient-to-r ${cores[idx % cores.length]} h-full rounded-full transition-all duration-1000`}
+                            className={`bg-gradient-to-r ${cores[idx % cores.length]} h-full rounded-full transition-all duration-1000 group-hover:brightness-110`}
                             style={{ width: `${porcentagem}%` }}
                           ></div>
                         </div>
@@ -596,63 +596,75 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                     );
                   })}
                   {dadosFinanceiros.horariosMaisProdutivos.length === 0 && (
-                    <p className="text-gray-500 text-sm text-center py-4">Nenhum dado disponível</p>
+                    <p className="text-gray-500 text-xs text-center py-4">Sem dados</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Produção Diária */}
-            <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-white font-bold mb-6 flex items-center gap-2 text-sm">
-                <History size={16} className="text-purple-400"/> 
-                Produção Diária do Mês
-              </h3>
-              <div className="flex items-end justify-between gap-1 h-32 overflow-x-auto">
-                {producaoMensal.map((item, idx) => {
-                  const maxValor = Math.max(...producaoMensal.map(p => p.valor));
-                  const altura = maxValor > 0 ? (item.valor / maxValor) * 100 : 0;
-                  return (
-                    <div key={idx} className="flex-shrink-0 flex flex-col items-center group relative min-w-[20px]">
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                        R$ {item.valor.toFixed(2)}
-                      </div>
-                      <div 
-                        className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-sm transition-all group-hover:from-purple-500 group-hover:to-purple-300" 
-                        style={{ height: `${Math.max(10, altura)}%`, minWidth: '20px' }}
-                      ></div>
-                      <span className="text-[9px] text-gray-500 mt-2">{item.dia}</span>
-                    </div>
-                  );
-                })}
+            {/* Produção Diária - REVITALIZADO */}
+            <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6 relative">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                  <History size={16} className="text-purple-400"/> 
+                  Diário (Mês Atual)
+                </h3>
+                <span className="text-[10px] text-gray-500 bg-[#1c1c24] px-2 py-1 rounded-lg border border-white/5">
+                  Role para ver mais ➜
+                </span>
+              </div>
+              
+              {/* Container com Scroll Horizontal Escondido */}
+              <div className="overflow-x-auto pb-4 scrollbar-hide">
+                <div className="flex items-end gap-3 h-40 min-w-max px-2">
+                  {(() => {
+                    // Lógica para preencher todos os dias do mês
+                    const hoje = new Date();
+                    const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+                    const maxValor = Math.max(...producaoMensal.map(p => p.valor), 1); // Evita divisão por zero
+
+                    return Array.from({ length: diasNoMes }, (_, i) => {
+                      const diaAtual = i + 1;
+                      const dadosDia = producaoMensal.find(p => p.dia === diaAtual);
+                      const valor = dadosDia ? dadosDia.valor : 0;
+                      const altura = (valor / maxValor) * 100;
+                      const isHoje = diaAtual === hoje.getDate();
+
+                      return (
+                        <div key={diaAtual} className="flex flex-col items-center gap-2 group relative w-8">
+                          {/* Tooltip Flutuante */}
+                          <div className={`absolute -top-10 left-1/2 -translate-x-1/2 bg-[#1c1c24] text-white text-[10px] font-bold px-2 py-1 rounded-lg border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 transition-all z-20 whitespace-nowrap pointer-events-none transform group-hover:-translate-y-1`}>
+                            R$ {valor.toFixed(2)}
+                          </div>
+
+                          {/* A Barra */}
+                          <div className="h-full w-full flex items-end justify-center relative">
+                            {/* Fundo da barra (trilho) */}
+                            <div className="absolute bottom-0 w-1.5 h-full bg-white/5 rounded-full"></div>
+                            
+                            {/* Barra Preenchida */}
+                            <div 
+                              className={`w-1.5 rounded-full transition-all duration-500 relative z-10 
+                                ${valor > 0 
+                                  ? 'bg-gradient-to-t from-purple-600 to-indigo-400 group-hover:from-purple-400 group-hover:to-cyan-300 group-hover:w-2.5 group-hover:shadow-[0_0_15px_rgba(167,139,250,0.5)]' 
+                                  : 'h-1.5 bg-white/10'
+                                }`}
+                              style={{ height: valor > 0 ? `${Math.max(10, altura)}%` : '6px' }}
+                            ></div>
+                          </div>
+
+                          {/* Número do Dia */}
+                          <span className={`text-[10px] font-medium transition-colors ${isHoje ? 'text-white font-bold bg-purple-500/20 px-1.5 rounded' : 'text-gray-600 group-hover:text-gray-400'}`}>
+                            {diaAtual}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
             </div>
 
-            {/* Últimos Atendimentos */}
-            <div className="bg-[#1c1c24] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-white font-bold mb-4 text-sm flex items-center gap-2">
-                <Package size={16} className="text-blue-400"/> 
-                Últimos Atendimentos Concluídos
-              </h3>
-              <div className="space-y-2">
-                {agendamentos.filter(a => a.status === 'concluido').slice(0, 8).map((item) => (
-                  <div key={item.id} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 hover:bg-white/5 px-3 rounded-lg transition-colors">
-                    <div className="flex-1">
-                      <p className="text-white font-bold text-sm">{item.cliente_nome}</p>
-                      <p className="text-gray-500 text-xs flex items-center gap-1 mt-1">
-                        <Scissors size={10}/> {item.servico} • {item.data?.substring(8,10)}/{item.data?.substring(5,7)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-emerald-400 font-bold text-sm">R$ {Number(item.valor_total || item.valor || 0).toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))}
-                {agendamentos.filter(a => a.status === 'concluido').length === 0 && (
-                  <p className="text-gray-500 text-sm text-center py-8">Nenhum atendimento concluído ainda</p>
-                )}
-              </div>
-            </div>
           </div>
         )}
       </div>
