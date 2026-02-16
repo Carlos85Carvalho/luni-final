@@ -1,12 +1,10 @@
-// src/screens/main/DashboardAdmin.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { 
   Calendar, Sparkles, Bell, Clock, DollarSign, Users, 
-  Award, Heart, Phone, Activity
+  Award, Heart, Phone, Activity, User
 } from 'lucide-react';
 
-// Importando os componentes visuais
 import { StatCard } from '../../components/ui/StatCard';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { QuickAction } from '../../components/ui/QuickAction';
@@ -27,10 +25,8 @@ export const DashboardAdmin = ({ onNavigate }) => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // CORREÇÃO: Apenas verificamos a sessão sem declarar a variável 'user' que não era usada
         await supabase.auth.getUser();
         
-        // Datas
         const hoje = new Date();
         const hojeISO = new Date().toISOString().split('T')[0];
         const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString();
@@ -43,7 +39,6 @@ export const DashboardAdmin = ({ onNavigate }) => {
           .eq('data', hojeISO)
           .neq('status', 'cancelado');
 
-        // Helper para garantir numero
         const calcValor = (item) => Number(item.valor_total || item.valor || 0);
 
         const fatHoje = agendamentosHoje?.reduce((acc, curr) => acc + calcValor(curr), 0) || 0;
@@ -63,23 +58,31 @@ export const DashboardAdmin = ({ onNavigate }) => {
         const meta = 15000;
         const diasRestantes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate() - hoje.getDate();
 
-        // 3. PRÓXIMOS
+        // 3. PRÓXIMOS (Correção para mostrar Profissional e Data)
         const { data: proximos } = await supabase
           .from('agendamentos')
           .select('*')
-          .gte('data', hojeISO)
+          .gte('data', hojeISO) // Pega de hoje para frente
           .neq('status', 'cancelado')
-          .order('data', { ascending: true })
-          .order('horario', { ascending: true })
+          .order('data', { ascending: true })   // Data mais próxima primeiro
+          .order('horario', { ascending: true }) // Horário mais cedo primeiro
           .limit(5);
 
-        const proximosFormatados = proximos?.map(a => ({
-          id: a.id,
-          horario: a.horario ? a.horario.slice(0, 5) : '--:--',
-          cliente: a.cliente_nome || 'Cliente sem nome',
-          servico: a.servico,
-          valor: calcValor(a)
-        })) || [];
+        const proximosFormatados = proximos?.map(a => {
+            // Formata data: 2024-02-16 -> 16/02
+            const dataParts = a.data.split('-');
+            const diaMes = `${dataParts[2]}/${dataParts[1]}`;
+            
+            return {
+                id: a.id,
+                dataFormatada: diaMes,
+                horario: a.horario ? a.horario.slice(0, 5) : '--:--',
+                cliente: a.cliente_nome || 'Cliente',
+                servico: a.servico,
+                profissional: a.profissional_nome || a.profissional || 'Equipe', // Pega o nome do profissional
+                valor: calcValor(a)
+            };
+        }) || [];
 
         // 4. RANKING
         const servicosMap = {};
@@ -130,13 +133,9 @@ export const DashboardAdmin = ({ onNavigate }) => {
   const nomeUsuario = "Parceiro";
   const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // Formatador de nome
   const formatarNome = (nome) => {
     if (!nome) return "Cliente";
-    if (/^\d+$/.test(nome) && nome.length > 8) {
-       return `Tel: (${nome.slice(0,2)}) ${nome.slice(2,7)}-${nome.slice(7,11)}`;
-    }
-    return nome;
+    return nome.split(' ')[0]; // Pega só o primeiro nome para não quebrar layout
   };
 
   const getAlertStyle = (tipo) => {
@@ -181,72 +180,33 @@ export const DashboardAdmin = ({ onNavigate }) => {
           <StatCard title="Médio" value={`R$ ${dados.hoje.ticket.toFixed(0)}`} subtext="Ticket Médio" icon={Award} colorTheme="amber" />
         </div>
 
-        {/* META MENSAL */}
-        <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border border-violet-500/30 rounded-2xl p-6 relative overflow-hidden shadow-lg">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
-          <div className="relative z-10">
-            <div className="flex justify-between items-end mb-4">
-              <div>
-                <h3 className="text-xl font-bold text-white mb-1">Meta Mensal</h3>
-                <p className="text-sm text-purple-200">
-                  {dados.mes.diasRestantes} dias restantes • Faltam R$ {Math.max(0, dados.mes.meta - dados.mes.faturamento).toFixed(0)}
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="text-4xl font-bold text-white block">{dados.mes.percentual.toFixed(0)}%</span>
-              </div>
-            </div>
-            <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000" 
-                style={{ width: `${dados.mes.percentual}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
         {/* GRIDS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
+          {/* --- AQUI ESTÁ A MUDANÇA DOS AGENDAMENTOS --- */}
           <SectionCard title="Próximos" icon={Clock} iconColor="text-blue-400" actionLabel="Agenda" onAction={() => onNavigate('agenda')}>
             {dados.proximosAgendamentos.length > 0 ? dados.proximosAgendamentos.map(ag => (
               <div key={ag.id} className="flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 transition-all cursor-pointer">
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-sm font-bold text-blue-400 border border-blue-500/20 shrink-0">
-                    {ag.horario}
+                  {/* DATA E HORA */}
+                  <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 shrink-0">
+                    <span className="text-xs font-bold text-gray-400">{ag.dataFormatada}</span>
+                    <span className="text-sm font-bold text-blue-400">{ag.horario}</span>
                   </div>
+                  
                   <div className="min-w-0">
                     <p className="font-bold text-white truncate">{formatarNome(ag.cliente)}</p>
-                    <p className="text-xs text-gray-400 truncate">{ag.servico}</p>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <User size={10} /> 
+                        <span className="truncate">{ag.profissional}</span>
+                    </div>
                   </div>
                 </div>
                 <span className="text-sm font-bold text-emerald-400 whitespace-nowrap ml-2">R$ {ag.valor}</span>
               </div>
             )) : <p className="text-gray-500 text-center py-4">Agenda livre.</p>}
           </SectionCard>
-
-          <SectionCard title="Insights" icon={Sparkles} iconColor="text-purple-400">
-            {dados.alertas.length > 0 ? dados.alertas.map((alerta, idx) => {
-              const style = getAlertStyle(alerta.tipo);
-              const AlertIcon = alerta.icon;
-              return (
-                <div key={idx} className={`bg-gradient-to-r ${style.bg} rounded-xl p-4 border flex items-start gap-3`}>
-                  <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
-                    <AlertIcon size={18} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white text-sm mb-0.5">{alerta.titulo}</h4>
-                    <p className="text-xs text-gray-300 leading-relaxed">{alerta.mensagem}</p>
-                  </div>
-                </div>
-              );
-            }) : (
-               <div className="flex flex-col items-center justify-center h-full py-4 opacity-50">
-                 <Activity size={32} className="text-gray-500 mb-2"/>
-                 <p className="text-sm text-gray-500">Tudo operando normalmente.</p>
-               </div>
-            )}
-          </SectionCard>
+          {/* ------------------------------------------- */}
 
           <SectionCard title="Top Serviços" icon={Award} iconColor="text-amber-400">
             {dados.rankingServicos.map((s, i) => (
@@ -261,22 +221,6 @@ export const DashboardAdmin = ({ onNavigate }) => {
                 <span className="text-sm font-bold text-emerald-400">R$ {Number(s.faturamento).toFixed(0)}</span>
               </div>
             ))}
-          </SectionCard>
-
-          <SectionCard title="Novos Clientes" icon={Heart} iconColor="text-pink-400" actionLabel="Ver todos" onAction={() => onNavigate('clientes')}>
-             {dados.clientesRecentes.map((c, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-white/5 hover:border-pink-500/30 transition-all">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
-                      {c.nome ? c.nome.charAt(0) : '?'}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-white text-sm truncate">{formatarNome(c.nome)}</p>
-                      <p className="text-xs text-gray-400 flex items-center gap-1 truncate"><Phone size={10}/> {c.telefone || 'Sem tel'}</p>
-                    </div>
-                  </div>
-                </div>
-             ))}
           </SectionCard>
 
         </div>

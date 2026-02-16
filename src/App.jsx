@@ -2,7 +2,9 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from './services/supabase'; 
 import { 
   Home, Users, Calendar, Plus, UserPlus, CalendarPlus, Wallet, Loader2, LogOut,
-  Briefcase, User, Lock, Mail, Store, Phone
+  Briefcase, User, Lock, Mail, Store, Phone,
+  // Novos ícones do Login
+  LayoutDashboard, LineChart, Settings, CheckCircle, ArrowRight
 } from 'lucide-react';
 
 // --- IMPORTAÇÃO DO NOVO SPLASH ---
@@ -11,9 +13,7 @@ import { SplashScreen } from './components/ui/SplashScreen';
 import { InstallAppModal } from './components/ui/InstallAppModal';
 
 // --- IMPORTAÇÕES DE TELAS ---
-// ✅ CORREÇÃO 1: Importando o Módulo (vai ler o index.jsx automaticamente)
 import { FinanceiroModule } from './screens/financeiro';
-
 import { AgendaScreen } from './screens/agenda/AgendaScreen.jsx';
 import { ClientesScreen } from './screens/clientes/ClientesScreen.jsx';
 import { DashboardAdmin } from './screens/main/DashboardAdmin.jsx';
@@ -112,28 +112,46 @@ const MenuIcon = ({ id, icon, label, activeId, onClick }) => {
   );
 };
 
-// --- TELA DE LOGIN / CADASTRO ---
-const LoginScreen = () => { 
-  const { login } = useAuth(); 
-  const [isLogin, setIsLogin] = useState(true); 
-  const [load, setLoad] = useState(false);
-  const [email, setEmail] = useState(''); 
-  const [pass, setPass] = useState(''); 
+// ============================================================================
+// 🎨 NOVA TELA DE LOGIN (ATUALIZADA COM LOGO GLOW)
+// ============================================================================
+const LoginScreen = () => {
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+
+  // Estados extras para Cadastro
   const [confirmPass, setConfirmPass] = useState('');
   const [nomeResponsavel, setNomeResponsavel] = useState('');
   const [nomeSalao, setNomeSalao] = useState('');
   const [telefone, setTelefone] = useState('');
 
-  const handleAuth = async () => {
-    if (!email || !pass) return alert("Preencha email e senha.");
-    if (!isLogin) {
-        if (pass !== confirmPass) return alert("As senhas não conferem!");
-        if (pass.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
+  // --- Função Google ---
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+      });
+      if (error) throw error;
+    } catch (error) {
+      alert('Erro: ' + error.message);
     }
-    setLoad(true);
+  };
+
+  // --- Função Auth Unificada ---
+  const handleAuth = async () => {
+    if (!email || !password) return alert("Preencha email e senha.");
+    if (!isLogin) {
+        if (password !== confirmPass) return alert("As senhas não conferem!");
+        if (password.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
+    }
+    setLoading(true);
     try {
       if (isLogin) { 
-        const { error } = await login(email, pass); 
+        const { error } = await login(email, password); 
         if(error) throw error;
       } 
       else { 
@@ -144,7 +162,7 @@ const LoginScreen = () => {
 
         const { data: authData, error: authError } = await supabase.auth.signUp({ 
           email, 
-          password: pass,
+          password: password,
           options: { data: { full_name: isPro ? isPro.nome : nomeResponsavel } }
         }); 
         if (authError) throw authError;
@@ -165,60 +183,199 @@ const LoginScreen = () => {
     } catch (error) {
       alert(error.message || "Ocorreu um erro.");
     } finally {
-      setLoad(false);
+      setLoading(false);
     }
   };
-  
+
+  // Item de menu falso para a sidebar
+  const FakeMenuItem = ({ icon: Icon, label, active }) => (
+    <div className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-1 ${active ? 'bg-purple-500/10 text-purple-400' : 'text-zinc-500 opacity-50'}`}>
+      <Icon size={18} />
+      <span className="text-sm font-medium">{label}</span>
+      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400"></div>}
+    </div>
+  );
+
   return (
-    <div className="h-screen flex flex-col justify-center p-6 text-white font-sans overflow-y-auto" style={{ backgroundColor: '#050505' }}>
-      <div className="mb-6 text-center relative z-10 animate-in fade-in slide-in-from-top-4 duration-1000 mt-10">
-        <img src="/logo-luni.png" alt="LUNI" className="h-32 mx-auto mb-4 object-contain" />
-        <h2 className="text-2xl font-bold mb-1">{isLogin ? 'Bem-vindo!' : 'Criar Conta'}</h2>
-        <p className="text-purple-200/50 font-light text-sm">{isLogin ? 'Faça login para continuar' : 'Preencha seus dados'}</p>
-      </div>
-      <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-xl backdrop-blur-md relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200 mb-10">
-        {!isLogin && (
-            <>  
-                <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded-xl mb-4 text-xs text-purple-200 text-center">Funcionário? Use o e-mail cadastrado pelo gestor.</div>
-                <div className="mb-4 relative">
-                    <User className="absolute left-4 top-3.5 text-gray-500" size={20} />
-                    <input className="w-full pl-12 p-3 bg-black/20 rounded-xl border border-white/10 outline-none text-white focus:border-purple-500 transition-colors" placeholder="Seu Nome" value={nomeResponsavel} onChange={e=>setNomeResponsavel(e.target.value)} />
+    <div className="flex min-h-screen w-full bg-[#09090b]">
+      
+      {/* --- LADO ESQUERDO: SIDEBAR VISUAL (PC) --- */}
+      <div className="hidden lg:flex w-64 flex-col bg-[#18181b] border-r border-white/5 p-4 relative overflow-hidden">
+        
+        {/* ✅ LOGO COM GRADIENTE RING (DESKTOP) */}
+        <div className="flex items-center justify-start mb-8 px-2 mt-2">
+            <div className="p-[2px] bg-gradient-to-tr from-purple-600 to-pink-500 rounded-2xl shadow-lg shadow-purple-500/30">
+                <div className="bg-[#18181b] p-2 rounded-2xl">
+                    <img src="/logo-luni.png" alt="Luni" className="h-8 object-contain" />
                 </div>
-                <div className="mb-4 relative">
-                    <Store className="absolute left-4 top-3.5 text-gray-500" size={20} />
-                    <input className="w-full pl-12 p-3 bg-black/20 rounded-xl border border-white/10 outline-none text-white focus:border-purple-500 transition-colors" placeholder="Nome do Salão (Se for dono)" value={nomeSalao} onChange={e=>setNomeSalao(e.target.value)} />
-                </div>
-                <div className="mb-4 relative">
-                    <Phone className="absolute left-4 top-3.5 text-gray-500" size={20} />
-                    <input className="w-full pl-12 p-3 bg-black/20 rounded-xl border border-white/10 outline-none text-white focus:border-purple-500 transition-colors" placeholder="Telefone (Se for dono)" value={telefone} onChange={e=>setTelefone(e.target.value)} />
-                </div>
-            </>
-        )}
-        <div className="mb-4 relative">
-          <Mail className="absolute left-4 top-3.5 text-gray-500" size={20} />
-          <input className="w-full pl-12 p-3 bg-black/20 rounded-xl border border-white/10 outline-none text-white focus:border-purple-500 transition-colors" placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)} />
-        </div>
-        <div className="mb-4 relative">
-          <Lock className="absolute left-4 top-3.5 text-gray-500" size={20} />
-          <input type="password" placeholder="Senha" className="w-full pl-12 p-3 bg-black/20 rounded-xl border border-white/10 outline-none text-white focus:border-purple-500 transition-colors" value={pass} onChange={e=>setPass(e.target.value)} />
-        </div>
-        {!isLogin && (
-            <div className="mb-6 relative">
-                <Lock className="absolute left-4 top-3.5 text-gray-500" size={20} />
-                <input type="password" placeholder="Confirmar Senha" className={`w-full pl-12 p-3 bg-black/20 rounded-xl border outline-none text-white focus:border-purple-500 transition-colors ${pass && confirmPass && pass !== confirmPass ? 'border-red-500' : 'border-white/10'}`} value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} />
             </div>
-        )}
-        <button onClick={handleAuth} className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg bg-[#5B2EFF] active:scale-95 transition-all flex justify-center">{load ? <Loader2 className="animate-spin"/> : (isLogin ? 'Entrar' : 'Cadastrar')}</button>
-        <p className="text-center mt-6 text-sm text-gray-400">
-          <button onClick={() => { setIsLogin(!isLogin); }} className="font-medium text-white hover:text-purple-300 transition-all">
-            {isLogin ? 'Primeiro acesso? ' : 'Já tem conta? '}
-            <span className="font-bold text-purple-400 underline decoration-purple-400/30 hover:decoration-purple-400">{isLogin ? 'Criar Senha' : 'Fazer Login'}</span>
-          </button>
-        </p>
+        </div>
+
+        <div className="space-y-6 pointer-events-none select-none opacity-80">
+            <div>
+                <p className="text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-3 px-2">Visão Geral</p>
+                <FakeMenuItem icon={LayoutDashboard} label="Dashboard" active />
+                <FakeMenuItem icon={LineChart} label="Financeiro" />
+                <FakeMenuItem icon={Users} label="Clientes" />
+            </div>
+            <div>
+                <p className="text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-3 px-2">Gestão</p>
+                <FakeMenuItem icon={Settings} label="Configurações" />
+            </div>
+        </div>
+
+        <div className="mt-auto bg-purple-900/10 border border-purple-500/20 p-4 rounded-xl relative overflow-hidden">
+             <div className="absolute -right-2 -top-2 text-purple-500/10"><CheckCircle size={60} /></div>
+             <h3 className="text-white font-semibold mb-1 text-sm relative z-10">Acesso Seguro</h3>
+             <p className="text-xs text-purple-200/70 relative z-10">Faça login para gerenciar seu negócio completo.</p>
+        </div>
+      </div>
+
+      {/* --- LADO DIREITO: FORMULÁRIO --- */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative overflow-y-auto">
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"></div>
+
+        <div className="w-full max-w-[400px] animate-in slide-in-from-bottom-4 duration-700 my-auto">
+            
+            {/* ✅ LOGO COM GRADIENTE RING (MOBILE) */}
+            <div className="lg:hidden flex justify-center mb-8 animate-in fade-in zoom-in duration-700">
+                <div className="p-[3px] bg-gradient-to-tr from-purple-600 to-pink-500 rounded-3xl shadow-xl shadow-purple-500/40">
+                    <div className="bg-[#09090b] p-4 rounded-3xl">
+                         <img src="/logo-luni.png" alt="Luni" className="h-16 object-contain" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="mb-8 text-center lg:text-left">
+                <h1 className="text-2xl font-bold text-white mb-2">
+                    {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
+                </h1>
+                <p className="text-zinc-400 text-sm">
+                    {isLogin ? 'Acesse o painel de gestão Luni.' : 'Comece a transformar seu salão hoje.'}
+                </p>
+            </div>
+
+            <div className="bg-[#18181b] border border-white/5 p-6 rounded-2xl shadow-xl">
+                 <button 
+                    onClick={handleGoogleLogin}
+                    className="w-full h-11 bg-white hover:bg-zinc-100 text-black font-semibold rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] mb-6 text-sm"
+                  >
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
+                    <span>{isLogin ? 'Entrar com Google' : 'Cadastrar com Google'}</span>
+                  </button>
+
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#18181b] px-2 text-zinc-500 font-medium">ou</span></div>
+                  </div>
+
+                <div className="space-y-4">
+                    {!isLogin && (
+                        <div className="space-y-4 animate-in slide-in-from-top-2">
+                            <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded-lg text-xs text-purple-200 text-center">
+                                Funcionário? Use o e-mail cadastrado pelo gestor.
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-zinc-400 ml-1">Seu Nome</label>
+                                <div className="relative group">
+                                    <User className="absolute left-3 top-3 text-zinc-500" size={16} />
+                                    <input className="w-full h-10 pl-9 bg-black/20 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all text-sm" 
+                                        placeholder="Nome completo" value={nomeResponsavel} onChange={e=>setNomeResponsavel(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-zinc-400 ml-1">Nome do Salão</label>
+                                <div className="relative group">
+                                    <Store className="absolute left-3 top-3 text-zinc-500" size={16} />
+                                    <input className="w-full h-10 pl-9 bg-black/20 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all text-sm" 
+                                        placeholder="Nome do seu negócio" value={nomeSalao} onChange={e=>setNomeSalao(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-zinc-400 ml-1">Telefone</label>
+                                <div className="relative group">
+                                    <Phone className="absolute left-3 top-3 text-zinc-500" size={16} />
+                                    <input className="w-full h-10 pl-9 bg-black/20 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all text-sm" 
+                                        placeholder="(00) 00000-0000" value={telefone} onChange={e=>setTelefone(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-zinc-400 ml-1">E-mail</label>
+                        <div className="relative group">
+                            <Mail className="absolute left-3 top-3 text-zinc-500" size={16} />
+                            <input 
+                            type="email" 
+                            className="w-full h-10 pl-9 bg-black/20 border border-white/10 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all text-sm"
+                            placeholder="seu@email.com"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-zinc-400 ml-1">Senha</label>
+                        <div className="relative group">
+                            <Lock className="absolute left-3 top-3 text-zinc-500" size={16} />
+                            <input 
+                            type="password" 
+                            className="w-full h-10 pl-9 bg-black/20 border border-white/10 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all text-sm"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {!isLogin && (
+                        <div className="space-y-1.5 animate-in slide-in-from-top-1">
+                            <label className="text-xs font-medium text-zinc-400 ml-1">Confirmar Senha</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-3 top-3 text-zinc-500" size={16} />
+                                <input 
+                                type="password" 
+                                className={`w-full h-10 pl-9 bg-black/20 border rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all text-sm ${password && confirmPass && password !== confirmPass ? 'border-red-500/50' : 'border-white/10'}`}
+                                placeholder="Repita a senha"
+                                value={confirmPass}
+                                onChange={e => setConfirmPass(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <button 
+                    onClick={handleAuth}
+                    disabled={loading}
+                    className="w-full h-11 mt-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98] text-sm shadow-lg shadow-purple-900/20"
+                    >
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : (
+                        <>
+                        {isLogin ? 'Acessar Painel' : 'Criar Conta'}
+                        <ArrowRight size={16} className="opacity-70" />
+                        </>
+                    )}
+                    </button>
+                </div>
+            </div>
+
+            <p className="mt-8 text-center text-sm text-zinc-500 pb-8">
+                <button 
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-zinc-400 hover:text-white font-medium transition-colors text-xs"
+                >
+                {isLogin ? 'Não tem conta? Criar agora' : 'Já tem conta? Fazer login'}
+                </button>
+            </p>
+        </div>
       </div>
     </div>
   );
 };
+// ============================================================================
+
 
 // --- ADMIN APP OTIMIZADO (SEM useEffect / SEM LOOP) ---
 const AdminApp = () => {
@@ -257,7 +414,6 @@ const AdminApp = () => {
         
         {screen === 'dashboard' && <DashboardAdmin onNavigate={setScreen} />}
         
-        {/* ✅ CORREÇÃO 2: Usando FinanceiroModule */}
         {screen === 'financeiro' && (
           <FinanceiroModule 
             onClose={() => {
