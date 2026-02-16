@@ -119,7 +119,6 @@ export const AgendaScreen = () => {
   };
 
   return (
-    // Fundo alterado para #09090b (Clean Dark) e pb-32 para evitar corte no final
     <div className="min-h-screen bg-[#09090b] text-white pb-32 md:pb-12">
       
       <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={() => { fetchDados(); setAgendamentoParaEditar(null); }} profissionalId={null} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
@@ -129,52 +128,91 @@ export const AgendaScreen = () => {
       <div className="w-full max-w-[1600px] mx-auto px-4 pt-6 md:px-8 md:pt-10 animate-in fade-in duration-500">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-1">Agenda</h1>
             <p className="text-gray-400 text-sm">Gerenciamento completo</p>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex gap-2 md:gap-3 w-full md:w-auto">
             <button 
               onClick={() => { setAgendamentoParaEditar(null); setModalTipo('agendamento'); setIsModalOpen(true); }} 
-              className="flex-1 md:flex-none bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all hover:shadow-purple-500/20"
+              className="flex-1 md:flex-none bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] px-4 md:px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all hover:shadow-purple-500/20 text-sm md:text-base"
             >
-              <Plus size={20}/> Novo Agendamento
+              <Plus size={18} className="md:w-5 md:h-5"/> <span className="hidden sm:inline">Novo Agendamento</span><span className="sm:hidden">Novo</span>
             </button>
             <button 
               onClick={() => { setModalTipo('bloqueio'); setIsModalOpen(true); }} 
-              className="px-5 bg-[#18181b] rounded-2xl border border-white/10 text-gray-400 hover:text-orange-400 hover:border-orange-500/30 transition-all" 
+              className="px-4 md:px-5 bg-[#18181b] rounded-2xl border border-white/10 text-gray-400 hover:text-orange-400 hover:border-orange-500/30 transition-all flex items-center justify-center" 
               title="Bloquear Horário"
             >
-              <Lock size={20}/>
+              <Lock size={18} className="md:w-5 md:h-5"/>
             </button>
           </div>
         </div>
 
-        {/* Filtros e Busca */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex bg-[#18181b] p-1.5 rounded-2xl border border-white/5 w-full md:w-auto overflow-x-auto">
-            {[{ value: 'proximos', label: 'Próximos', icon: CalendarClock }, { value: 'dia', label: 'Dia', icon: Calendar }, { value: 'semana', label: 'Semana', icon: CalendarDays }, { value: 'todos', label: 'Todos', icon: Filter }].map(v => { const Icon = v.icon; return <button key={v.value} onClick={() => setVisualizacao(v.value)} className={`flex-1 md:flex-none px-4 py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-all ${visualizacao === v.value ? 'bg-[#5B2EFF] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}><Icon size={14} /> {v.label}</button>; })}
+        {/* ✅ FILTROS E BUSCA - MELHOR RESPONSIVIDADE */}
+        <div className="flex flex-col gap-3 mb-6">
+          {/* Linha 1: Filtros de Visualização */}
+          <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
+            <div className="flex bg-[#18181b] p-1.5 rounded-2xl border border-white/5 gap-1">
+              {[
+                { value: 'proximos', label: 'Próximos', icon: CalendarClock }, 
+                { value: 'dia', label: 'Dia', icon: Calendar }, 
+                { value: 'semana', label: 'Semana', icon: CalendarDays }, 
+                { value: 'todos', label: 'Todos', icon: Filter }
+              ].map(v => { 
+                const Icon = v.icon; 
+                return (
+                  <button 
+                    key={v.value} 
+                    onClick={() => setVisualizacao(v.value)} 
+                    className={`min-w-[80px] px-3 md:px-4 py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
+                      visualizacao === v.value 
+                        ? 'bg-[#5B2EFF] text-white shadow-lg' 
+                        : 'text-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    <Icon size={14} /> 
+                    <span className="hidden sm:inline">{v.label}</span>
+                  </button>
+                ); 
+              })}
+            </div>
           </div>
           
-          <div className="relative flex-1">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"/>
-            <input 
-              type="text" 
-              value={busca} 
-              onChange={(e) => setBusca(e.target.value)} 
-              placeholder="Buscar cliente..." 
-              className="w-full bg-[#18181b] border border-white/5 rounded-2xl pl-12 pr-12 py-3.5 text-white outline-none focus:border-[#5B2EFF] transition-all placeholder-gray-600"
-            />
-            {busca && <button onClick={() => setBusca('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"><X size={18}/></button>}
+          {/* Linha 2: Busca + Filtro de Status */}
+          <div className="flex gap-2 md:gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-gray-500"/>
+              <input 
+                type="text" 
+                value={busca} 
+                onChange={(e) => setBusca(e.target.value)} 
+                placeholder="Buscar cliente..." 
+                className="w-full bg-[#18181b] border border-white/5 rounded-2xl pl-10 md:pl-12 pr-10 md:pr-12 py-3 md:py-3.5 text-sm md:text-base text-white outline-none focus:border-[#5B2EFF] transition-all placeholder-gray-600"
+              />
+              {busca && (
+                <button 
+                  onClick={() => setBusca('')} 
+                  className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                >
+                  <X size={16} className="md:w-[18px] md:h-[18px]"/>
+                </button>
+              )}
+            </div>
+            
+            <button 
+              onClick={() => setShowFiltros(!showFiltros)} 
+              className={`min-w-[48px] md:min-w-[60px] px-3 md:px-4 py-3 md:py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 border transition-all ${
+                showFiltros || filtroStatus !== 'todos' 
+                  ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' 
+                  : 'bg-[#18181b] text-gray-400 border-white/5 hover:border-white/10'
+              }`}
+            >
+              <Filter size={16} className="md:w-[18px] md:h-[18px]"/> 
+              <ChevronDown size={14} className={`hidden md:block transition-transform ${showFiltros ? 'rotate-180' : ''}`}/>
+            </button>
           </div>
-          
-          <button 
-            onClick={() => setShowFiltros(!showFiltros)} 
-            className={`px-4 py-3.5 rounded-2xl font-bold flex items-center gap-2 border transition-all ${showFiltros || filtroStatus !== 'todos' ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' : 'bg-[#18181b] text-gray-400 border-white/5 hover:border-white/10'}`}
-          >
-            <Filter size={18}/> <ChevronDown size={16} className={`transition-transform ${showFiltros ? 'rotate-180' : ''}`}/>
-          </button>
         </div>
 
         {/* Painel de Filtros Extras */}
@@ -186,7 +224,11 @@ export const AgendaScreen = () => {
                 <button 
                   key={status} 
                   onClick={() => setFiltroStatus(status)} 
-                  className={`px-4 py-2 rounded-xl text-xs font-bold capitalize border transition-all ${filtroStatus === status ? 'bg-[#5B2EFF] text-white border-[#5B2EFF] shadow-lg shadow-purple-900/20' : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'}`}
+                  className={`px-3 md:px-4 py-2 rounded-xl text-xs font-bold capitalize border transition-all ${
+                    filtroStatus === status 
+                      ? 'bg-[#5B2EFF] text-white border-[#5B2EFF] shadow-lg shadow-purple-900/20' 
+                      : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'
+                  }`}
                 >
                   {status}
                 </button>
