@@ -1,5 +1,5 @@
 // src/screens/agenda/AgendaScreen.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../services/supabase';
 import { HorizontalCalendar } from '../../components/ui/HorizontalCalendar';
 import { NovoAgendamentoModal } from './NovoAgendamentoModal';
@@ -9,7 +9,7 @@ import { ModalFinalizarAtendimento } from './ModalFinalizarAtendimento.jsx';
 import { 
   Calendar, Clock, Scissors, MessageCircle, Plus, 
   Lock, Search, X, CalendarDays, Loader2, CheckCheck,
-  MoreVertical, Check, CalendarClock, Filter, XCircle, Trash2, User
+  MoreVertical, Check, CalendarClock, Filter, ChevronDown, XCircle, Trash2, User
 } from 'lucide-react';
 
 export const AgendaScreen = () => {
@@ -30,72 +30,21 @@ export const AgendaScreen = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [agendamentoCheckout, setAgendamentoCheckout] = useState(null);
 
-  // ✅ fetchDados com proteção contra AbortError e unmount
-  const fetchDados = useCallback(async () => {
+  const fetchDados = async () => {
     setLoading(true);
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) { setLoading(false); return; }
-
-      const { data: usu, error: usuError } = await supabase
-        .from('usuarios')
-        .select('salao_id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (usuError || !usu?.salao_id) { setLoading(false); return; }
-
-      const { data, error } = await supabase
-        .from('agendamentos')
-        .select('*, profissionais(nome)')
-        .eq('salao_id', usu.salao_id)
-        .order('data', { ascending: true })
-        .order('horario', { ascending: true });
-
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: usu } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
+      if (!usu?.salao_id) return;
+      const { data, error } = await supabase.from('agendamentos').select('*, profissionais(nome)').eq('salao_id', usu.salao_id).order('data', { ascending: true }).order('horario', { ascending: true });
       if (error) throw error;
       setAgendamentos(data || []);
-    } catch (e) {
-      // ✅ Ignora AbortError silenciosamente
-      if (e?.name === 'AbortError' || e?.message?.includes('aborted')) return;
-      console.error('Erro agenda:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    } catch (e) { console.error('Erro agenda:', e); } finally { setLoading(false); }
+  };
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user || cancelled) return;
-
-        const { data: usu } = await supabase
-          .from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
-        if (!usu?.salao_id || cancelled) return;
-
-        const { data, error } = await supabase
-          .from('agendamentos')
-          .select('*, profissionais(nome)')
-          .eq('salao_id', usu.salao_id)
-          .order('data', { ascending: true })
-          .order('horario', { ascending: true });
-
-        if (error || cancelled) return;
-        setAgendamentos(data || []);
-      } catch (e) {
-        if (cancelled) return;
-        console.error('Erro agenda:', e);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    run();
-    // ✅ Cleanup: marca como cancelado para ignorar respostas tardias
-    return () => { cancelled = true; };
-  }, []);
-
+  useEffect(() => { fetchDados(); }, []);
+  
   useEffect(() => {
     const handleClick = () => setMenuAberto(null);
     if (menuAberto) document.addEventListener('click', handleClick);
@@ -114,7 +63,7 @@ export const AgendaScreen = () => {
   };
 
   const agendamentosFiltrados = useMemo(() => {
-    let res = [...agendamentos];
+    let res = agendamentos;
 
     // Filtro de busca
     if (busca.trim()) {
@@ -127,43 +76,39 @@ export const AgendaScreen = () => {
     }
 
     // Filtro de status
-    if (filtroStatus !== 'todos') {
-      res = res.filter(a => a.status === filtroStatus);
-    }
+    if (filtroStatus !== 'todos') res = res.filter(a => a.status === filtroStatus);
 
     const hojeStr = getDataLocal(new Date());
     const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour12: false }).slice(0, 5);
 
     if (visualizacao === 'proximos') {
-      // ✅ GRUPO 1: Futuros (hoje a partir de agora + dias futuros) — qualquer status
+      // Separa em dois grupos:
+      // 1) Futuros (a partir de agora) — ordenados do mais próximo ao mais distante
+      // 2) Passados recentes (últimos 30 dias) — ordenados do mais recente ao mais antigo
+
       const futuros = res.filter(a => {
         if (!a.data) return false;
         const dataItem = a.data.substring(0, 10);
-        if (dataItem > hojeStr) return true;
-        if (dataItem === hojeStr) return (a.horario || '00:00') >= agoraHora;
-        return false;
-      });
-      // já vem ordenado ASC pelo Supabase (mais próximos primeiro)
+        return dataItem > hojeStr || (dataItem === hojeStr && (a.horario || '00:00') >= agoraHora);
+      }); // já vem ordenado ASC pelo fetch (mais próximos primeiro)
 
-      // ✅ GRUPO 2: Passados recentes (últimos 30 dias) — para completar se < 10 futuros
       const trintaDiasAtras = new Date();
       trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
       const dataLimite = getDataLocal(trintaDiasAtras);
 
-      const passados = res
-        .filter(a => {
-          if (!a.data) return false;
-          const dataItem = a.data.substring(0, 10);
-          return dataItem >= dataLimite && dataItem < hojeStr;
-        })
-        .reverse(); // mais recentes primeiro
+      const passadosRecentes = res.filter(a => {
+        if (!a.data) return false;
+        const dataItem = a.data.substring(0, 10);
+        return dataItem >= dataLimite && dataItem < hojeStr;
+      }).reverse(); // mais recentes primeiro
 
-      // ✅ Pega até 10 futuros; completa com passados se necessário
-      const futurosSlice = futuros.slice(0, 10);
-      const vagas = 10 - futurosSlice.length;
-      const passadosSlice = vagas > 0 ? passados.slice(0, vagas) : [];
+      // Pega até 10 futuros + completa com passados recentes se necessário
+      const totalFuturos = futuros.slice(0, 10);
+      const vagas = 10 - totalFuturos.length;
+      const totalPassados = vagas > 0 ? passadosRecentes.slice(0, vagas) : [];
 
-      return [...futurosSlice, ...passadosSlice];
+      // Retorna: futuros primeiro, depois passados recentes
+      return [...totalFuturos, ...totalPassados];
     }
 
     if (visualizacao === 'dia') { 
@@ -172,11 +117,9 @@ export const AgendaScreen = () => {
     }
 
     if (visualizacao === 'semana') {
-      const hoje = new Date();
-      const seg = new Date(hoje);
-      seg.setDate(hoje.getDate() - hoje.getDay() + 1);
-      const dom = new Date(seg);
-      dom.setDate(seg.getDate() + 6);
+      const d = new Date(); 
+      const seg = new Date(d.setDate(d.getDate() - d.getDay() + 1)); 
+      const dom = new Date(d.setDate(d.getDate() - d.getDay() + 7));
       const segStr = getDataLocal(seg); 
       const domStr = getDataLocal(dom);
       return res.filter(a => { 
@@ -187,7 +130,7 @@ export const AgendaScreen = () => {
     }
 
     if (visualizacao === 'todos') {
-      return res; // mostra tudo
+      return res.filter(a => a.data && a.data >= hojeStr.substring(0, 8) + '01');
     }
 
     return res;
@@ -199,7 +142,7 @@ export const AgendaScreen = () => {
       const [ano, mes, dia] = dataString.split('-').map(Number);
       const dataAtual = new Date(ano, mes - 1, dia); 
       const hoje = new Date(); 
-      hoje.setHours(0, 0, 0, 0);
+      hoje.setHours(0,0,0,0);
       if (dataAtual.getTime() === hoje.getTime()) return 'HOJE';
       const amanha = new Date(hoje); 
       amanha.setDate(amanha.getDate() + 1);
@@ -208,35 +151,11 @@ export const AgendaScreen = () => {
     } catch { return dataString; }
   };
 
-  const confirmarAgendamento = async (id) => { 
-    await supabase.from('agendamentos').update({ status: 'confirmado' }).eq('id', id); 
-    fetchDados(); 
-    setMenuAberto(null); 
-  };
-  const abrirCheckout = (agendamento) => { 
-    setAgendamentoCheckout(agendamento); 
-    setIsCheckoutOpen(true); 
-    setMenuAberto(null); 
-  };
-  const cancelarAgendamento = async (id) => { 
-    if (confirm('Cancelar este agendamento?')) { 
-      await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); 
-      fetchDados(); 
-    } 
-    setMenuAberto(null); 
-  };
-  const removerBloqueio = async (id) => { 
-    if (confirm('Remover bloqueio?')) { 
-      await supabase.from('agendamentos').delete().eq('id', id); 
-      fetchDados(); 
-    } 
-    setMenuAberto(null); 
-  };
-  const remarcarAgendamento = (agendamento) => { 
-    setAgendamentoSelecionado(agendamento); 
-    setIsRemarcarOpen(true); 
-    setMenuAberto(null); 
-  };
+  const confirmarAgendamento = async (id) => { await supabase.from('agendamentos').update({ status: 'confirmado' }).eq('id', id); fetchDados(); setMenuAberto(null); };
+  const abrirCheckout = (agendamento) => { setAgendamentoCheckout(agendamento); setIsCheckoutOpen(true); setMenuAberto(null); };
+  const cancelarAgendamento = async (id) => { if (confirm('Cancelar este agendamento?')) { await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); fetchDados(); } setMenuAberto(null); };
+  const removerBloqueio = async (id) => { if (confirm('Remover bloqueio?')) { await supabase.from('agendamentos').delete().eq('id', id); fetchDados(); } setMenuAberto(null); };
+  const remarcarAgendamento = (agendamento) => { setAgendamentoSelecionado(agendamento); setIsRemarcarOpen(true); setMenuAberto(null); };
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -265,26 +184,9 @@ export const AgendaScreen = () => {
   return (
     <div className="min-h-screen bg-[#09090b] text-white pb-32 md:pb-12">
       
-      <NovoAgendamentoModal 
-        isOpen={isModalOpen} 
-        onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} 
-        onSuccess={() => { fetchDados(); setAgendamentoParaEditar(null); }} 
-        profissionalId={null} 
-        tipo={modalTipo} 
-        agendamentoParaEditar={agendamentoParaEditar} 
-      />
-      <RemarcarModal 
-        isOpen={isRemarcarOpen} 
-        onClose={() => setIsRemarcarOpen(false)} 
-        onSuccess={fetchDados} 
-        agendamento={agendamentoSelecionado} 
-      />
-      <ModalFinalizarAtendimento 
-        isOpen={isCheckoutOpen} 
-        onClose={() => setIsCheckoutOpen(false)} 
-        agendamento={agendamentoCheckout} 
-        onSuccess={() => { fetchDados(); setIsCheckoutOpen(false); }} 
-      />
+      <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={() => { fetchDados(); setAgendamentoParaEditar(null); }} profissionalId={null} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
+      <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
+      <ModalFinalizarAtendimento isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} agendamento={agendamentoCheckout} onSuccess={() => { fetchDados(); setIsCheckoutOpen(false); }} />
       
       <div className="w-full max-w-[1600px] mx-auto px-4 pt-6 md:px-8 md:pt-10 animate-in fade-in duration-500">
         
@@ -297,7 +199,7 @@ export const AgendaScreen = () => {
           <div className="flex gap-2.5 w-full md:w-auto">
             <button 
               onClick={() => { setAgendamentoParaEditar(null); setModalTipo('agendamento'); setIsModalOpen(true); }} 
-              className="flex-1 md:flex-none bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] px-5 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+              className="flex-1 md:flex-none bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] px-5 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all hover:shadow-purple-500/20"
             >
               <Plus size={20}/> Novo
             </button>
@@ -357,6 +259,7 @@ export const AgendaScreen = () => {
                   ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' 
                   : 'bg-[#18181b] text-gray-400 border-white/5 hover:border-white/20'
               }`}
+              title="Filtrar por status"
             >
               <Filter size={20}/>
             </button>
@@ -392,11 +295,13 @@ export const AgendaScreen = () => {
           </div>
         )}
 
-        {/* Contador de resultados */}
-        {visualizacao === 'proximos' && !loading && agendamentosFiltrados.length > 0 && (
-          <p className="text-xs text-gray-500 mb-4">
-            Mostrando os <span className="text-purple-400 font-bold">{agendamentosFiltrados.length}</span> agendamentos mais próximos
-          </p>
+        {/* Contador de resultados no modo Próximos */}
+        {visualizacao === 'proximos' && agendamentosFiltrados.length > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs text-gray-500">
+              Mostrando os <span className="text-purple-400 font-bold">{agendamentosFiltrados.length}</span> agendamentos mais próximos
+            </span>
+          </div>
         )}
 
         {/* Grid de Agendamentos */}
@@ -421,6 +326,7 @@ export const AgendaScreen = () => {
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex gap-4 w-full">
+                    {/* Bloco de Data/Hora */}
                     <div className="bg-[#09090b] px-3 py-2.5 rounded-2xl text-center border border-white/5 min-w-[70px] h-fit flex flex-col justify-center">
                       <span className={`text-[9px] block font-black uppercase mb-0.5 tracking-wider ${item.status === 'bloqueado' ? 'text-orange-500' : 'text-purple-400'}`}>
                         {formatDataCard(item.data)}
@@ -430,6 +336,7 @@ export const AgendaScreen = () => {
                       </span>
                     </div>
                     
+                    {/* Detalhes */}
                     <div className="flex-1 min-w-0">
                       <h3 className={`font-bold text-base leading-tight truncate ${item.status === 'concluido' ? 'text-gray-400' : 'text-white'}`}>
                         {item.cliente_nome}
@@ -451,6 +358,7 @@ export const AgendaScreen = () => {
                     </div>
                   </div>
 
+                  {/* Menu de Ações */}
                   <div className="flex flex-col items-end gap-2">
                     {item.status !== 'cancelado' && (
                       <div className="relative">
@@ -480,6 +388,7 @@ export const AgendaScreen = () => {
                   </div>
                 </div>
 
+                {/* Footer do Card */}
                 <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-2">
                   <span className={`font-bold text-base ${item.status === 'concluido' ? 'text-gray-500 line-through' : 'text-emerald-400'}`}>
                     R$ {parseFloat(item.valor_total || item.valor || 0).toFixed(2)}

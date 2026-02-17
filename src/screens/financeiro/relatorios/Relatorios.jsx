@@ -31,13 +31,15 @@ export const Relatorios = () => {
       icone: DollarSign,
       cor: 'green'
     },
+    // --- ALTERAÇÃO AQUI: MUDANÇA PARA VENDAS DE PRODUTOS ---
     {
-      id: 'estoque',
-      titulo: 'Relatório de Estoque',
-      descricao: 'Giro, lucro e estoque crítico',
+      id: 'vendas_produtos', // ID novo para o hook identificar
+      titulo: 'Vendas de Produtos',
+      descricao: 'Ranking dos mais vendidos, faturamento e quantidade.',
       icone: Package,
-      cor: 'blue'
+      cor: 'purple'
     },
+    // -------------------------------------------------------
     {
       id: 'fornecedores',
       titulo: 'Relatório de Fornecedores',
@@ -54,7 +56,7 @@ export const Relatorios = () => {
     },
     {
       id: 'vendas',
-      titulo: 'Relatório de Vendas',
+      titulo: 'Relatório de Vendas (Geral)',
       descricao: 'Ticket médio, serviços mais vendidos',
       icone: ShoppingCart,
       cor: 'red'

@@ -58,14 +58,14 @@ export const DashboardAdmin = ({ onNavigate }) => {
         const meta = 15000;
         const diasRestantes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate() - hoje.getDate();
 
-        // 3. PRÓXIMOS (Correção para mostrar Profissional e Data)
+        // 3. PRÓXIMOS (CORRIGIDO: Agora busca a relação profissionais)
         const { data: proximos } = await supabase
           .from('agendamentos')
-          .select('*')
-          .gte('data', hojeISO) // Pega de hoje para frente
+          .select('*, profissionais(nome)') // <--- MUDANÇA AQUI: Traz o nome do profissional
+          .gte('data', hojeISO)
           .neq('status', 'cancelado')
-          .order('data', { ascending: true })   // Data mais próxima primeiro
-          .order('horario', { ascending: true }) // Horário mais cedo primeiro
+          .order('data', { ascending: true })
+          .order('horario', { ascending: true })
           .limit(5);
 
         const proximosFormatados = proximos?.map(a => {
@@ -73,13 +73,23 @@ export const DashboardAdmin = ({ onNavigate }) => {
             const dataParts = a.data.split('-');
             const diaMes = `${dataParts[2]}/${dataParts[1]}`;
             
+            // Lógica segura para pegar o nome do profissional
+            let nomeProfissional = 'Equipe';
+            if (a.profissionais) {
+                if (Array.isArray(a.profissionais)) {
+                    nomeProfissional = a.profissionais[0]?.nome || 'Equipe';
+                } else {
+                    nomeProfissional = a.profissionais.nome || 'Equipe';
+                }
+            }
+
             return {
                 id: a.id,
                 dataFormatada: diaMes,
                 horario: a.horario ? a.horario.slice(0, 5) : '--:--',
                 cliente: a.cliente_nome || 'Cliente',
                 servico: a.servico,
-                profissional: a.profissional_nome || a.profissional || 'Equipe', // Pega o nome do profissional
+                profissional: nomeProfissional, // <--- Usa o nome extraído corretamente
                 valor: calcValor(a)
             };
         }) || [];
@@ -135,16 +145,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
 
   const formatarNome = (nome) => {
     if (!nome) return "Cliente";
-    return nome.split(' ')[0]; // Pega só o primeiro nome para não quebrar layout
-  };
-
-  const getAlertStyle = (tipo) => {
-    const styles = {
-      success: { bg: 'from-emerald-900/40 to-teal-900/40 border-emerald-500/30', icon: 'bg-emerald-500/20 text-emerald-300' },
-      warning: { bg: 'from-amber-900/40 to-yellow-900/40 border-amber-500/30', icon: 'bg-amber-500/20 text-amber-300' },
-      info:    { bg: 'from-blue-900/40 to-cyan-900/40 border-blue-500/30',    icon: 'bg-blue-500/20 text-blue-300' },
-    };
-    return styles[tipo] || styles.info;
+    return nome.split(' ')[0]; // Pega só o primeiro nome
   };
 
   if (loading) return (
@@ -183,7 +184,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
         {/* GRIDS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* --- AQUI ESTÁ A MUDANÇA DOS AGENDAMENTOS --- */}
+          {/* PRÓXIMOS AGENDAMENTOS */}
           <SectionCard title="Próximos" icon={Clock} iconColor="text-blue-400" actionLabel="Agenda" onAction={() => onNavigate('agenda')}>
             {dados.proximosAgendamentos.length > 0 ? dados.proximosAgendamentos.map(ag => (
               <div key={ag.id} className="flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 transition-all cursor-pointer">
@@ -198,7 +199,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
                     <p className="font-bold text-white truncate">{formatarNome(ag.cliente)}</p>
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
                         <User size={10} /> 
-                        <span className="truncate">{ag.profissional}</span>
+                        <span className="truncate uppercase font-bold tracking-wide">{ag.profissional}</span>
                     </div>
                   </div>
                 </div>
@@ -206,8 +207,8 @@ export const DashboardAdmin = ({ onNavigate }) => {
               </div>
             )) : <p className="text-gray-500 text-center py-4">Agenda livre.</p>}
           </SectionCard>
-          {/* ------------------------------------------- */}
 
+          {/* TOP SERVIÇOS */}
           <SectionCard title="Top Serviços" icon={Award} iconColor="text-amber-400">
             {dados.rankingServicos.map((s, i) => (
               <div key={i} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-white/5">
