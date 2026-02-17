@@ -1,349 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import { X, QrCode, Banknote, CreditCard, Clock3, RefreshCw, User, Search, MessageCircle, CheckCircle, FileText } from 'lucide-react';
-import { supabase } from '../../../services/supabase';
+import React from 'react';
+import { ShoppingCart, Trash2, Plus, Minus, User, X } from 'lucide-react';
 
-// ============================================================================
-// 1. COMPONENTES AUXILIARES
-// ============================================================================
-
-const BtnPagamento = ({ icon, label, color, onClick, disabled }) => {
-  const IconComponent = icon;
-  const colors = {
-    green: 'border-green-200 hover:bg-green-50 text-green-700',
-    amber: 'border-amber-200 hover:bg-amber-50 text-amber-700',
-    blue: 'border-blue-200 hover:bg-blue-50 text-blue-700',
-    orange: 'border-orange-200 hover:bg-orange-50 text-orange-700',
-  };
-
+export const PDVCart = ({
+  carrinho, cliente, desconto, setDesconto,
+  tipoDesconto, setTipoDesconto, subtotal, total, valorDesconto,
+  onRemoverItem, onAjustarQtd, onLimparCarrinho, onSelecionarCliente
+}) => {
   return (
-    <button onClick={onClick} disabled={disabled} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colors[color]}`}>
-      <IconComponent size={24} /> <span className="font-bold">{label}</span>
-    </button>
-  );
-};
-
-// ============================================================================
-// 2. COMPONENTES DE MODAL
-// ============================================================================
-
-// --- MODAL DE SELEÇÃO DE CLIENTES ---
-export const ClientesSelectionModal = ({ aberto, onClose, onSelecionar }) => {
-  const [busca, setBusca] = useState('');
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (aberto) {
-      const fetchClientes = async () => {
-        setLoading(true);
-        const { data, error } = await supabase.from('clientes').select('*').order('nome');
-        if (!error) {
-            setClientes(data || []);
-        }
-        setLoading(false);
-      };
+    <div className="bg-[#2a2a35] rounded-2xl border border-white/10 overflow-hidden flex flex-col">
       
-      fetchClientes();
-    }
-  }, [aberto]);
-
-  const clientesFiltrados = clientes.filter(c => 
-    c.nome.toLowerCase().includes(busca.toLowerCase()) || 
-    (c.telefone && c.telefone.includes(busca))
-  );
-
-  if (!aberto) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-lg h-[600px] flex flex-col shadow-2xl animate-in zoom-in-95">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-            <User className="text-purple-600" /> Selecionar Cliente
-          </h3>
-          <button onClick={onClose}><X size={20} className="text-gray-500 hover:text-gray-800"/></button>
-        </div>
-
-        <div className="p-4 bg-gray-50 border-b">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
-            <input 
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              placeholder="Buscar por nome ou telefone..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none"
-              autoFocus
-            />
+      {/* HEADER */}
+      <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-purple-500/15 border border-purple-400/25 rounded-lg flex items-center justify-center">
+            <ShoppingCart size={16} className="text-purple-300" />
           </div>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-2">
-          {loading ? (
-             <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>
-          ) : clientesFiltrados.length === 0 ? (
-            <p className="text-center text-gray-400 py-10">Nenhum cliente encontrado.</p>
-          ) : (
-            clientesFiltrados.map(cliente => (
-              <div 
-                key={cliente.id} 
-                onClick={() => { onSelecionar(cliente); onClose(); }}
-                className="flex justify-between items-center p-3 hover:bg-purple-50 rounded-xl cursor-pointer transition-colors border-b border-gray-100 last:border-0"
-              >
-                <div>
-                  <div className="font-bold text-gray-800">{cliente.nome}</div>
-                  <div className="text-sm text-gray-500">{cliente.telefone || 'Sem telefone'}</div>
-                </div>
-                <div className="p-2 bg-gray-100 rounded-full text-gray-400">
-                   <User size={16} />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- MODAL DE PAGAMENTO ---
-export const PagamentoModal = ({ aberto, onClose, total, onFinalizar, processando }) => {
-  if (!aberto) return null;
-  
-  const valorTotal = Number(total) || 0;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95">
-        <div className="flex justify-between items-center mb-6">
           <div>
-            <h3 className="text-xl font-bold text-gray-800">Pagamento</h3>
-            <p className="text-gray-500 text-sm">Total a pagar: <span className="font-bold text-gray-900">R$ {valorTotal.toFixed(2)}</span></p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} /></button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <BtnPagamento icon={QrCode} label="PIX" color="green" onClick={() => onFinalizar('pix')} disabled={processando} />
-          <BtnPagamento icon={Banknote} label="Dinheiro" color="amber" onClick={() => onFinalizar('dinheiro')} disabled={processando} />
-          <BtnPagamento icon={CreditCard} label="Crédito" color="blue" onClick={() => onFinalizar('credito')} disabled={processando} />
-          <BtnPagamento icon={CreditCard} label="Débito" color="orange" onClick={() => onFinalizar('debito')} disabled={processando} />
-        </div>
-        {processando && <p className="text-center mt-4 text-purple-600 animate-pulse font-medium">Processando venda...</p>}
-      </div>
-    </div>
-  );
-};
-
-// --- MODAL DE VENDAS PENDENTES ---
-export const VendasPendentesModal = ({ aberto, onClose, vendasPendentes = [], onRecuperar, onUsarCliente }) => {
-  if (!aberto) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2"><Clock3 className="text-amber-600" /> Vendas Pendentes</h3>
-          <button onClick={onClose}><X size={20} className="text-gray-500 hover:text-gray-800"/></button>
-        </div>
-        <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
-          {vendasPendentes.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <Clock3 size={48} className="mx-auto mb-3 opacity-20" />
-              <p>Nenhuma venda pendente.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {vendasPendentes.map(venda => (
-                <div key={venda.id} className="bg-white p-4 rounded-xl border border-amber-100 shadow-sm">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="font-bold text-gray-800">Venda #{venda.numero_venda}</div>
-                      <div className="text-xs text-gray-500">{new Date(venda.created_at).toLocaleString()}</div>
-                      {venda.clientes && <div className="text-sm text-amber-700 mt-1 font-medium">{venda.clientes.nome}</div>}
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg">R$ {(venda.total || 0).toFixed(2)}</div>
-                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Pendente</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 border-t pt-3">
-                    <button onClick={() => onRecuperar(venda)} className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2">
-                      <RefreshCw size={14} /> Recuperar Venda
-                    </button>
-                    {venda.clientes && (
-                      <button onClick={() => onUsarCliente(venda.clientes)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
-                        Usar Cliente
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- MODAL DE EDITAR PREÇO ---
-export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
-  const [preco, setPreco] = useState(item?.preco_venda || item?.preco_base || 0);
-
-  if (!aberto || !item) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
-        <h3 className="font-bold text-lg mb-1">Editar Preço</h3>
-        <p className="text-gray-500 text-sm mb-4">{item.nome}</p>
-        <input 
-          type="number" 
-          value={preco} 
-          onChange={e => setPreco(e.target.value)} 
-          className="w-full p-3 border rounded-xl mb-4 text-lg font-bold text-center focus:ring-2 focus:ring-purple-500 outline-none"
-          autoFocus
-        />
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium">Cancelar</button>
-          <button onClick={() => { onSalvar(item.id, Number(preco)); onClose(); }} className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold">Salvar</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// NOVO COMPONENTE: MODAL DE SUCESSO / WHATSAPP
-// ============================================================================
-export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
-  if (!aberto || !dadosVenda) return null;
-
-  const { cliente, total, carrinho, vendaId } = dadosVenda;
-
-  const enviarWhatsApp = () => {
-    if (!cliente?.telefone) {
-      alert("Este cliente não possui telefone cadastrado.");
-      return;
-    }
-
-    // Formata o número (remove caracteres não numéricos)
-    const telefone = cliente.telefone.replace(/\D/g, '');
-    
-    // Constrói o resumo do pedido
-    const itensTexto = carrinho.map(item => `• ${item.qtd}x ${item.nome} (R$ ${item.preco_venda.toFixed(2)})`).join('\n');
-    
-    // Mensagem formatada
-    const mensagem = `*COMPROVANTE DE VENDA*\n\n` +
-      `Olá ${cliente.nome}, obrigado pela preferência!\n\n` +
-      `*Itens do Pedido:*\n${itensTexto}\n\n` +
-      `*Total: R$ ${total.toFixed(2)}*\n\n` +
-      `_Seu pedido #${vendaId || 'Recente'} foi concluído com sucesso._`;
-
-    // Cria o link do WhatsApp
-    const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
-    
-    // Abre em nova aba
-    window.open(link, '_blank');
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 flex flex-col items-center text-center">
-        
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle size={40} className="text-green-600" />
-        </div>
-
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Venda Realizada!</h2>
-        <p className="text-gray-500 mb-8">O pagamento foi confirmado com sucesso.</p>
-
-        {cliente ? (
-          <div className="w-full space-y-3">
-             <button 
-              onClick={enviarWhatsApp}
-              className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-200 transition-all active:scale-95"
-            >
-              <MessageCircle size={20} />
-              Enviar Comprovante (WhatsApp)
-            </button>
-            <p className="text-xs text-gray-400 mt-2">
-              Isso abrirá o WhatsApp com o comprovante em texto. Para PDF, anexe o arquivo gerado.
+            <h2 className="text-sm font-bold text-white">Carrinho</h2>
+            <p className="text-[10px] text-gray-400">
+              {carrinho.reduce((a, i) => a + i.qtd, 0)} {carrinho.reduce((a, i) => a + i.qtd, 0) === 1 ? 'item' : 'itens'}
             </p>
           </div>
-        ) : (
-          <p className="text-sm text-gray-400 bg-gray-50 p-3 rounded-lg w-full">
-            Venda realizada sem cliente identificado. <br/>Não é possível enviar comprovante.
-          </p>
+        </div>
+        {carrinho.length > 0 && (
+          <button onClick={onLimparCarrinho}
+            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+            title="Limpar carrinho">
+            <Trash2 size={15} />
+          </button>
         )}
+      </div>
 
-        <button 
-          onClick={onClose} 
-          className="mt-6 text-gray-400 hover:text-gray-600 font-medium text-sm underline"
-        >
-          Fechar e Iniciar Nova Venda
+      {/* CLIENTE */}
+      <div className="p-3 border-b border-white/[0.08]">
+        <button onClick={onSelecionarCliente}
+          className="w-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/8 hover:border-white/15
+                   rounded-xl px-3 py-2.5 text-left transition-all group">
+          {cliente ? (
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-400/20 flex items-center justify-center text-purple-300">
+                <User size={15} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Cliente</p>
+                <p className="text-sm text-white font-semibold truncate">{cliente.nome}</p>
+              </div>
+              <X size={14} className="text-gray-500 group-hover:text-gray-300 transition-colors" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 text-gray-500 group-hover:text-gray-300 transition-colors">
+              <div className="w-8 h-8 rounded-lg border border-dashed border-gray-600 flex items-center justify-center">
+                <User size={15} />
+              </div>
+              <span className="text-xs font-medium">+ Selecionar Cliente</span>
+            </div>
+          )}
         </button>
       </div>
+
+      {/* ITENS */}
+      <div className="flex-1 overflow-y-auto max-h-[320px]">
+        {carrinho.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <ShoppingCart size={32} className="text-gray-600 mb-3" />
+            <p className="text-gray-400 text-sm">Carrinho vazio</p>
+            <p className="text-gray-500 text-xs mt-1">Adicione itens para começar</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/[0.05]">
+            {carrinho.map((item, index) => (
+              <ItemCarrinho
+                key={`${item.id}-${item.tipo}-${index}`}
+                item={item}
+                onRemover={() => onRemoverItem(item.id, item.tipo)}
+                onAjustarQtd={(delta) => onAjustarQtd(item.id, item.tipo, delta)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* DESCONTO + TOTAIS */}
+      {carrinho.length > 0 && (
+        <div className="p-4 border-t border-white/[0.08] space-y-4 bg-black/15">
+          
+          {/* Desconto */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 block">Desconto</label>
+            <div className="flex gap-2">
+              <div className="flex bg-black/25 rounded-lg p-0.5 border border-white/8">
+                <button onClick={() => setTipoDesconto('valor')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    tipoDesconto === 'valor' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                  R$
+                </button>
+                <button onClick={() => setTipoDesconto('percentual')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    tipoDesconto === 'percentual' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                  %
+                </button>
+              </div>
+              <input type="number" value={desconto}
+                onChange={(e) => setDesconto(Math.max(0, Number(e.target.value)))}
+                min="0" max={tipoDesconto === 'percentual' ? 100 : subtotal}
+                className="flex-1 bg-black/25 border border-white/8 rounded-lg px-3 py-1.5 text-white text-sm
+                         focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
+                placeholder="0" />
+            </div>
+          </div>
+
+          {/* Resumo */}
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between text-gray-400">
+              <span>Subtotal</span>
+              <span>R$ {subtotal.toFixed(2)}</span>
+            </div>
+            {valorDesconto > 0 && (
+              <div className="flex justify-between text-emerald-400">
+                <span>Desconto</span>
+                <span>− R$ {valorDesconto.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2 border-t border-white/[0.08]">
+              <span className="text-white font-bold">Total</span>
+              <span className="text-xl font-black text-emerald-400">R$ {total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-
-// ============================================================================
-// 3. COMPONENTE AGREGADOR PRINCIPAL
-// ============================================================================
-
-export const PDVModals = ({
-  modalState,
-  onClose,
-  onFinalizarPagamento,
-  onRecuperarVenda,
-  onUsarCliente,
-  onSalvarPreco,
-  setCliente, 
-  totalPagamento,
-  processandoPagamento,
-  vendasPendentes,
-  // carrinho FOI REMOVIDO DAQUI
-}) => {
-  
-  const { view, dados, isOpen } = modalState || {};
-
+const ItemCarrinho = ({ item, onRemover, onAjustarQtd }) => {
+  const subtotalItem = item.preco_venda * item.qtd;
   return (
-    <>
-      <PagamentoModal
-        aberto={isOpen && view === 'pagamento'}
-        onClose={onClose}
-        total={totalPagamento}
-        onFinalizar={onFinalizarPagamento}
-        processando={processandoPagamento}
-      />
-
-      <ClientesSelectionModal 
-        aberto={isOpen && view === 'selecionar-cliente'}
-        onClose={onClose}
-        onSelecionar={setCliente}
-      />
-
-      <VendasPendentesModal
-        aberto={isOpen && view === 'vendas-pendentes'}
-        onClose={onClose}
-        vendasPendentes={vendasPendentes}
-        onRecuperar={onRecuperarVenda}
-        onUsarCliente={onUsarCliente}
-      />
-
-      <EditarPrecoModal
-        key={dados?.id || 'editor'}
-        aberto={isOpen && view === 'editar-preco'}
-        onClose={onClose}
-        item={dados}
-        onSalvar={onSalvarPreco}
-      />
-
-      <VendaConcluidaModal
-        aberto={isOpen && view === 'sucesso'}
-        onClose={onClose}
-        dadosVenda={dados} 
-      />
-    </>
+    <div className="px-4 py-3 group hover:bg-white/[0.03] transition-colors">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 pr-2">
+          <p className="text-white text-xs font-medium line-clamp-2 leading-snug">{item.nome}</p>
+          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-md mt-1 font-medium ${
+            item.tipo === 'produto' ? 'bg-blue-400/10 text-blue-300' : 'bg-purple-400/10 text-purple-300'}`}>
+            {item.tipo === 'produto' ? 'Produto' : 'Serviço'}
+          </span>
+        </div>
+        <button onClick={onRemover} className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-0.5">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 bg-black/20 rounded-lg p-0.5 border border-white/8">
+          <button onClick={() => onAjustarQtd(-1)} disabled={item.qtd <= 1}
+            className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white 
+                     disabled:text-gray-700 disabled:cursor-not-allowed rounded-md hover:bg-white/10 transition-all">
+            <Minus size={12} />
+          </button>
+          <span className="w-7 text-center text-white text-xs font-bold">{item.qtd}</span>
+          <button onClick={() => onAjustarQtd(1)}
+            disabled={item.tipo === 'produto' && item.estoque && item.qtd >= item.estoque}
+            className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white 
+                     disabled:text-gray-700 disabled:cursor-not-allowed rounded-md hover:bg-white/10 transition-all">
+            <Plus size={12} />
+          </button>
+        </div>
+        <div className="text-right">
+          {item.qtd > 1 && <p className="text-[10px] text-gray-500">R$ {item.preco_venda.toFixed(2)} cada</p>}
+          <p className="text-sm font-bold text-white">R$ {subtotalItem.toFixed(2)}</p>
+        </div>
+      </div>
+    </div>
   );
 };

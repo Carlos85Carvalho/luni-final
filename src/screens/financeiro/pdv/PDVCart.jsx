@@ -1,93 +1,73 @@
 import React from 'react';
+import { ShoppingCart, Trash2, Plus, Minus, User, X } from 'lucide-react';
 
 export const PDVCart = ({
-  carrinho,
-  cliente,
-  desconto,
-  setDesconto,
-  tipoDesconto,
-  setTipoDesconto,
-  subtotal,
-  total,
-  valorDesconto,
-  onRemoverItem,
-  onAjustarQtd,
-  onLimparCarrinho,
-  onSelecionarCliente
+  carrinho, cliente, desconto, setDesconto,
+  tipoDesconto, setTipoDesconto, subtotal, total, valorDesconto,
+  onRemoverItem, onAjustarQtd, onLimparCarrinho, onSelecionarCliente
 }) => {
-  
   return (
-    <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-purple-500/20 shadow-2xl overflow-hidden">
+    <div className="bg-[#2a2a35] rounded-2xl border border-white/10 overflow-hidden flex flex-col">
       
-      {/* HEADER DO CARRINHO */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            🛒 Carrinho
-          </h2>
-          {carrinho.length > 0 && (
-            <button
-              onClick={onLimparCarrinho}
-              className="text-white/80 hover:text-white transition-colors text-sm font-medium"
-            >
-              🗑️ Limpar
-            </button>
-          )}
+      {/* HEADER */}
+      <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-purple-500/15 border border-purple-400/25 rounded-lg flex items-center justify-center">
+            <ShoppingCart size={16} className="text-purple-300" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white">Carrinho</h2>
+            <p className="text-[10px] text-gray-400">
+              {carrinho.reduce((a, i) => a + i.qtd, 0)} {carrinho.reduce((a, i) => a + i.qtd, 0) === 1 ? 'item' : 'itens'}
+            </p>
+          </div>
         </div>
+        {carrinho.length > 0 && (
+          <button onClick={onLimparCarrinho}
+            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+            title="Limpar carrinho">
+            <Trash2 size={15} />
+          </button>
+        )}
       </div>
 
-      {/* SELEÇÃO DE CLIENTE */}
-      <div className="p-4 border-b border-gray-700/50">
-        <button
-          onClick={onSelecionarCliente}
-          className="w-full bg-gray-700/50 hover:bg-gray-700 
-                   border border-gray-600 hover:border-purple-500/50
-                   rounded-xl px-4 py-3 text-left
-                   transition-all duration-300 group"
-        >
+      {/* CLIENTE */}
+      <div className="p-3 border-b border-white/[0.08]">
+        <button onClick={onSelecionarCliente}
+          className="w-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/8 hover:border-white/15
+                   rounded-xl px-3 py-2.5 text-left transition-all group">
           {cliente ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-600/20 border border-purple-500/30 
-                              flex items-center justify-center text-lg">
-                  👤
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Cliente</p>
-                  <p className="text-white font-semibold">{cliente.nome}</p>
-                  {cliente.telefone && (
-                    <p className="text-xs text-gray-400">{cliente.telefone}</p>
-                  )}
-                </div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-400/20 flex items-center justify-center text-purple-300">
+                <User size={15} />
               </div>
-              <span className="text-purple-400 group-hover:text-purple-300 transition-colors">
-                ✏️
-              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Cliente</p>
+                <p className="text-sm text-white font-semibold truncate">{cliente.nome}</p>
+              </div>
+              <X size={14} className="text-gray-500 group-hover:text-gray-300 transition-colors" />
             </div>
           ) : (
-            <div className="flex items-center gap-3 text-gray-400 group-hover:text-white transition-colors">
-              <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-600 
-                            flex items-center justify-center text-lg">
-                👤
+            <div className="flex items-center gap-2.5 text-gray-500 group-hover:text-gray-300 transition-colors">
+              <div className="w-8 h-8 rounded-lg border border-dashed border-gray-600 flex items-center justify-center">
+                <User size={15} />
               </div>
-              <span className="font-medium">+ Selecionar Cliente (Opcional)</span>
+              <span className="text-xs font-medium">+ Selecionar Cliente</span>
             </div>
           )}
         </button>
       </div>
 
-      {/* LISTA DE ITENS DO CARRINHO */}
-      <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
+      {/* ITENS */}
+      <div className="flex-1 overflow-y-auto max-h-[320px]">
         {carrinho.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <div className="text-6xl mb-4 opacity-30">🛒</div>
-            <p className="text-gray-400 text-lg mb-2">Carrinho vazio</p>
-            <p className="text-gray-500 text-sm">
-              Adicione produtos ou agendamentos para começar
-            </p>
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <ShoppingCart size={32} className="text-gray-600 mb-3" />
+            <p className="text-gray-400 text-sm">Carrinho vazio</p>
+            <p className="text-gray-500 text-xs mt-1">Adicione itens para começar</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-700/50">
+          <div className="divide-y divide-white/[0.05]">
             {carrinho.map((item, index) => (
               <ItemCarrinho
                 key={`${item.id}-${item.tipo}-${index}`}
@@ -100,81 +80,50 @@ export const PDVCart = ({
         )}
       </div>
 
-      {/* DESCONTO */}
+      {/* DESCONTO + TOTAIS */}
       {carrinho.length > 0 && (
-        <div className="p-4 border-t border-gray-700/50 bg-gray-800/80">
-          <div className="mb-3">
-            <label className="text-xs text-gray-400 uppercase tracking-wide mb-2 block">
-              💰 Desconto
-            </label>
+        <div className="p-4 border-t border-white/[0.08] space-y-4 bg-black/15">
+          
+          {/* Desconto */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 block">Desconto</label>
             <div className="flex gap-2">
-              {/* TOGGLE TIPO DE DESCONTO */}
-              <div className="flex bg-gray-700/50 rounded-lg p-1">
-                <button
-                  onClick={() => setTipoDesconto('valor')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-300
-                    ${tipoDesconto === 'valor' 
-                      ? 'bg-purple-600 text-white shadow-lg' 
-                      : 'text-gray-400 hover:text-white'
-                    }`}
-                >
+              <div className="flex bg-black/25 rounded-lg p-0.5 border border-white/8">
+                <button onClick={() => setTipoDesconto('valor')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    tipoDesconto === 'valor' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
                   R$
                 </button>
-                <button
-                  onClick={() => setTipoDesconto('percentual')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-300
-                    ${tipoDesconto === 'percentual' 
-                      ? 'bg-purple-600 text-white shadow-lg' 
-                      : 'text-gray-400 hover:text-white'
-                    }`}
-                >
+                <button onClick={() => setTipoDesconto('percentual')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    tipoDesconto === 'percentual' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
                   %
                 </button>
               </div>
-
-              {/* INPUT DE DESCONTO */}
-              <div className="flex-1 relative">
-                <input
-                  type="number"
-                  value={desconto}
-                  onChange={(e) => setDesconto(Math.max(0, Number(e.target.value)))}
-                  min="0"
-                  max={tipoDesconto === 'percentual' ? 100 : subtotal}
-                  className="w-full bg-gray-900/50 border border-gray-700 
-                           rounded-lg px-4 py-2 text-white
-                           focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent
-                           transition-all duration-300"
-                  placeholder="0"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  {tipoDesconto === 'percentual' ? '%' : 'R$'}
-                </span>
-              </div>
+              <input type="number" value={desconto}
+                onChange={(e) => setDesconto(Math.max(0, Number(e.target.value)))}
+                min="0" max={tipoDesconto === 'percentual' ? 100 : subtotal}
+                className="flex-1 bg-black/25 border border-white/8 rounded-lg px-3 py-1.5 text-white text-sm
+                         focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
+                placeholder="0" />
             </div>
           </div>
 
-          {/* RESUMO DE VALORES */}
-          <div className="space-y-2 text-sm">
-            {/* SUBTOTAL */}
+          {/* Resumo */}
+          <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-gray-400">
               <span>Subtotal</span>
-              <span className="font-medium">R$ {subtotal.toFixed(2)}</span>
+              <span>R$ {subtotal.toFixed(2)}</span>
             </div>
-
-            {/* DESCONTO APLICADO */}
             {valorDesconto > 0 && (
-              <div className="flex justify-between text-green-400">
+              <div className="flex justify-between text-emerald-400">
                 <span>Desconto</span>
-                <span className="font-medium">- R$ {valorDesconto.toFixed(2)}</span>
+                <span>− R$ {valorDesconto.toFixed(2)}</span>
               </div>
             )}
-
-            {/* TOTAL */}
-            <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-gray-700/50">
-              <span>Total</span>
-              <span className="text-2xl bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                R$ {total.toFixed(2)}
-              </span>
+            <div className="flex justify-between items-center pt-2 border-t border-white/[0.08]">
+              <span className="text-white font-bold">Total</span>
+              <span className="text-xl font-black text-emerald-400">R$ {total.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -183,84 +132,40 @@ export const PDVCart = ({
   );
 };
 
-// ========== COMPONENTE: ITEM DO CARRINHO ==========
 const ItemCarrinho = ({ item, onRemover, onAjustarQtd }) => {
   const subtotalItem = item.preco_venda * item.qtd;
-
   return (
-    <div className="p-4 hover:bg-gray-700/30 transition-colors duration-200 group">
-      {/* HEADER DO ITEM */}
-      <div className="flex items-start justify-between mb-3">
+    <div className="px-4 py-3 group hover:bg-white/[0.03] transition-colors">
+      <div className="flex items-start justify-between mb-2">
         <div className="flex-1 pr-2">
-          <h4 className="text-white font-medium mb-1 line-clamp-2">
-            {item.nome}
-          </h4>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full
-              ${item.tipo === 'produto' 
-                ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30' 
-                : 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-              }`}>
-              {item.tipo === 'produto' ? '📦 Produto' : '📅 Agendamento'}
-            </span>
-            {item.estoque && item.tipo === 'produto' && (
-              <span className="text-xs text-gray-500">
-                Est: {item.estoque}
-              </span>
-            )}
-          </div>
+          <p className="text-white text-xs font-medium line-clamp-2 leading-snug">{item.nome}</p>
+          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-md mt-1 font-medium ${
+            item.tipo === 'produto' ? 'bg-blue-400/10 text-blue-300' : 'bg-purple-400/10 text-purple-300'}`}>
+            {item.tipo === 'produto' ? 'Produto' : 'Serviço'}
+          </span>
         </div>
-        
-        {/* BOTÃO REMOVER */}
-        <button
-          onClick={onRemover}
-          className="text-gray-500 hover:text-red-400 transition-colors 
-                   opacity-0 group-hover:opacity-100"
-          title="Remover item"
-        >
-          🗑️
+        <button onClick={onRemover} className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-0.5">
+          <X size={14} />
         </button>
       </div>
-
-      {/* CONTROLES E PREÇO */}
       <div className="flex items-center justify-between">
-        {/* CONTROLE DE QUANTIDADE */}
-        <div className="flex items-center gap-2 bg-gray-700/50 rounded-lg p-1">
-          <button
-            onClick={() => onAjustarQtd(-1)}
-            disabled={item.qtd <= 1}
-            className="w-8 h-8 flex items-center justify-center
-                     text-white bg-gray-600 hover:bg-gray-500 
-                     disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed
-                     rounded-md transition-all duration-200 active:scale-95"
-          >
-            −
+        <div className="flex items-center gap-1.5 bg-black/20 rounded-lg p-0.5 border border-white/8">
+          <button onClick={() => onAjustarQtd(-1)} disabled={item.qtd <= 1}
+            className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white 
+                     disabled:text-gray-700 disabled:cursor-not-allowed rounded-md hover:bg-white/10 transition-all">
+            <Minus size={12} />
           </button>
-          
-          <span className="w-12 text-center text-white font-semibold">
-            {item.qtd}
-          </span>
-          
-          <button
-            onClick={() => onAjustarQtd(1)}
+          <span className="w-7 text-center text-white text-xs font-bold">{item.qtd}</span>
+          <button onClick={() => onAjustarQtd(1)}
             disabled={item.tipo === 'produto' && item.estoque && item.qtd >= item.estoque}
-            className="w-8 h-8 flex items-center justify-center
-                     text-white bg-purple-600 hover:bg-purple-700 
-                     disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed
-                     rounded-md transition-all duration-200 active:scale-95"
-          >
-            +
+            className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white 
+                     disabled:text-gray-700 disabled:cursor-not-allowed rounded-md hover:bg-white/10 transition-all">
+            <Plus size={12} />
           </button>
         </div>
-
-        {/* PREÇOS */}
         <div className="text-right">
-          <p className="text-xs text-gray-400">
-            R$ {item.preco_venda.toFixed(2)} {item.qtd > 1 ? `x ${item.qtd}` : ''}
-          </p>
-          <p className="text-lg font-bold text-white">
-            R$ {subtotalItem.toFixed(2)}
-          </p>
+          {item.qtd > 1 && <p className="text-[10px] text-gray-500">R$ {item.preco_venda.toFixed(2)} cada</p>}
+          <p className="text-sm font-bold text-white">R$ {subtotalItem.toFixed(2)}</p>
         </div>
       </div>
     </div>
