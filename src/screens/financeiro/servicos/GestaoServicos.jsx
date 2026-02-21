@@ -17,46 +17,16 @@ const CATEGORIAS_INICIAIS = [
   { id: 'estetica', label: 'Estética/Spa', icon: Sparkles },
 ];
 
-// --- LISTA MESTRA (BEAUTY HAIR) ---
-const SERVICOS_PADRAO = [
-  { nome: "Corte Feminino", preco: 60, duracao: "40", categoria: "cabelo" },
-  { nome: "Corte Masculino", preco: 40, duracao: "30", categoria: "cabelo" },
-  { nome: "Corte Infantil", preco: 40, duracao: "30", categoria: "cabelo" },
-  { nome: "Franja", preco: 20, duracao: "15", categoria: "cabelo" },
-  { nome: "Bordado", preco: 70, duracao: "60", categoria: "cabelo" },
-  { nome: "Escova Tradicional", preco: 40, duracao: "45", categoria: "cabelo" },
-  { nome: "Escova Modelada", preco: 50, duracao: "60", categoria: "cabelo" },
-  { nome: "Penteado Elaborado", preco: 140, duracao: "90", categoria: "cabelo" },
-  { nome: "Mechas", preco: 220, duracao: "3:30", pausa: 45, categoria: "quimica" },
-  { nome: "Morena Iluminada", preco: 350, duracao: "4:30", pausa: 60, categoria: "quimica" },
-  { nome: "Progressiva", preco: 180, duracao: "3:00", pausa: 40, categoria: "quimica" },
-  { nome: "Botox Capilar", preco: 160, duracao: "2:30", pausa: 30, categoria: "quimica" },
-  { nome: "Tintura Global", preco: 90, duracao: "1:30", pausa: 30, categoria: "quimica" },
-  { nome: "Hidratação", preco: 40, duracao: "45", categoria: "tratamentos" },
-  { nome: "Cronograma Capilar", preco: 120, duracao: "1:00", categoria: "tratamentos" },
-  { nome: "Manicure Simples", preco: 25, duracao: "30", categoria: "unhas" },
-  { nome: "Pedicure Simples", preco: 35, duracao: "40", categoria: "unhas" },
-  { nome: "Alongamento em Gel", preco: 120, duracao: "2:00", categoria: "unhas" },
-  { nome: "Fibra de Vidro", preco: 150, duracao: "2:30", categoria: "unhas" },
-  { nome: "Design com Henna", preco: 40, duracao: "30", categoria: "cilios" },
-  { nome: "Brow Lamination", preco: 90, duracao: "1:00", categoria: "cilios" },
-  { nome: "Volume Russo", preco: 150, duracao: "2:00", categoria: "cilios" },
-  { nome: "Buço", preco: 15, duracao: "10", categoria: "depilacao" },
-  { nome: "Axila", preco: 20, duracao: "15", categoria: "depilacao" },
-  { nome: "Virilha Completa", preco: 45, duracao: "45", categoria: "depilacao" },
-  { nome: "Maquiagem Social", preco: 100, duracao: "1:00", categoria: "makeup" },
-  { nome: "Maquiagem Noiva", preco: 250, duracao: "2:00", categoria: "makeup" },
-  { nome: "Limpeza de Pele", preco: 120, duracao: "1:30", categoria: "estetica" },
-  { nome: "Massagem Relaxante", preco: 90, duracao: "1:00", categoria: "estetica" }
-];
-
 export const GestaoServicos = () => {
   const [loading, setLoading] = useState(true);
   const [servicos, setServicos] = useState([]);
   const [categorias, setCategorias] = useState(CATEGORIAS_INICIAIS);
   const [categoriaAtiva, setCategoriaAtiva] = useState('cabelo');
   const [showForm, setShowForm] = useState(false);
-  const [novoServico, setNovoServico] = useState({ nome: '', preco: '', duracao: '', pausa: '0' });
+  
+  // 🔥 ADICIONADO: 'categoria' no estado inicial do novo serviço
+  const [novoServico, setNovoServico] = useState({ nome: '', preco: '', duracao: '', pausa: '0', categoria: 'cabelo' });
+  
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
   const [showInputCategoria, setShowInputCategoria] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
@@ -104,9 +74,12 @@ export const GestaoServicos = () => {
         }
 
         const { error } = await supabase.from('servicos').insert([{
-            ...novoServico,
+            nome: novoServico.nome,
+            preco: novoServico.preco,
+            duracao: novoServico.duracao,
             pausa: habilitarPausa ? novoServico.pausa : 0,
-            categoria: categoriaAtiva,
+            // 🔥 ADICIONADO: Agora ele salva a categoria que você escolheu no select
+            categoria: novoServico.categoria,
             salao_id: salaoId
         }]);
         if (error) throw error;
@@ -114,7 +87,7 @@ export const GestaoServicos = () => {
         fetchServicos();
         setShowForm(false);
         setHabilitarPausa(false);
-        setNovoServico({ nome: '', preco: '', duracao: '', pausa: '0' });
+        setNovoServico({ nome: '', preco: '', duracao: '', pausa: '0', categoria: categoriaAtiva });
     } catch (error) { alert(error.message); }
   };
 
@@ -142,6 +115,12 @@ export const GestaoServicos = () => {
 
   const servicosFiltrados = servicos.filter(s => s.categoria === categoriaAtiva);
 
+  // Função para abrir o formulário já com a categoria da aba atual pré-selecionada
+  const abrirFormulario = () => {
+    setNovoServico({ ...novoServico, categoria: categoriaAtiva });
+    setShowForm(true);
+  };
+
   return (
     <div className="text-white min-h-[calc(100vh-100px)] p-2 md:p-6 rounded-3xl animate-in fade-in duration-500">
       
@@ -157,7 +136,7 @@ export const GestaoServicos = () => {
         </div>
         
         <button 
-          onClick={() => setShowForm(true)} 
+          onClick={abrirFormulario} 
           className="w-full md:w-auto px-5 py-2.5 rounded-xl text-sm font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20 transition-all flex items-center justify-center gap-2 active:scale-95"
         >
           <Plus size={18} /> Novo Serviço
@@ -272,26 +251,44 @@ export const GestaoServicos = () => {
         <div className="bg-[#18181b] border border-white/10 p-6 rounded-2xl mb-8 animate-in slide-in-from-top-4 shadow-2xl relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-600"></div>
             <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-2">
-                <Plus size={18} className="text-purple-400" /> Adicionar em {categorias.find(c=>c.id===categoriaAtiva)?.label}
+                <Plus size={18} className="text-purple-400" /> Adicionar Novo Serviço
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-5 items-end">
-                <div className="md:col-span-2">
+            {/* 🔥 ADICIONADO: Grid expandida para lg:grid-cols-6 para caber a categoria */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-5 items-end">
+                <div className="lg:col-span-2">
                     <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Nome do Serviço</label>
                     <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500 transition-colors" 
                         placeholder="Ex: Corte Bordado" value={novoServico.nome} onChange={e => setNovoServico({...novoServico, nome: e.target.value})} />
                 </div>
-                <div>
+
+                {/* 🔥 ADICIONADO: Caixa de seleção de Categoria */}
+                <div className="lg:col-span-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Categoria</label>
+                    <select 
+                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500 transition-colors appearance-none cursor-pointer"
+                        value={novoServico.categoria}
+                        onChange={e => setNovoServico({...novoServico, categoria: e.target.value})}
+                    >
+                        {categorias.map(cat => (
+                            <option key={cat.id} value={cat.id} className="bg-[#18181b] text-white">
+                                {cat.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="lg:col-span-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Preço (R$)</label>
                     <input type="number" className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" 
                         placeholder="0.00" value={novoServico.preco} onChange={e => setNovoServico({...novoServico, preco: e.target.value})} />
                 </div>
-                <div>
+                <div className="lg:col-span-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Duração</label>
                     <input className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500" 
                         placeholder="Ex: 1:30" value={novoServico.duracao} onChange={e => setNovoServico({...novoServico, duracao: e.target.value})} />
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 lg:col-span-1">
                     <button 
                       onClick={() => setHabilitarPausa(!habilitarPausa)}
                       className={`flex items-center justify-center gap-2 h-[46px] rounded-xl border text-[10px] font-bold uppercase transition-all ${habilitarPausa ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-white/5 border-white/10 text-gray-500'}`}
@@ -324,7 +321,7 @@ export const GestaoServicos = () => {
                 <div className="col-span-full py-20 text-center bg-[#121216]/50 rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center group">
                     <Tag size={40} className="text-gray-600 mb-4"/>
                     <h3 className="text-lg font-bold text-white mb-1">Esta categoria está vazia</h3>
-                    <button onClick={() => setShowForm(true)} className="text-purple-400 hover:text-purple-300 font-bold hover:underline">+ Adicionar primeiro serviço</button>
+                    <button onClick={abrirFormulario} className="text-purple-400 hover:text-purple-300 font-bold hover:underline">+ Adicionar primeiro serviço</button>
                 </div>
             )}
 
@@ -343,7 +340,7 @@ export const GestaoServicos = () => {
                                 value={servico.preco} onChange={(e) => salvarAlteracao(servico.id, 'preco', e.target.value)} />
                         </div>
                         <div className="w-24 bg-black/40 rounded-lg p-2 flex items-center gap-1 border border-white/5 focus-within:border-blue-500/50 h-10">
-                            <Clock size={14} className="text-blue-500" />
+                            <span className="text-blue-500 text-xs font-bold">⏱</span>
                             <input className="bg-transparent w-full text-xs text-gray-300 font-medium outline-none text-center"
                                 value={servico.duracao} onChange={(e) => salvarAlteracao(servico.id, 'duracao', e.target.value)} />
                         </div>

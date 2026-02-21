@@ -1,5 +1,5 @@
 // src/screens/financeiro/metas/MetaCard.jsx
-import { createElement } from 'react'; // Importamos createElement
+import { createElement } from 'react';
 
 export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
   const {
@@ -15,11 +15,26 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
   const valorAtual = Number(meta.valor_atual) || 0;
   const valorMeta = Number(meta.valor_meta) || 0;
 
+  // 🔥 IDENTIFICA SE É DINHEIRO OU QUANTIDADE
+  // Verifica pelo tipo da meta ou se a palavra "Cliente" está no título
+  const isMonetario = 
+    !['clientes', 'agendamentos', 'quantidade'].includes(meta.tipo) &&
+    !meta.titulo?.toLowerCase().includes('cliente');
+
+  // 🔥 FUNÇÃO DE FORMATAÇÃO INTELIGENTE
+  const formatarValor = (valor) => {
+    if (isMonetario) {
+      return `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    // Para clientes/agendamentos, arredondamos e removemos o R$
+    return Math.floor(valor).toString(); 
+  };
+
   // Cálculos
   const progresso = calcularProgresso ? calcularProgresso(meta) : 0;
   const status = getStatusMeta ? getStatusMeta(progresso, meta.inverso) : { label: '-', bg: 'bg-gray-700', color: 'text-gray-400' };
   
-  // Pegamos a referência do ícone (sem criar componente, apenas referência)
+  // Pegamos a referência do ícone
   const Icon = getIcon ? getIcon(meta.tipo) : null;
 
   // Classes de cor
@@ -33,7 +48,7 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
         return (
           <>
             <span className="text-green-400 font-medium">
-              R$ {(valorMeta - valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatarValor(valorMeta - valorAtual)}
             </span>
             {' '}disponível no orçamento
           </>
@@ -42,7 +57,7 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
         return (
           <>
             <span className="text-red-400 font-medium">
-              R$ {(valorAtual - valorMeta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatarValor(valorAtual - valorMeta)}
             </span>
             {' '}acima do limite
           </>
@@ -54,7 +69,7 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
           <>
             Meta atingida! 
             <span className="text-green-400 font-medium">
-              {' '}+R$ {(valorAtual - valorMeta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {' '}+{formatarValor(valorAtual - valorMeta)}
             </span>
           </>
         );
@@ -63,7 +78,7 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
           <>
             Faltam{' '}
             <span className="text-orange-400 font-medium">
-              R$ {(valorMeta - valorAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatarValor(valorMeta - valorAtual)}
             </span>
           </>
         );
@@ -78,8 +93,6 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
     >
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-xl ${bgColorClass} group-hover:scale-110 transition-transform`}>
-          {/* SOLUÇÃO: Usamos createElement para renderizar o ícone dinâmico. 
-             Isso evita o erro de "creating components during render" do ESLint. */}
           {Icon && createElement(Icon, { className: `w-6 h-6 ${iconColorClass}` })}
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
@@ -94,13 +107,13 @@ export const MetaCard = ({ meta = {}, metaCalculations = {}, onClick }) => {
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Atual</span>
           <span className="font-bold text-white">
-            R$ {valorAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            {formatarValor(valorAtual)}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Meta</span>
           <span className="font-bold text-white">
-            R$ {valorMeta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            {formatarValor(valorMeta)}
           </span>
         </div>
 
