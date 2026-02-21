@@ -1,6 +1,6 @@
 import { supabase } from '../../services/supabase';
 import jsPDF from 'jspdf';
-import * as QRCodeGenerator from 'qrcode';
+
 
 export const pdvService = {
   // --- CARREGAMENTO DE DADOS ---
