@@ -114,7 +114,7 @@ export const pdvService = {
       await supabase.from('itens_venda').insert([{
         venda_id: venda.id,
         produto_id: item.tipo === 'produto' ? item.id : null,
-        servico_id: item.tipo === 'servico' ? item.id : null,
+        servico_id: (item.tipo === 'servico' || item.tipo === 'agendamento') ? item.servico_id : null,
         tipo: item.tipo,
         quantidade: item.qtd,
         preco_unitario: item.preco_venda,
@@ -202,8 +202,8 @@ export const pdvService = {
     doc.text(`Pagamento: ${venda.forma_pagamento.toUpperCase()}`, margin, y);
     
     if (venda.forma_pagamento === 'pix') {
-       y += 10;
-       doc.text('Pagamento via PIX', 40, y, { align: 'center' });
+        y += 10;
+        doc.text('Pagamento via PIX', 40, y, { align: 'center' });
     }
 
     y += 10;
@@ -305,7 +305,8 @@ export const PDV = () => {
       const itensParaSalvar = carrinho.map(item => ({
         venda_id: venda.id,
         produto_id: item.tipo === 'produto' ? item.id : null,
-        servico_id: item.tipo === 'agendamento' ? item.id : null,
+        // CORREÇÃO: Usamos o servico_id que capturamos no carrinho, não o ID do agendamento
+        servico_id: (item.tipo === 'agendamento' || item.tipo === 'servico') ? item.servico_id : null,
         salao_id: salaoId,
         quantidade: item.qtd,
         valor_unitario: item.preco_venda,
@@ -323,7 +324,6 @@ export const PDV = () => {
       await Promise.all(carrinho.map(async (item) => {
         if (item.tipo === 'produto') {
           const novoEstoque = (item.estoque || 0) - item.qtd;
-          // Atualiza as duas colunas ('estoque' e 'quantidade_atual') para evitar qualquer divergência
           return Promise.all([
             supabase.from('produtos').update({ estoque: novoEstoque, quantidade_atual: novoEstoque }).eq('id', item.id),
             supabase.from('movimentacoes_estoque').insert({
@@ -339,6 +339,7 @@ export const PDV = () => {
             })
           ]);
         } else if (item.tipo === 'agendamento') {
+          // Usamos item.id porque aqui é o ID do agendamento para mudar o status
           return supabase.from('agendamentos').update({ status: 'concluido' }).eq('id', item.id);
         }
       }));
@@ -380,7 +381,19 @@ export const PDV = () => {
       if (existente) return prev.map(i => i.id === item.id && i.tipo === tipo ? { ...i, qtd: i.qtd + 1 } : i);
       const precoFinal = tipo === 'produto' ? (item.preco || item.preco_venda || 0) : (item.preco || 0);
       const nomeFinal = tipo === 'produto' ? item.nome : `${item.servico_nome} (${item.cliente_nome})`;
-      return [...prev, { id: item.id, salao_id: item.salao_id, nome: nomeFinal, tipo, qtd: 1, preco_venda: precoFinal, estoque: item.estoque, custo: item.custo || item.custo_unitario || 0 }];
+      
+      return [...prev, { 
+        id: item.id, 
+        // CORREÇÃO: Guardamos o servico_id aqui para usar na finalização
+        servico_id: item.servico_id || (tipo === 'servico' ? item.id : null),
+        salao_id: item.salao_id, 
+        nome: nomeFinal, 
+        tipo, 
+        qtd: 1, 
+        preco_venda: precoFinal, 
+        estoque: item.estoque, 
+        custo: item.custo || item.custo_unitario || 0 
+      }];
     });
   };
 
