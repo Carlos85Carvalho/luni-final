@@ -213,46 +213,33 @@ export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
 };
 
 // ============================================================================
-// MODAL DE SUCESSO / WHATSAPP / PDF (ATUALIZADO)
+// MODAL DE SUCESSO / WHATSAPP / PDF (SUPER ATUALIZADO)
 // ============================================================================
 export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
   if (!aberto || !dadosVenda) return null;
 
   const { cliente, total, carrinho, vendaId, subtotal, desconto, formaPagamento } = dadosVenda;
 
-  // --- FUNÇÃO PARA GERAR O PDF (CUPOM) ---
-  const gerarComprovantePDF = () => {
-    // Configuração para "impressora térmica" (80mm de largura)
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 200] // Altura inicial estimativa
-    });
+  // --- Função que DESENHA o PDF na memória (mas não baixa ainda) ---
+  const construirPDF = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
+    let y = 10; 
 
-    let y = 10; // Posição vertical inicial
-
-    // Configurações de Fonte
     doc.setFont('courier', 'bold');
     doc.setFontSize(12);
-    
-    // --- CABEÇALHO ---
     doc.text('LUNI SISTEMA', 40, y, { align: 'center' });
     y += 5;
     doc.setFontSize(8);
     doc.setFont('courier', 'normal');
-    // Você pode pegar esses dados do user_metadata se quiser ser dinâmico
     doc.text('Comprovante de Venda', 40, y, { align: 'center' });
     y += 6;
     doc.text('--------------------------------', 40, y, { align: 'center' });
     y += 5;
-
-    // --- DADOS DA VENDA ---
     doc.text(`DATA: ${new Date().toLocaleString()}`, 5, y);
     y += 4;
     doc.text(`VENDA: #${vendaId?.toString().slice(0, 8) || '000'}`, 5, y);
     y += 6;
 
-    // --- DADOS DO CLIENTE ---
     if (cliente) {
       doc.text(`CLIENTE: ${cliente.nome.toUpperCase().substring(0, 30)}`, 5, y);
       y += 4;
@@ -266,20 +253,15 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
     }
     doc.text('--------------------------------', 40, y, { align: 'center' });
     y += 5;
-
-    // --- ITENS ---
     doc.setFont('courier', 'bold');
     doc.text('ITEM  QTD   TOTAL', 5, y);
     y += 4;
     doc.setFont('courier', 'normal');
 
     carrinho.forEach((item, index) => {
-      // Nome do produto
       const nomeProduto = item.nome.toUpperCase().substring(0, 25); 
       doc.text(`${index + 1} ${nomeProduto}`, 5, y);
       y += 4;
-
-      // Valores
       const valTotalItem = (item.qtd * item.preco_venda).toFixed(2);
       const linhaValores = `${item.qtd}x R$${item.preco_venda.toFixed(2)} = R$${valTotalItem}`;
       doc.text(linhaValores, 10, y); 
@@ -288,15 +270,12 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
 
     doc.text('--------------------------------', 40, y, { align: 'center' });
     y += 5;
-
-    // --- TOTAIS ---
     doc.setFont('courier', 'bold');
     
     if (subtotal) {
         doc.text(`SUBTOTAL:     R$ ${subtotal.toFixed(2)}`, 75, y, { align: 'right' });
         y += 4;
     }
-    
     if (desconto && desconto > 0) {
       doc.text(`DESCONTO:    -R$ ${desconto.toFixed(2)}`, 75, y, { align: 'right' });
       y += 4;
@@ -305,30 +284,59 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
     doc.setFontSize(10);
     doc.text(`TOTAL: R$ ${total.toFixed(2)}`, 75, y, { align: 'right' });
     y += 6;
-    
     doc.setFontSize(8);
     doc.setFont('courier', 'normal');
     doc.text(`PAGAMENTO: ${formaPagamento?.toUpperCase() || 'DINHEIRO'}`, 5, y);
     y += 8;
-
-    // --- RODAPÉ ---
     doc.text('Obrigado pela preferencia!', 40, y, { align: 'center' });
     y += 6;
     doc.setFontSize(6);
     doc.text('Gerado via Luni App', 40, y, { align: 'center' });
 
-    // Salvar/Abrir PDF
-    doc.save(`cupom_${vendaId || 'venda'}.pdf`);
+    return doc;
   };
 
-  const enviarWhatsApp = () => {
+  // --- Função do Botão "Imprimir/Abrir PDF" ---
+  const abrirOuBaixarPDF = () => {
+    const doc = construirPDF();
+    // Em vez de baixar direto, abre em uma nova aba para visualização
+    window.open(doc.output('bloburl'), '_blank');
+  };
+
+  // --- Função do Botão "Enviar no WhatsApp" ---
+  const compartilharPDFnoWhatsApp = async () => {
     if (!cliente?.telefone) {
       alert("Este cliente não possui telefone cadastrado.");
       return;
     }
+
+    const doc = construirPDF();
+    // Pega o arquivo cru na memória
+    const pdfBlob = doc.output('blob');
+    const arquivoPdf = new File([pdfBlob], `comprovante_${vendaId || 'luni'}.pdf`, { type: 'application/pdf' });
+
+    // TENTA ENVIAR O ARQUIVO DIRETO (Funciona perfeitamente em Celulares iOS/Android)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivoPdf] })) {
+      try {
+        await navigator.share({
+          title: 'Comprovante de Venda',
+          text: `Olá ${cliente.nome}, muito obrigado pela preferência! Aqui está o seu comprovante.`,
+          files: [arquivoPdf]
+        });
+        return; // Sucesso! Finaliza aqui.
+      } catch (error) {
+        console.log('Compartilhamento cancelado ou falhou', error);
+        return;
+      }
+    }
+
+    // FALLBACK: Se estiver no Computador (Onde o Chrome/Windows às vezes bloqueia arquivo direto)
+    alert("No computador, o comprovante será baixado para você anexar na conversa.");
+    doc.save(`comprovante_${vendaId || 'luni'}.pdf`); // Força o download
+    
+    // E abre a conversa de texto
     const telefone = cliente.telefone.replace(/\D/g, '');
-    const itensTexto = carrinho.map(item => `• ${item.qtd}x ${item.nome} (R$ ${item.preco_venda.toFixed(2)})`).join('\n');
-    const mensagem = `*COMPROVANTE DE VENDA*\n\nOlá ${cliente.nome}, obrigado!\n\n*Itens:*\n${itensTexto}\n\n*Total: R$ ${total.toFixed(2)}*\n\n_Pedido #${vendaId || 'Recente'}_`;
+    const mensagem = `Olá ${cliente.nome}, muito obrigado pela preferência! Estou te enviando o comprovante da compra em anexo.`;
     const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(link, '_blank');
   };
@@ -345,18 +353,17 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
         <p className="text-gray-500 mb-6">O pagamento foi confirmado.</p>
 
         <div className="w-full space-y-3">
-             {/* BOTÃO DE IMPRIMIR COMPROVANTE */}
              <button 
-              onClick={gerarComprovantePDF}
+              onClick={abrirOuBaixarPDF}
               className="w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
             >
               <Printer size={20} />
-              Imprimir Comprovante
+              Visualizar Comprovante
             </button>
 
             {cliente ? (
               <button 
-                onClick={enviarWhatsApp}
+                onClick={compartilharPDFnoWhatsApp}
                 className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-200 transition-all active:scale-95"
               >
                 <MessageCircle size={20} />

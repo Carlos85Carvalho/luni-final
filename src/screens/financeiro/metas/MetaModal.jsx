@@ -29,9 +29,15 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
   // Inicializar com dados da meta se for edição
   useEffect(() => {
     if (meta) {
+      // CORREÇÃO: 'vendas' adicionado à lista de formatação de dinheiro
+      let valorFormatado = meta.valor_meta?.toString() || '';
+      if (['faturamento', 'lucro', 'despesas', 'vendas'].includes(meta.tipo)) {
+         valorFormatado = parseFloat(meta.valor_meta || 0).toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+      }
+
       setFormData({
         tipo: meta.tipo || 'faturamento',
-        valor_meta: meta.valor_meta?.toString().replace('.', ',') || '',
+        valor_meta: valorFormatado,
         periodo: meta.periodo || 'Mensal',
         cor: meta.cor || 'purple',
         inverso: meta.inverso || false,
@@ -79,10 +85,43 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
     { value: 'red', label: 'Vermelho', class: 'bg-red-500' }
   ];
 
-  const parseMoeda = (valor) => {
+  // CORREÇÃO AQUI: 'vendas' agora é considerado um valor Monetário!
+  const isMonetario = ['faturamento', 'lucro', 'despesas', 'vendas'].includes(formData.tipo);
+
+  // MÁSCARA INTELIGENTE
+  const handleMudancaValor = (e) => {
+    let v = e.target.value.replace(/\D/g, ''); // Tira tudo que não é número
+
+    if (v === '') {
+      setFormData({ ...formData, valor_meta: '' });
+      return;
+    }
+
+    if (isMonetario) {
+      // Máscara de Dinheiro (1.500,00)
+      v = (parseInt(v, 10) / 100).toFixed(2);
+      v = v.replace('.', ',');
+      v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    } else {
+      // Máscara de Quantidade (só deixa digitar números puros, ex: 50)
+      v = parseInt(v, 10).toString(); 
+    }
+
+    setFormData({ ...formData, valor_meta: v });
+  };
+
+  const handleMudarTipo = (tipo, cor) => {
+    setFormData({ ...formData, tipo, cor, valor_meta: '' });
+  };
+
+  const parseMoedaOuInteiro = (valor) => {
     if (!valor) return 0;
-    const numeroLimpo = valor.toString().replace(/[^0-9.,]/g, '').replace(',', '.');
-    return parseFloat(numeroLimpo) || 0;
+    if (isMonetario) {
+      const numeroLimpo = valor.toString().replace(/\./g, '').replace(',', '.');
+      return parseFloat(numeroLimpo) || 0;
+    } else {
+      return parseInt(valor, 10) || 0;
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -93,7 +132,7 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
     setSalvando(true);
     try {
-      const valorMeta = parseMoeda(formData.valor_meta);
+      const valorMetaFinal = parseMoedaOuInteiro(formData.valor_meta);
       
       const labelTipo = tiposMeta.find(t => t.value === formData.tipo)?.label || 'Meta';
       const tituloAutomatico = `Meta de ${labelTipo}`;
@@ -102,7 +141,7 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
         salao_id: salaoId,
         tipo: formData.tipo,
         titulo: tituloAutomatico,
-        valor_meta: valorMeta,
+        valor_meta: valorMetaFinal,
         periodo: formData.periodo,
         cor: formData.cor,
         inverso: formData.inverso,
@@ -178,7 +217,7 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
                   <button
                     key={tipo.value}
                     type="button"
-                    onClick={() => setFormData({...formData, tipo: tipo.value, cor: tipo.cor })}
+                    onClick={() => handleMudarTipo(tipo.value, tipo.cor)}
                     className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
                       isSelected 
                         ? `border-${tipo.cor}-500 bg-${tipo.cor}-500/10` 
@@ -198,17 +237,25 @@ export const MetaModal = ({ aberto, onFechar, onSucesso, meta }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
+              {/* RÓTULO DINÂMICO */}
               <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Valor Meta (R$)*
+                {isMonetario ? 'Valor Meta (R$)*' : 'Quantidade Alvo*'}
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                {/* ÍCONE DINÂMICO */}
+                {isMonetario ? (
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                ) : (
+                  <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                )}
+                
+                {/* CAMPO DINÂMICO E COM MÁSCARA */}
                 <input
                   type="text"
                   value={formData.valor_meta}
-                  onChange={e => setFormData({...formData, valor_meta: e.target.value})}
+                  onChange={handleMudancaValor}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm"
-                  placeholder="0,00"
+                  placeholder={isMonetario ? "0,00" : "Ex: 50"}
                   disabled={salvando}
                 />
               </div>
