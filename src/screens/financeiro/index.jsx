@@ -10,8 +10,8 @@ import {
   ShoppingCart,
   TrendingUp,
   Scissors,
-  Menu, // ✅ NOVO
-  X      // ✅ NOVO
+  Menu,
+  X
 } from 'lucide-react';
 
 // --- Importação das Telas ---
@@ -35,7 +35,7 @@ import { RelatorioModal } from './relatorios/RelatorioModal';
 
 export const FinanceiroModule = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('visao-geral');
-  const [menuAberto, setMenuAberto] = useState(false); // ✅ NOVO
+  const [menuAberto, setMenuAberto] = useState(false);
 
   // --- LÓGICA DOS MODAIS ---
   const [modal, setModal] = useState({
@@ -58,7 +58,6 @@ export const FinanceiroModule = ({ onClose }) => {
     handleFecharModal(); 
   };
 
-  // ✅ FUNÇÃO PARA SELECIONAR ABA E FECHAR MENU
   const selecionarAba = (tabId) => {
     setActiveTab(tabId);
     setMenuAberto(false);
@@ -92,8 +91,10 @@ export const FinanceiroModule = ({ onClose }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-4 md:p-8 relative">
-      <header className="mb-8 flex items-center gap-4">
+    <div className="min-h-screen bg-[#0a0a0f] text-white p-4 md:p-8 relative overflow-x-hidden">
+      
+      {/* HEADER PRINCIPAL */}
+      <header className="mb-6 flex items-center gap-4 relative z-40">
         <button 
           onClick={onClose}
           className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white"
@@ -101,64 +102,82 @@ export const FinanceiroModule = ({ onClose }) => {
           <ChevronLeft size={24} />
         </button>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">
+          <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
             Financeiro Luni
           </h1>
-          <p className="text-gray-400 text-sm">Gestão profissional para salões de alta performance.</p>
+          <p className="text-gray-400 text-sm hidden md:block">Gestão profissional para salões de alta performance.</p>
         </div>
       </header>
 
-      {/* ✅ INDICADOR DE ABA ATIVA + HAMBÚRGUER (MOBILE) */}
-      <div className="flex md:hidden items-center gap-3 mb-6">
-        <div className="flex-1 px-4 py-2.5 rounded-xl bg-purple-600 text-white border border-purple-500 flex items-center gap-2 shadow-lg shadow-purple-900/20">
+      {/* ========================================================= */}
+      {/* 📱 MODO MOBILE: INDICADOR DE ABA ATIVA + HAMBÚRGUER */}
+      {/* ========================================================= */}
+      <div className="md:hidden flex items-center gap-3 mb-6 relative z-40">
+        {/* Botão que mostra a aba atual e serve para abrir o menu também */}
+        <button 
+          onClick={() => setMenuAberto(!menuAberto)}
+          className="flex-1 px-4 py-3 rounded-xl bg-purple-600/90 hover:bg-purple-600 text-white border border-purple-500/50 flex items-center gap-3 shadow-lg shadow-purple-900/20 transition-all active:scale-95"
+        >
           {(() => {
             const abaAtiva = tabs.find(t => t.id === activeTab);
             const Icon = abaAtiva?.icon || LayoutDashboard;
             return (
               <>
-                <Icon size={18} />
-                <span className="text-sm font-medium truncate">{abaAtiva?.label}</span>
+                <Icon size={20} />
+                <span className="text-[15px] font-semibold flex-1 text-left">{abaAtiva?.label}</span>
+                {menuAberto ? <X size={20} className="text-white/70" /> : <Menu size={20} className="text-white/70" />}
               </>
             );
           })()}
-        </div>
-        
-        <button 
-          onClick={() => setMenuAberto(!menuAberto)}
-          className="p-3 rounded-xl bg-gray-800 border border-gray-700 hover:border-purple-500/40 transition-all"
-        >
-          {menuAberto ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
-      {/* ✅ MENU DROPDOWN (MOBILE) */}
+      {/* ========================================================= */}
+      {/* 📱 MODO MOBILE: MENU DROPDOWN "FLUTUANTE" */}
+      {/* ========================================================= */}
+      {/* OVERLAY DE FUNDO DESFOCADO (Para clicar e fechar) */}
       {menuAberto && (
-        <div className="md:hidden mb-6 bg-[#18181b] border border-white/10 rounded-2xl overflow-hidden animate-in slide-in-from-top-4 shadow-2xl">
-          <div className="p-2 space-y-1">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => selecionarAba(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                    isActive 
-                    ? 'bg-purple-600 text-white shadow-lg' 
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <Icon size={18} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <div 
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity"
+          onClick={() => setMenuAberto(false)}
+        />
       )}
 
-      {/* ✅ NAVEGAÇÃO HORIZONTAL (DESKTOP) */}
-      <nav className="hidden md:flex space-x-2 overflow-x-auto pb-4 mb-6 border-b border-gray-800 custom-scrollbar">
+      {/* CAIXA DO MENU */}
+      <div className={`
+        md:hidden absolute top-[140px] left-4 right-4 z-50 bg-[#18181b] border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 transform origin-top
+        ${menuAberto ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0 pointer-events-none'}
+      `}>
+        <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => selecionarAba(tab.id)}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive 
+                  ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
+                  : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg ${isActive ? 'bg-purple-500/20' : 'bg-gray-800'}`}>
+                  <Icon size={18} className={isActive ? 'text-purple-400' : 'text-gray-400'} />
+                </div>
+                {tab.label}
+                {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+
+      {/* ========================================================= */}
+      {/* 💻 MODO DESKTOP: NAVEGAÇÃO HORIZONTAL */}
+      {/* ========================================================= */}
+      <nav className="hidden md:flex space-x-2 overflow-x-auto pb-4 mb-6 border-b border-gray-800 custom-scrollbar relative z-30">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -179,10 +198,13 @@ export const FinanceiroModule = ({ onClose }) => {
         })}
       </nav>
 
-      <main className="min-h-[500px] pb-24">
+      {/* ÁREA DE CONTEÚDO */}
+      <main className="min-h-[500px] pb-24 relative z-10">
         {renderContent()}
       </main>
 
+
+      {/* MODAIS (MANTIDOS INTACTOS) */}
       {modal.isOpen && (
         <>
           <DespesaModal

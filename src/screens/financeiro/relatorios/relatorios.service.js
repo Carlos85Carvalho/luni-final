@@ -7,20 +7,18 @@ import autoTable from 'jspdf-autotable';
 export const relatoriosService = {
   
   // ==============================================================================
-  // 1. BUSCAS DE DADOS (DATA FETCHING)
+  // 1. BUSCAS DE DADOS (BLINDADAS)
   // ==============================================================================
 
   async getDadosVendasProdutos(salaoId, dataInicio, dataFim) {
     try {
       const { data, error } = await supabase
-        .from('vendas_itens') 
+        .from('venda_itens') 
         .select(`
-          quantidade, valor_total, valor_unitario,
-          produtos(nome), 
+          nome_item, quantidade, valor_total, preco_unitario,
           vendas!inner(data_venda, status, salao_id)
         `)
         .eq('vendas.salao_id', salaoId)
-        .not('produto_id', 'is', null) 
         .gte('vendas.data_venda', dataInicio)
         .lte('vendas.data_venda', dataFim)
         .neq('vendas.status', 'cancelado');
@@ -38,11 +36,14 @@ export const relatoriosService = {
 
     try {
       const [agendamentosResult, vendasResult, despesasResult] = await Promise.all([
-        supabase.from('agendamentos').select('*, clientes(nome)').eq('salao_id', salaoId)
+        supabase.from('agendamentos').select('*, profissionais(nome), clientes(nome)').eq('salao_id', salaoId)
           .gte('data', dataInicio).lte('data', dataFim).neq('status', 'cancelado'),
-        supabase.from('vendas').select('*, vendas_itens(*, produtos(nome), servicos(nome))') 
+        
+        supabase.from('vendas').select('*') 
           .eq('salao_id', salaoId)
-          .gte('data_venda', dataInicio).lte('data_venda', dataFim).neq('status', 'cancelado'),
+          .gte('data_venda', dataInicio).lte('data_venda', dataFim)
+          .neq('status', 'cancelado'),
+
         supabase.from('despesas').select('*').eq('salao_id', salaoId)
           .gte('data_vencimento', dataInicio).lte('data_vencimento', dataFim)
       ]);
@@ -86,7 +87,7 @@ export const relatoriosService = {
   },
 
   // ==============================================================================
-  // 2. CONTROLADOR DE RELATÓRIOS (CORRIGIDO PARA METAS)
+  // 2. CONTROLADOR DE RELATÓRIOS
   // ==============================================================================
   
   async gerarRelatorioCompleto(salaoId, tipo, periodo, filtros = {}) {
@@ -107,16 +108,19 @@ export const relatoriosService = {
           const agrupado = {};
           let totalFaturado = 0;
           let totalItens = 0;
+          
           dados.forEach(item => {
-            const nome = item.produtos?.nome || 'Produto sem nome'; 
+            const nome = item.nome_item || 'Produto Diversos'; 
             if (!agrupado[nome]) agrupado[nome] = { produto: nome, qtd: 0, total: 0 };
             const qtd = Number(item.quantidade) || 0;
             const val = Number(item.valor_total) || 0;
+            
             agrupado[nome].qtd += qtd;
             agrupado[nome].total += val;
             totalFaturado += val;
             totalItens += qtd;
           });
+
           relatorio.resumo = { faturamentoTotal: totalFaturado, produtosVendidos: totalItens, itensDistintos: Object.keys(agrupado).length };
           relatorio.detalhes = Object.values(agrupado).sort((a, b) => b.total - a.total).map(item => ({
             Produto: item.produto, 'Qtd. Vendida': item.qtd, 'Total (R$)': this.formatarMoeda(item.total)
@@ -124,13 +128,25 @@ export const relatoriosService = {
           break;
         }
 
-        // --- AQUI ESTÁ A GRANDE DIFERENÇA: CASO DE METAS ---
         case 'metas': {
-          relatorio.titulo = "Relatório de Metas e Performance";
+          relatorio.titulo = "Relatório Completo de Metas";
           const dadosFin = await this.getDadosFinanceiros(salaoId, dataInicio, dataFim);
-          // Busca meta ou usa R$ 5.000 como padrão
-          const { data: metaConfig } = await supabase.from('metas').select('*').eq('salao_id', salaoId).maybeSingle();
-          relatorio = { ...relatorio, ...this.processarRelatorioMetas(dadosFin, metaConfig) };
+          const { data: listaMetas } = await supabase.from('metas').select('*').eq('salao_id', salaoId);
+          relatorio = { ...relatorio, ...this.processarRelatorioMetas(dadosFin, listaMetas || []) };
+          break;
+        }
+
+        case 'performance': {
+          relatorio.titulo = "Performance da Equipe";
+          const dadosFin = await this.getDadosFinanceiros(salaoId, dataInicio, dataFim);
+          relatorio = { ...relatorio, ...this.processarRelatorioPerformance(dadosFin) };
+          break;
+        }
+
+        case 'servicos': {
+          relatorio.titulo = "Análise de Serviços";
+          const dadosFin = await this.getDadosFinanceiros(salaoId, dataInicio, dataFim);
+          relatorio = { ...relatorio, ...this.processarRelatorioServicos(dadosFin) };
           break;
         }
 
@@ -173,39 +189,199 @@ export const relatoriosService = {
   // 3. PROCESSADORES DE DADOS
   // ==============================================================================
 
-  // NOVA FUNÇÃO: Transforma dados financeiros em progresso de metas
-  processarRelatorioMetas(dados, metaConfig) {
-    const fin = this.processarRelatorioFinanceiro(dados);
-    const valorObjetivo = metaConfig?.valor_objetivo || 5000;
-    const progresso = (fin.resumo.receitaTotal / valorObjetivo) * 100;
+  // --- NOVO RELATÓRIO DE METAS (SEM GRÁFICO E COM CORREÇÃO DE R$) ---
+  processarRelatorioMetas(dados, listaMetas) {
+    if (!dados) return { resumo: {}, detalhes: [], graficos: [] };
+
+    const calc = (item) => Number(item.total || item.valor_total || item.valor || 0);
+    const totalVendas = dados.vendas.reduce((acc, v) => acc + calc(v), 0);
+    const totalServicos = dados.agendamentos.reduce((acc, r) => acc + calc(r), 0);
+    const receitaTotal = totalServicos + totalVendas;
+    const despesaTotal = dados.despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
+    const lucroLiquido = receitaTotal - despesaTotal;
+    const qtdAtendimentos = dados.agendamentos.length;
+
+    if (!listaMetas || listaMetas.length === 0) {
+        return {
+            resumo: { aviso: 'Nenhuma meta cadastrada no painel.' },
+            detalhes: [{ Aviso: 'Vá na tela de Metas para cadastrar seus objetivos.' }],
+            graficos: []
+        };
+    }
+
+    let metasBatidas = 0;
+
+    const detalhesMetas = listaMetas.map(meta => {
+        const tipo = (meta.tipo || meta.categoria || meta.titulo || 'faturamento').toLowerCase();
+        let valorAtual = 0;
+        let isDinheiro = true;
+
+        if (tipo.includes('faturamento') || tipo.includes('receita')) {
+            valorAtual = receitaTotal;
+        } else if (tipo.includes('lucro')) {
+            valorAtual = lucroLiquido;
+        } else if (tipo.includes('despesa')) {
+            valorAtual = despesaTotal;
+        } else if (tipo.includes('venda')) {
+            valorAtual = totalVendas;
+        } else if (tipo.includes('cliente') || tipo.includes('atendimento')) {
+            valorAtual = qtdAtendimentos;
+            isDinheiro = false;
+        } else {
+            valorAtual = receitaTotal; 
+        }
+
+        const objetivo = Number(meta.valor || meta.valor_meta || meta.meta || meta.valor_objetivo || 0);
+        let progresso = objetivo > 0 ? (valorAtual / objetivo) * 100 : 0;
+        let falta = Math.max(0, objetivo - valorAtual);
+        let status = 'Em Andamento ⏳';
+
+        if (tipo.includes('despesa')) {
+            falta = Math.max(0, objetivo - valorAtual); 
+            if (valorAtual > objetivo) {
+                status = 'Orçamento Estourado 🚨';
+                falta = 0;
+            } else {
+                status = 'Dentro do Orçamento ✅';
+                if (valorAtual > 0) metasBatidas++;
+            }
+        } else {
+            if (valorAtual >= objetivo) {
+                status = 'Meta Batida! 🏆';
+                metasBatidas++;
+                falta = 0;
+            } else if (progresso < 30) {
+                status = 'Em Risco ⚠️';
+            }
+        }
+
+        return {
+            'Objetivo': meta.titulo || tipo.toUpperCase(),
+            'Tipo': isDinheiro ? 'Financeiro' : 'Operacional',
+            'Resultado Atual': isDinheiro ? this.formatarMoeda(valorAtual) : valorAtual,
+            'Meta': isDinheiro ? this.formatarMoeda(objetivo) : objetivo,
+            'Progresso (%)': `${progresso.toFixed(1)}%`,
+            'Falta/Sobra': isDinheiro ? this.formatarMoeda(falta) : falta,
+            'Status': status
+        };
+    });
 
     return {
       resumo: {
-        receitaTotal: fin.resumo.receitaTotal,
-        metaMensal: valorObjetivo,
-        progressoMeta: progresso,
-        faltaParaMeta: Math.max(0, valorObjetivo - fin.resumo.receitaTotal),
-        qtdServicos: fin.resumo.qtdServicos
+        // Chaves renomeadas para evitar o formatador de R$
+        qtdObjetivos: listaMetas.length, 
+        sucessos: metasBatidas,
+        receitaAtual: receitaTotal,
+        despesaAtual: despesaTotal
       },
-      detalhes: fin.detalhes,
-      graficos: fin.graficos
+      detalhes: detalhesMetas,
+      graficos: [] // <-- GRÁFICO REMOVIDO AQUI
+    };
+  },
+
+  processarRelatorioPerformance(dados) {
+    if (!dados) return { resumo: {}, detalhes: [], graficos: [] };
+    
+    const calc = (item) => Number(item.total || item.valor_total || item.valor || 0);
+
+    const totalVendas = dados.vendas.reduce((acc, v) => acc + calc(v), 0);
+    const totalServicos = dados.agendamentos.reduce((acc, r) => acc + calc(r), 0);
+    const receitaTotal = totalServicos + totalVendas;
+    
+    const qtdAtendimentos = dados.agendamentos.length;
+    const qtdVendasPDV = dados.vendas.length;
+
+    const ticketMedioGeral = qtdAtendimentos > 0 ? (receitaTotal / qtdAtendimentos) : 0;
+    const conversaoProdutos = qtdAtendimentos > 0 ? ((qtdVendasPDV / qtdAtendimentos) * 100) : 0;
+
+    const mapProfissionais = {};
+    dados.agendamentos.forEach(a => {
+        let nomeProf = 'Equipe';
+        if (a.profissionais) {
+            if (Array.isArray(a.profissionais)) {
+                nomeProf = a.profissionais[0]?.nome || 'Equipe';
+            } else {
+                nomeProf = a.profissionais.nome || 'Equipe';
+            }
+        }
+        
+        if (!mapProfissionais[nomeProf]) mapProfissionais[nomeProf] = { atendimentos: 0, faturamento: 0 };
+        mapProfissionais[nomeProf].atendimentos += 1;
+        mapProfissionais[nomeProf].faturamento += calc(a);
+    });
+
+    const detalhes = Object.entries(mapProfissionais)
+        .map(([nome, info]) => ({
+            Profissional: nome,
+            Atendimentos: info.atendimentos,
+            Faturamento: this.formatarMoeda(info.faturamento),
+            'Ticket Médio': this.formatarMoeda(info.atendimentos > 0 ? info.faturamento / info.atendimentos : 0)
+        })).sort((a, b) => b.Atendimentos - a.Atendimentos);
+
+    return {
+      resumo: { 
+        receitaTotal,
+        ticketMedioGeral, 
+        conversaoProdutos,
+        totalAtendimentos: qtdAtendimentos
+      },
+      detalhes,
+      graficos: []
+    };
+  },
+
+  processarRelatorioServicos(dados) {
+    if (!dados || !dados.agendamentos) return { resumo: {}, detalhes: [], graficos: [] };
+    
+    const calc = (item) => Number(item.valor_total || item.valor || 0);
+    const totalFaturado = dados.agendamentos.reduce((acc, r) => acc + calc(r), 0);
+
+    const mapServicos = {};
+    dados.agendamentos.forEach(a => {
+        const nomeServico = a.servico || 'Outros';
+        if (!mapServicos[nomeServico]) mapServicos[nomeServico] = { qtd: 0, faturamento: 0 };
+        mapServicos[nomeServico].qtd += 1;
+        mapServicos[nomeServico].faturamento += calc(a);
+    });
+
+    const detalhes = Object.entries(mapServicos)
+        .map(([nome, info]) => ({
+            Serviço: nome,
+            Quantidade: info.qtd,
+            'Total (R$)': this.formatarMoeda(info.faturamento)
+        })).sort((a, b) => b.Quantidade - a.Quantidade);
+
+    return {
+      resumo: { 
+        faturamentoTotal: totalFaturado,
+        servicosRealizados: dados.agendamentos.length,
+        tiposDistintos: Object.keys(mapServicos).length
+      },
+      detalhes,
+      graficos: []
     };
   },
 
   processarRelatorioFinanceiro(dados) {
     if (!dados) return { resumo: {}, detalhes: [], graficos: [] };
-    const totalVendas = dados.vendas.reduce((acc, v) => acc + (Number(v.total) || Number(v.valor_total) || 0), 0);
-    const totalServicos = dados.agendamentos.reduce((acc, r) => acc + (Number(r.valor_total) || Number(r.valor) || 0), 0);
+    
+    const calc = (item) => Number(item.total || item.valor_total || item.valor || 0);
+    const totalVendas = dados.vendas.reduce((acc, v) => acc + calc(v), 0);
+    const totalServicos = dados.agendamentos.reduce((acc, r) => acc + calc(r), 0);
     const despesaTotal = dados.despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
+    
     const receitaTotal = totalServicos + totalVendas;
     const lucroLiquido = receitaTotal - despesaTotal;
     const margemLucro = receitaTotal > 0 ? (lucroLiquido / receitaTotal * 100) : 0;
 
     return {
-      resumo: { receitaTotal, lucroLiquido, despesaTotal, totalServicos, totalVendas, margemLucro, qtdServicos: dados.agendamentos.length, qtdVendas: dados.vendas.length },
+      resumo: { 
+        receitaTotal, lucroLiquido, despesaTotal, totalServicos, totalVendas, margemLucro, 
+        qtdServicos: dados.agendamentos.length, qtdVendas: dados.vendas.length 
+      },
       detalhes: [
         ...this.agruparPorCategoria(dados.agendamentos, 'Serviço'),
-        ...this.agruparPorCategoria(dados.vendas, 'Venda'),
+        ...this.agruparPorCategoria(dados.vendas, 'Venda de PDV'),
         ...this.agruparPorCategoria(dados.despesas, 'Despesa')
       ],
       graficos: [
@@ -217,15 +393,8 @@ export const relatoriosService = {
   },
 
   processarRelatorioEstoque(produtos) {
-    const valorTotalEstoque = produtos.reduce((acc, p) => {
-      const qtd = Number(p.quantidade_atual) || Number(p.estoque) || 0;
-      const custo = Number(p.custo) || Number(p.custo_unitario) || 0;
-      return acc + (qtd * custo);
-    }, 0);
-    const produtosCriticos = produtos.filter(p => {
-      const atual = Number(p.quantidade_atual) || Number(p.estoque) || 0;
-      return atual <= (p.estoque_minimo || 5);
-    });
+    const valorTotalEstoque = produtos.reduce((acc, p) => acc + ((Number(p.quantidade_atual) || 0) * (Number(p.custo) || 0)), 0);
+    const produtosCriticos = produtos.filter(p => (Number(p.quantidade_atual) || 0) <= (p.estoque_minimo || 5));
     return {
       resumo: { itensCadastrados: produtos.length, valorTotalEstoque, produtosCriticos: produtosCriticos.length },
       detalhes: produtos.map(p => ({
@@ -252,7 +421,6 @@ export const relatoriosService = {
     const totalGasto = lista.reduce((acc, c) => acc + c.rawTotal, 0);
     const ticketMedio = lista.length > 0 ? (totalGasto / lista.length) : 0;
     
-    // CORREÇÃO ESLINT: Limpa sem alertas
     const detalhesLimpos = lista.map(item => {
       const copia = { ...item };
       delete copia.rawTotal;
@@ -276,21 +444,13 @@ export const relatoriosService = {
 
   calcularPeriodo(periodo) {
     const hoje = new Date();
-    let dataInicio = new Date();
-    let dataFim = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    switch (periodo) {
-      case 'mes':
-        dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-        dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-        break;
-      default:
-        dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-        dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-    }
-    dataInicio.setHours(0, 0, 0, 0);
-    dataFim.setHours(23, 59, 59, 999);
-    return { dataInicio: dataInicio.toISOString(), dataFim: dataFim.toISOString() };
+    const ano = hoje.getFullYear();
+    const mes = hoje.getMonth();
+    
+    let dataInicio = new Date(ano, mes, 1).toLocaleDateString('en-CA') + 'T00:00:00';
+    let dataFim = new Date(ano, mes + 1, 0).toLocaleDateString('en-CA') + 'T23:59:59';
+    
+    return { dataInicio, dataFim };
   },
 
   formatarMoeda: (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
@@ -303,18 +463,32 @@ export const relatoriosService = {
       qtdServicos: 'Atendimentos', qtdVendas: 'Qtd. Vendas', itensCadastrados: 'Itens em Estoque',
       valorTotalEstoque: 'Valor em Estoque', produtosCriticos: 'Itens Críticos',
       clientesAtendidos: 'Clientes', ticketMedio: 'Ticket Médio', faturamentoTotal: 'Faturamento Total', 
-      produtosVendidos: 'Itens Vendidos'
+      produtosVendidos: 'Itens Vendidos',
+      
+      ticketMedioGeral: 'Ticket Médio (Geral)',
+      conversaoProdutos: 'Conversão Produtos (%)',
+      totalAtendimentos: 'Total de Atendimentos',
+      servicosRealizados: 'Serviços Realizados',
+      tiposDistintos: 'Tipos Distintos',
+
+      // MUDANÇA: Novas labels que não acionam o formatador de moeda no front-end
+      qtdObjetivos: 'Total de Metas', 
+      sucessos: 'Metas Atingidas',    
+      receitaAtual: 'Receita no Mês',
+      despesaAtual: 'Despesa no Mês',
+      aviso: 'Aviso'
     };
     return dicionario[label] || label;
   },
 
   agruparPorCategoria(items, tipoOrigem) {
     const agrupado = items.reduce((acc, item) => {
-      const categoria = item.produtos?.nome || item.servicos?.nome || item.nome || 'Geral';
+      const categoria = item.nome_item || item.servico || item.nome || 'Geral';
       if (!acc[categoria]) acc[categoria] = 0;
-      acc[categoria] += (Number(item.total) || Number(item.valor_total) || 0);
+      acc[categoria] += (Number(item.total) || Number(item.valor_total) || Number(item.valor) || 0);
       return acc;
     }, {});
+    
     return Object.entries(agrupado).map(([cat, val]) => ({
       Categoria: cat, Tipo: tipoOrigem, Valor: this.formatarMoeda(val)
     }));
@@ -348,8 +522,8 @@ export const relatoriosService = {
         doc.text("RESUMO EXECUTIVO", 14, yPos);
         const resumoBody = Object.entries(dados.resumo).map(([k, v]) => {
           let valor = v;
-          if (k.toLowerCase().includes('margem') || k.toLowerCase().includes('progresso')) valor = `${Number(v).toFixed(2)}%`;
-          else if (typeof v === 'number' && k.toLowerCase().match(/valor|receita|despesa|lucro|faturamento|total|meta|falta/)) valor = this.formatarMoeda(v);
+          if (k.toLowerCase().includes('margem') || k.toLowerCase().includes('progresso') || k.toLowerCase().includes('conversao')) valor = `${Number(v).toFixed(2)}%`;
+          else if (typeof v === 'number' && k.toLowerCase().match(/valor|receita|despesa|lucro|faturamento|total|meta|falta|ticket/)) valor = this.formatarMoeda(v);
           return [this.formatarLabel(k), valor];
         });
         autoTable(doc, { startY: yPos + 5, head: [['Indicador', 'Resultado']], body: resumoBody, theme: 'striped', headStyles: { fillColor: corLuni } });
