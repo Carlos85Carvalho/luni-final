@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
+// IMPORTAÇÃO NOVA: Pegando o contexto de autenticação
+import { useAuth } from '../../App'; 
 import { 
   X, Calendar, Clock, User, Save, Loader2, CheckCircle, CalendarClock 
 } from 'lucide-react';
 
 export const RemarcarModal = ({ isOpen, onClose, onSuccess, agendamento }) => {
+  // PEGANDO AS CREDENCIAIS DE QUEM ESTÁ LOGADO
+  const { salaoId: authSalaoId, profissionalData } = useAuth();
+  
   const [loading, setLoading] = useState(false);
   const [profissionais, setProfissionais] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -37,7 +42,6 @@ export const RemarcarModal = ({ isOpen, onClose, onSuccess, agendamento }) => {
     }
   }, [isOpen]);
 
-
   useEffect(() => {
     if (isOpen && agendamento) {
       setSelectedProfissional(agendamento.profissional_id || '');
@@ -45,16 +49,32 @@ export const RemarcarModal = ({ isOpen, onClose, onSuccess, agendamento }) => {
       setHorario(agendamento.horario || '');
 
       const fetchProfs = async () => {
-        const { data: profsData, error } = await supabase
-          .from('profissionais')
-          .select('id, nome')
-          .order('nome', { ascending: true });
-        
-        if (!error) setProfissionais(profsData || []);
+        // Descobre o ID do salão
+        let finalSalaoId = authSalaoId || profissionalData?.salao_id;
+
+        // Fallback de segurança 
+        if (!finalSalaoId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: usu } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
+            if (usu?.salao_id) finalSalaoId = usu.salao_id;
+          }
+        }
+
+        // Se encontrou o salão, busca os profissionais SÓ desse salão
+        if (finalSalaoId) {
+            const { data: profsData, error } = await supabase
+            .from('profissionais')
+            .select('id, nome')
+            .eq('salao_id', finalSalaoId) // A TRAVA DE SEGURANÇA AQUI!
+            .order('nome', { ascending: true });
+            
+            if (!error) setProfissionais(profsData || []);
+        }
       };
       fetchProfs();
     }
-  }, [isOpen, agendamento]);
+  }, [isOpen, agendamento, authSalaoId, profissionalData]);
 
   const handleUpdate = async () => {
     if (!data || !horario || !selectedProfissional) {

@@ -5,13 +5,15 @@ import { requestNotificationPermission } from '../../services/firebase';
 import { HorizontalCalendar } from '../../components/ui/HorizontalCalendar';
 import { NovoAgendamentoModal } from '../agenda/NovoAgendamentoModal';
 import { RemarcarModal } from '../agenda/RemarcarModal';
+// IMPORTAÇÃO NOVA DO MODAL DE CLIENTE
+import { NovoClienteModal } from '../agenda/NovoClienteModal';
 
 import { 
   Calendar, Clock, LogOut, Scissors, Star, Bell, MessageCircle, Plus, Lock, Search, 
   TrendingUp, Trash2, History, CheckCheck, XCircle, Loader2,
   MoreVertical, CalendarClock, Check, Wallet, TrendingDown, Target,
   Users, DollarSign, BarChart3, PieChart, ArrowUpRight, ArrowDownRight,
-  Award, Zap, Package
+  Award, Zap, Package, UserPlus // Adicionado UserPlus aqui
 } from 'lucide-react';
 
 export const ProfessionalDashboard = ({ profissional, onLogout }) => {
@@ -40,6 +42,8 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRemarcarOpen, setIsRemarcarOpen] = useState(false);
+  // ESTADO NOVO PARA O MODAL DE CLIENTE
+  const [isNovoClienteOpen, setIsNovoClienteOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState('agendamento'); 
 
   const getDataLocal = (dataObj) => {
@@ -305,8 +309,10 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
+      {/* MODAIS */}
       <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={handleAgendamentoSucesso} profissionalId={profissional.id} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
       <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
+      <NovoClienteModal isOpen={isNovoClienteOpen} onClose={() => setIsNovoClienteOpen(false)} />
 
       {/* Header */}
       <div className="bg-[#15151a] border-b border-white/5 pt-6 pb-6 px-4 md:px-8">
@@ -338,14 +344,35 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           <button onClick={() => setTab('financeiro')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${tab === 'financeiro' ? 'bg-[#5B2EFF] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}><Wallet size={14}/> Financeiro</button>
         </div>
 
-        {/* Aba Agenda (Mantida Simples) */}
+        {/* Aba Agenda */}
         {tab === 'agenda' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="flex gap-3">
-                <button onClick={abrirNovoAgendamento} className="flex-1 bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] hover:from-[#4a24cc] hover:to-[#6a30dd] text-white font-bold py-3 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Plus size={18} /> Novo Agendamento</button>
-                <button onClick={abrirBloqueio} className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-orange-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95"><Lock size={18} /></button>
+              
+              {/* BOTÕES DE AÇÃO: AGENDAR, NOVO CLIENTE, BLOQUEIO */}
+              <div className="flex gap-2">
+                <button 
+                  onClick={abrirNovoAgendamento} 
+                  className="flex-1 bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] hover:from-[#4a24cc] hover:to-[#6a30dd] text-white font-bold py-3 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 text-sm md:text-base"
+                >
+                  <Plus size={18} /> Agendar
+                </button>
+                <button 
+                  onClick={() => setIsNovoClienteOpen(true)} 
+                  className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-blue-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95"
+                  title="Cadastrar Novo Cliente"
+                >
+                  <UserPlus size={18} />
+                </button>
+                <button 
+                  onClick={abrirBloqueio} 
+                  className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-orange-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95"
+                  title="Bloquear Horário"
+                >
+                  <Lock size={18} />
+                </button>
               </div>
+
               <div className="relative">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"/>
                 <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente..." className="w-full bg-[#1c1c24] border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-white outline-none focus:border-purple-500/50 transition-all text-sm" />
@@ -410,13 +437,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           </div>
         )}
 
-        {/* Aba Financeiro - MELHORADA */}
+        {/* Aba Financeiro */}
         {tab === 'financeiro' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
             
-            {/* Card Principal - Produção Mensal (Visual Glassmorphism com gradiente) */}
+            {/* Card Principal - Produção Mensal */}
             <div className="bg-[#18181b] border border-emerald-500/20 p-8 rounded-3xl text-center relative overflow-hidden shadow-2xl group">
-              {/* Efeitos de fundo */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] group-hover:bg-emerald-500/20 transition-all duration-1000"></div>
               <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px]"></div>
               
@@ -430,7 +456,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                   {dadosFinanceiros.mesAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </h2>
                 
-                {/* Indicador de Crescimento */}
                 <div className="flex items-center justify-center gap-3 mt-4">
                   <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${dadosFinanceiros.taxaCrescimento >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
                     {dadosFinanceiros.taxaCrescimento >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
@@ -439,7 +464,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                   <span className="text-xs text-gray-500">vs mês anterior</span>
                 </div>
 
-                {/* Barra de Meta */}
                 <div className="mt-8 relative">
                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase mb-2">
                     <span>Progresso da Meta</span>
@@ -456,7 +480,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Cards de Métricas (Grid Moderno) */}
+            {/* Cards de Métricas */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-[#18181b] border border-white/5 p-5 rounded-3xl hover:bg-[#1c1c24] transition-colors group">
                 <div className="flex items-center gap-3 mb-3">
@@ -501,7 +525,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Evolução Mensal (Gráfico de Barras Estilizado) */}
+            {/* Evolução Mensal */}
             <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6 relative overflow-hidden">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
@@ -516,13 +540,11 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                   const altura = maxValor > 0 ? (item.valor / maxValor) * 100 : 0;
                   return (
                     <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                      {/* Tooltip on Hover */}
                       <div className="absolute -top-10 bg-[#1c1c24] border border-white/10 text-white px-3 py-1.5 rounded-xl text-xs font-bold opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:-translate-y-2 shadow-xl z-20 whitespace-nowrap">
                         R$ {item.valor.toFixed(0)}
                         <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1c1c24] border-r border-b border-white/10 rotate-45"></div>
                       </div>
                       
-                      {/* Barra */}
                       <div className="w-full relative h-full flex items-end">
                          <div 
                             className="w-full bg-gradient-to-t from-indigo-600/80 to-purple-500/80 rounded-t-xl transition-all duration-500 group-hover:from-indigo-500 group-hover:to-purple-400 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]" 
@@ -538,7 +560,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              {/* Serviços Mais Rentáveis (Lista com Barras) */}
+              {/* Serviços Mais Rentáveis */}
               <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6">
                 <h3 className="text-white font-bold mb-6 text-sm flex items-center gap-2 uppercase tracking-wider">
                   <Award size={16} className="text-yellow-400"/> 
@@ -602,7 +624,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Produção Diária - REVITALIZADO */}
+            {/* Produção Diária */}
             <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6 relative">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
@@ -614,14 +636,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                 </span>
               </div>
               
-              {/* Container com Scroll Horizontal Escondido */}
               <div className="overflow-x-auto pb-4 scrollbar-hide">
                 <div className="flex items-end gap-3 h-40 min-w-max px-2">
                   {(() => {
-                    // Lógica para preencher todos os dias do mês
                     const hoje = new Date();
                     const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-                    const maxValor = Math.max(...producaoMensal.map(p => p.valor), 1); // Evita divisão por zero
+                    const maxValor = Math.max(...producaoMensal.map(p => p.valor), 1); 
 
                     return Array.from({ length: diasNoMes }, (_, i) => {
                       const diaAtual = i + 1;
@@ -632,17 +652,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
                       return (
                         <div key={diaAtual} className="flex flex-col items-center gap-2 group relative w-8">
-                          {/* Tooltip Flutuante */}
                           <div className={`absolute -top-10 left-1/2 -translate-x-1/2 bg-[#1c1c24] text-white text-[10px] font-bold px-2 py-1 rounded-lg border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 transition-all z-20 whitespace-nowrap pointer-events-none transform group-hover:-translate-y-1`}>
                             R$ {valor.toFixed(2)}
                           </div>
 
-                          {/* A Barra */}
                           <div className="h-full w-full flex items-end justify-center relative">
-                            {/* Fundo da barra (trilho) */}
                             <div className="absolute bottom-0 w-1.5 h-full bg-white/5 rounded-full"></div>
-                            
-                            {/* Barra Preenchida */}
                             <div 
                               className={`w-1.5 rounded-full transition-all duration-500 relative z-10 
                                 ${valor > 0 
@@ -653,7 +668,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                             ></div>
                           </div>
 
-                          {/* Número do Dia */}
                           <span className={`text-[10px] font-medium transition-colors ${isHoje ? 'text-white font-bold bg-purple-500/20 px-1.5 rounded' : 'text-gray-600 group-hover:text-gray-400'}`}>
                             {diaAtual}
                           </span>

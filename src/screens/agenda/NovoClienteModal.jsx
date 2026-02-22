@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { X, Save, Loader2, UserPlus, Phone, User } from 'lucide-react';
 import { supabase } from '../../services/supabase';
+// IMPORTAÇÃO NOVA: Pegando o contexto de autenticação
+import { useAuth } from '../../App'; 
 
 export const NovoClienteModal = ({ isOpen, onClose }) => {
+  // PEGANDO AS CREDENCIAIS DE QUEM ESTÁ LOGADO
+  const { salaoId: authSalaoId, profissionalData } = useAuth();
+  
   const [loading, setLoading] = useState(false);
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -10,21 +15,54 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const salvar = async () => {
+    if (!nome) return alert('Por favor, preencha o nome do cliente.');
+
     setLoading(true);
-    const { error } = await supabase.from('clientes').insert([{ nome, telefone }]);
-    setLoading(false);
-    
-    if (error) {
-      alert('Erro ao salvar: ' + error.message);
-    } else {
+
+    try {
+      // 1. Descobre de qual salão é esse cliente (Dono ou Profissional)
+      let finalSalaoId = authSalaoId || profissionalData?.salao_id;
+
+      // Fallback de segurança caso a internet oscile e o contexto demore
+      if (!finalSalaoId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: usu } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
+          if (usu?.salao_id) {
+            finalSalaoId = usu.salao_id;
+          }
+        }
+      }
+
+      // Se mesmo assim não achar, bloqueia para não criar cliente "fantasma"
+      if (!finalSalaoId) {
+        setLoading(false);
+        return alert("Erro: Não foi possível identificar o salão vinculado à sua conta.");
+      }
+
+      // 2. Salva o cliente com o "carimbo" do salão
+      const { error } = await supabase.from('clientes').insert([{ 
+        nome, 
+        telefone,
+        salao_id: finalSalaoId // <-- O CARIMBO AQUI!
+      }]);
+      
+      if (error) throw error;
+      
+      // Sucesso! Limpa e fecha
       onClose();
       setNome('');
       setTelefone('');
+
+    } catch (error) {
+      alert('Erro ao salvar: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
         
         {/* BOTÃO X */}
@@ -70,9 +108,9 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
           <button 
             onClick={salvar} 
             disabled={loading} 
-            className="w-full py-3.5 bg-[#5B2EFF] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#4a25d9] active:scale-95 transition-all mt-4 shadow-lg shadow-purple-200"
+            className="w-full py-3.5 bg-[#5B2EFF] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#4a25d9] active:scale-95 transition-all mt-4 shadow-lg shadow-purple-200 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="animate-spin"/> : 'Salvar Cliente'}
+            {loading ? <Loader2 className="animate-spin" size={20}/> : <><Save size={20}/> Salvar Cliente</>}
           </button>
         </div>
       </div>

@@ -1,24 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabase';
+// IMPORTAÇÃO CORRIGIDA: Pegando o hook de autenticação do arquivo principal
+// Ajuste o caminho '../..' se o seu App.jsx/AuthContext estiver em outro lugar
+import { useAuth } from '../../App'; 
 import { 
   X, Calendar, Clock, User, Scissors, DollarSign, Lock, Save, Loader2, CheckCircle, ChevronDown
 } from 'lucide-react';
 
 export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalId, tipo = 'agendamento' }) => {
+  // PEGANDO AS CREDENCIAIS DE QUEM ESTÁ LOGADO (Dono ou Profissional)
+  const { salaoId: authSalaoId, profissionalData } = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [profissionais, setProfissionais] = useState([]);
   const [clientes, setClientes] = useState([]); 
-  const [salaoId, setSalaoId] = useState(null);
+  
+  // O Estado salaoId agora é apenas um fallback, a prioridade é o que vem do Contexto
+  const [salaoIdLocal, setSalaoIdLocal] = useState(null);
+  
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedProfissional, setSelectedProfissional] = useState(profissionalId || '');
   const [selectedClienteId, setSelectedClienteId] = useState(''); 
   
-  // Estados de Data/Horário Iniciais
   const [data, setData] = useState('');
   const [horario, setHorario] = useState('');
   
-  // NOVOS Estados para o Fim do Bloqueio
   const [dataFim, setDataFim] = useState('');
   const [horarioFim, setHorarioFim] = useState('');
 
@@ -57,11 +64,18 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
     if (isOpen) {
       const carregarDadosIniciais = async () => {
         
-        if (!profissionalId) {
-          const { data } = await supabase.from('profissionais').select('*');
-          setProfissionais(data || []);
-        } else {
-          setSelectedProfissional(profissionalId);
+        // Se já recebeu o ID do profissional por props (clique na agenda dele), usa ele.
+        // Se for o próprio profissional logado, usa o ID dele automaticamente!
+        const idProfissionalPadrao = profissionalId || profissionalData?.id || '';
+        setSelectedProfissional(idProfissionalPadrao);
+
+        // Se o usuário logado for Admin, busca a lista de todos os profissionais do salão
+        if (!profissionalData) {
+          const salaoAtivo = authSalaoId || salaoIdLocal;
+          if (salaoAtivo) {
+            const { data } = await supabase.from('profissionais').select('*').eq('salao_id', salaoAtivo);
+            setProfissionais(data || []);
+          }
         }
 
         const { data: clientesData, error } = await supabase
@@ -77,14 +91,17 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
           setClientes(clisOrdenados);
         }
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && !salaoId) {
-          const { data: usu } = await supabase
-            .from('usuarios')
-            .select('salao_id')
-            .eq('id', user.id)
-            .maybeSingle();
-          if (usu) setSalaoId(usu.salao_id);
+        // Fallback de segurança para achar o Salão caso o Contexto demore
+        if (!authSalaoId && !salaoIdLocal) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: usu } = await supabase
+              .from('usuarios')
+              .select('salao_id')
+              .eq('id', user.id)
+              .maybeSingle();
+            if (usu) setSalaoIdLocal(usu.salao_id);
+          }
         }
       };
 
@@ -92,9 +109,9 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
       
       const hojeLocal = new Date().toLocaleDateString('en-CA');
       setData(hojeLocal);
-      setDataFim(hojeLocal); // Preenche o fim com o dia de hoje também
+      setDataFim(hojeLocal); 
       setHorario('09:00');
-      setHorarioFim('10:00'); // Pré-configura o bloqueio para durar 1 hora por padrão
+      setHorarioFim('10:00'); 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, profissionalId]);
@@ -115,28 +132,29 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
     if (!selectedProfissional || !data || !horario) return alert("Preencha profissional, data e horário inicial.");
     if (!isBloqueio && !selectedClienteId) return alert("Selecione um cliente cadastrado na lista.");
     
-    // TRAVA: Se for bloqueio, exige a data e hora final
     if (isBloqueio && (!dataFim || !horarioFim)) {
       return alert("Preencha a data e o horário de fim do bloqueio.");
     }
 
     setLoading(true);
     try {
-        let finalSalaoId = salaoId;
+        // CORREÇÃO CRÍTICA: Tenta pegar o ID do Salão de 3 lugares diferentes para garantir!
+        let finalSalaoId = authSalaoId || profissionalData?.salao_id || salaoIdLocal;
+        
         if (!finalSalaoId) {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             const { data: usu } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
             if (usu?.salao_id) {
               finalSalaoId = usu.salao_id;
-              setSalaoId(usu.salao_id); 
+              setSalaoIdLocal(usu.salao_id); 
             }
           }
         }
 
         if (!finalSalaoId) {
           setLoading(false);
-          return alert("Erro: Seu usuário de teste não possui um salão vinculado no banco de dados.");
+          return alert("Erro: Não foi possível identificar de qual salão você faz parte. Faça login novamente.");
         }
 
         const nomeFinalCliente = clienteSelecionado ? (clienteSelecionado.nome || clienteSelecionado.nome_cliente || clienteSelecionado.nome_completo || 'Cliente Sem Nome') : '';
@@ -150,7 +168,6 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
             telefone: isBloqueio ? null : clienteSelecionado?.telefone?.replace(/\D/g, ''),
             data,
             horario,
-            // Adiciona as colunas de fim apenas se for bloqueio
             data_fim: isBloqueio ? dataFim : null,
             horario_fim: isBloqueio ? horarioFim : null,
             servico: isBloqueio ? 'Bloqueio' : servico,
@@ -210,7 +227,8 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
 
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4 custom-scrollbar min-h-0">
           
-          {!profissionalId && (
+          {/* Se não for o profissional logado e não tiver recebido ID, mostra a lista para o Admin escolher */}
+          {!profissionalData && !profissionalId && (
             <div className="space-y-1.5 relative">
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Profissional</label>
               <div className="relative">
@@ -337,7 +355,7 @@ export const NovoAgendamentoModal = ({ isOpen, onClose, onSuccess, profissionalI
                     value={data} 
                     onChange={e => {
                       setData(e.target.value);
-                      if (!dataFim) setDataFim(e.target.value); // Atualiza o fim automaticamente para facilitar
+                      if (!dataFim) setDataFim(e.target.value); 
                     }}
                   />
                 </div>
