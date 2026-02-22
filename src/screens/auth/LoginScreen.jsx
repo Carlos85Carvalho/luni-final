@@ -6,24 +6,21 @@ import {
   LayoutDashboard, LineChart, Settings, CheckCircle, ArrowRight
 } from 'lucide-react';
 
-// --- IMPORTAÇÃO DO NOVO SPLASH E PWA ---
 import { SplashScreen } from './components/ui/SplashScreen';
 import { InstallAppModal } from './components/ui/InstallAppModal';
 
-// --- IMPORTAÇÕES DE TELAS ---
 import { FinanceiroModule } from './screens/financeiro';
 import { AgendaScreen } from './screens/agenda/AgendaScreen.jsx';
 import { ClientesScreen } from './screens/clientes/ClientesScreen.jsx';
 import { DashboardAdmin } from './screens/main/DashboardAdmin.jsx';
 import { ProfessionalDashboard } from './screens/professional/ProfessionalDashboard.jsx';
 
-// --- IMPORTAÇÕES DE MODAIS ---
 import { NovoAgendamentoModal } from './screens/agenda/NovoAgendamentoModal.jsx';
 import { NovoClienteModal } from './screens/agenda/NovoClienteModal.jsx';
 import { NovoProfissionalModal } from './screens/agenda/NovoProfissionalModal.jsx';
 
 // ============================================================================
-// 🔐 AUTH CONTEXT (CORRIGIDO E BLINDADO PARA PROFISSIONAIS)
+// 🔐 AUTH CONTEXT (AUTO-CURA E PROTEÇÃO CONTRA ERRO 400)
 // ============================================================================
 const AuthContext = createContext({});
 
@@ -46,7 +43,11 @@ const AuthProvider = ({ children }) => {
     }
 
     try {
-      // 1. Tenta achar o usuário na tabela oficial de acessos
+      let userRole = null;
+      let currentSalaoId = null;
+      let proData = null;
+
+      // 1. Tenta achar na tabela usuários oficial
       const { data: usuarioLink } = await supabase
         .from('usuarios')
         .select('*')
@@ -54,61 +55,67 @@ const AuthProvider = ({ children }) => {
         .maybeSingle();
 
       if (usuarioLink) {
-        setRole(usuarioLink.role);
-        setSalaoId(usuarioLink.salao_id); // Garante a chave do salão
+        userRole = usuarioLink.role;
+        currentSalaoId = usuarioLink.salao_id;
 
-        // Busca o nome do salão para o Header
-        if (usuarioLink.salao_id) {
-            const { data: salao } = await supabase
-                .from('saloes')
-                .select('nome')
-                .eq('id', usuarioLink.salao_id)
-                .maybeSingle();
-            if (salao) setSalaoNome(salao.nome);
-        }
-
-        // Se for profissional, carrega os dados dele
-        if (usuarioLink.role === 'profissional' && usuarioLink.profissional_id) {
-          const { data: pro } = await supabase
+        // Se o sistema acha que é profissional, tenta buscar os dados
+        if (userRole === 'profissional' && usuarioLink.profissional_id) {
+          const { data: pro, error: proError } = await supabase
             .from('profissionais')
             .select('*')
             .eq('id', usuarioLink.profissional_id)
-            .maybeSingle(); // Correção: maybeSingle impede travamento se não achar
-          setProfissionalData(pro);
-        }
-
-      } else {
-        // 2. PLANO B: Se não está na tabela usuarios, mas fez login no Auth, procura na tabela profissionais pelo e-mail
-        const { data: pro } = await supabase
-            .from('profissionais')
-            .select('*')
-            .eq('email', currentUser.email)
             .maybeSingle();
 
-        if (pro) {
-          setRole('profissional');
-          setProfissionalData(pro);
-          setSalaoId(pro.salao_id); // CORREÇÃO CRÍTICA: Isso que impedia o dashboard de carregar!
-
-          if (pro.salao_id) {
-              const { data: salao } = await supabase.from('saloes').select('nome').eq('id', pro.salao_id).maybeSingle();
-              if (salao) setSalaoNome(salao.nome);
+          // Se não deu erro 400 (como o id=1), salva os dados
+          if (!proError && pro) {
+            proData = pro;
           }
-
-          // 🛠️ AUTO-CURA: Já que ele logou e é profissional, cadastra ele automaticamente na tabela usuarios para arrumar o banco de dados
-          await supabase.from('usuarios').insert([{ 
-              id: currentUser.id, 
-              salao_id: pro.salao_id, 
-              role: 'profissional', 
-              profissional_id: pro.id 
-          }]);
-
-        } else {
-          setRole('admin'); 
         }
       }
+
+      // 2. O PLANO B: AUTO-CURA
+      // Se não tem 'proData' (porque deu o erro 400 do ID corrompido) OU se nem existe na tabela usuarios
+      if (!proData && (!usuarioLink || userRole === 'profissional')) {
+        const { data: proFallback } = await supabase
+          .from('profissionais')
+          .select('*')
+          .eq('email', currentUser.email)
+          .maybeSingle();
+
+        if (proFallback) {
+          proData = proFallback;
+          userRole = 'profissional';
+          currentSalaoId = proFallback.salao_id;
+
+          // CONSERTA O BANCO: Apaga o "1" errado e coloca o UUID verdadeiro
+          await supabase.from('usuarios').upsert({
+            id: currentUser.id,
+            salao_id: proFallback.salao_id,
+            role: 'profissional',
+            profissional_id: proFallback.id
+          });
+        } else if (!usuarioLink) {
+          userRole = 'admin'; // Fallback final
+        }
+      }
+
+      // 3. Busca o nome do salão para exibir no Header
+      if (currentSalaoId) {
+        const { data: salao } = await supabase
+            .from('saloes')
+            .select('nome')
+            .eq('id', currentSalaoId)
+            .maybeSingle();
+        if (salao) setSalaoNome(salao.nome);
+      }
+
+      // 4. Libera a tela
+      setRole(userRole);
+      setSalaoId(currentSalaoId);
+      setProfissionalData(proData);
+
     } catch (error) {
-      console.error("Erro na verificação de cargo (Role):", error);
+      console.error("Erro na verificação de cargo:", error);
     } finally {
       setLoading(false);
     }
@@ -142,7 +149,7 @@ const MenuIcon = ({ id, icon, label, activeId, onClick }) => {
 };
 
 // ============================================================================
-// 🎨 NOVA TELA DE LOGIN (ESTILO DASHBOARD / SIDEBAR)
+// 🎨 NOVA TELA DE LOGIN 
 // ============================================================================
 const LoginScreen = () => {
   const { login } = useAuth();
