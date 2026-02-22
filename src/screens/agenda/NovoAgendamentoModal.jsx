@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabase';
-// IMPORTAÇÃO CORRIGIDA: Pegando o hook de autenticação do arquivo principal
-// Ajuste o caminho '../..' se o seu App.jsx/AuthContext estiver em outro lugar
-import { useAuth } from '../../App'; 
+// ✅ IMPORTAÇÃO CORRIGIDA: Apontando para a nova pasta contexts
+import { useAuth } from '../../contexts/AuthContext'; 
 import { 
   X, Calendar, Clock, User, Scissors, DollarSign, Lock, Save, Loader2, CheckCircle, ChevronDown
 } from 'lucide-react';

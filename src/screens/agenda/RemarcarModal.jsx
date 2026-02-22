@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
-// IMPORTAÇÃO NOVA: Pegando o contexto de autenticação
-import { useAuth } from '../../App'; 
+// IMPORTAÇÃO CORRIGIDA: Pegando o contexto da pasta certa!
+import { useAuth } from '../../contexts/AuthContext'; 
 import { 
   X, Calendar, Clock, User, Save, Loader2, CheckCircle, CalendarClock 
 } from 'lucide-react';

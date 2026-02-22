@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, Save, Loader2, UserPlus, Phone, User } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-// IMPORTAÇÃO NOVA: Pegando o contexto de autenticação
-import { useAuth } from '../../App'; 
+// ✅ IMPORTAÇÃO CORRIGIDA: Apontando para a nova pasta contexts
+import { useAuth } from '../../contexts/AuthContext'; 
 
 export const NovoClienteModal = ({ isOpen, onClose }) => {
   // PEGANDO AS CREDENCIAIS DE QUEM ESTÁ LOGADO
