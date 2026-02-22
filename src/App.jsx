@@ -1,104 +1,25 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState } from 'react';
 import { supabase } from './services/supabase'; 
+// ✅ IMPORTAÇÃO NOVA: Pegando o "Cofre" da nova pasta
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { 
   Home, Users, Calendar, Plus, UserPlus, CalendarPlus, Wallet, Loader2, LogOut,
   Briefcase, User, Lock, Mail, Store, Phone,
-  // Novos ícones do Login
   LayoutDashboard, LineChart, Settings, CheckCircle, ArrowRight
 } from 'lucide-react';
 
-// --- IMPORTAÇÃO DO NOVO SPLASH ---
 import { SplashScreen } from './components/ui/SplashScreen';
-// --- IMPORTAÇÃO DO MODAL DE INSTALAÇÃO (PWA) ---
 import { InstallAppModal } from './components/ui/InstallAppModal';
 
-// --- IMPORTAÇÕES DE TELAS ---
 import { FinanceiroModule } from './screens/financeiro';
 import { AgendaScreen } from './screens/agenda/AgendaScreen.jsx';
 import { ClientesScreen } from './screens/clientes/ClientesScreen.jsx';
 import { DashboardAdmin } from './screens/main/DashboardAdmin.jsx';
 import { ProfessionalDashboard } from './screens/professional/ProfessionalDashboard.jsx';
 
-// --- IMPORTAÇÕES DE MODAIS ---
 import { NovoAgendamentoModal } from './screens/agenda/NovoAgendamentoModal.jsx';
 import { NovoClienteModal } from './screens/agenda/NovoClienteModal.jsx';
 import { NovoProfissionalModal } from './screens/agenda/NovoProfissionalModal.jsx';
-
-// --- AUTH CONTEXT ---
-const AuthContext = createContext({});
-const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [profissionalData, setProfissionalData] = useState(null); 
-  const [salaoId, setSalaoId] = useState(null);
-  const [salaoNome, setSalaoNome] = useState(''); 
-  const [loading, setLoading] = useState(true);
-
-  const checkUserRole = async (currentUser) => {
-    if (!currentUser) {
-      setRole(null);
-      setProfissionalData(null);
-      setSalaoNome('');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data: usuarioLink } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (usuarioLink) {
-        setRole(usuarioLink.role);
-        setSalaoId(usuarioLink.salao_id);
-
-        if (usuarioLink.salao_id) {
-            const { data: salao } = await supabase
-                .from('saloes')
-                .select('nome')
-                .eq('id', usuarioLink.salao_id)
-                .maybeSingle();
-            if (salao) setSalaoNome(salao.nome);
-        }
-
-        if (usuarioLink.role === 'profissional' && usuarioLink.profissional_id) {
-          const { data: pro } = await supabase
-            .from('profissionais')
-            .select('*')
-            .eq('id', usuarioLink.profissional_id)
-            .single();
-          setProfissionalData(pro);
-        }
-      } else {
-        const { data: pro } = await supabase.from('profissionais').select('*').eq('email', currentUser.email).maybeSingle();
-        if (pro) {
-          setRole('profissional');
-          setProfissionalData(pro);
-        } else {
-          setRole('admin'); 
-        }
-      }
-    } catch (error) {
-      console.error("Erro role:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setUser(session?.user ?? null); checkUserRole(session?.user); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => { setUser(session?.user ?? null); checkUserRole(session?.user); });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const login = async (email, password) => await supabase.auth.signInWithPassword({ email, password });
-  const logout = async () => { setRole(null); setProfissionalData(null); await supabase.auth.signOut(); };
-
-  return <AuthContext.Provider value={{ user, role, profissionalData, salaoId, salaoNome, login, logout, loading }}>{children}</AuthContext.Provider>;
-};
-const useAuth = () => useContext(AuthContext);
 
 // --- COMPONENTES VISUAIS ---
 const MenuIcon = ({ id, icon, label, activeId, onClick }) => {
@@ -113,7 +34,7 @@ const MenuIcon = ({ id, icon, label, activeId, onClick }) => {
 };
 
 // ============================================================================
-// 🎨 NOVA TELA DE LOGIN (ATUALIZADA COM LOGO GLOW)
+// 🎨 NOVA TELA DE LOGIN 
 // ============================================================================
 const LoginScreen = () => {
   const { login } = useAuth();
@@ -122,18 +43,22 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
 
-  // Estados extras para Cadastro
   const [confirmPass, setConfirmPass] = useState('');
   const [nomeResponsavel, setNomeResponsavel] = useState('');
   const [nomeSalao, setNomeSalao] = useState('');
   const [telefone, setTelefone] = useState('');
 
-  // --- Função Google ---
+  // ✅ CORREÇÃO AQUI: Forçando a seleção de conta no Google
   const handleGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin }
+        options: { 
+          redirectTo: window.location.origin,
+          queryParams: {
+            prompt: 'select_account' // <-- A MÁGICA ESTÁ AQUI
+          }
+        }
       });
       if (error) throw error;
     } catch (error) {
@@ -141,7 +66,6 @@ const LoginScreen = () => {
     }
   };
 
-  // --- Função Auth Unificada ---
   const handleAuth = async () => {
     if (!email || !password) return alert("Preencha email e senha.");
     if (!isLogin) {
@@ -187,7 +111,6 @@ const LoginScreen = () => {
     }
   };
 
-  // Item de menu falso para a sidebar
   const FakeMenuItem = ({ icon: Icon, label, active }) => (
     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-1 ${active ? 'bg-purple-500/10 text-purple-400' : 'text-zinc-500 opacity-50'}`}>
       <Icon size={18} />
@@ -199,10 +122,7 @@ const LoginScreen = () => {
   return (
     <div className="flex min-h-screen w-full bg-[#09090b]">
       
-      {/* --- LADO ESQUERDO: SIDEBAR VISUAL (PC) --- */}
       <div className="hidden lg:flex w-64 flex-col bg-[#18181b] border-r border-white/5 p-4 relative overflow-hidden">
-        
-        {/* ✅ LOGO COM GRADIENTE RING (DESKTOP) */}
         <div className="flex items-center justify-start mb-8 px-2 mt-2">
             <div className="p-[2px] bg-gradient-to-tr from-purple-600 to-pink-500 rounded-2xl shadow-lg shadow-purple-500/30">
                 <div className="bg-[#18181b] p-2 rounded-2xl">
@@ -231,13 +151,10 @@ const LoginScreen = () => {
         </div>
       </div>
 
-      {/* --- LADO DIREITO: FORMULÁRIO --- */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative overflow-y-auto">
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"></div>
 
         <div className="w-full max-w-[400px] animate-in slide-in-from-bottom-4 duration-700 my-auto">
-            
-            {/* ✅ LOGO COM GRADIENTE RING (MOBILE) */}
             <div className="lg:hidden flex justify-center mb-8 animate-in fade-in zoom-in duration-700">
                 <div className="p-[3px] bg-gradient-to-tr from-purple-600 to-pink-500 rounded-3xl shadow-xl shadow-purple-500/40">
                     <div className="bg-[#09090b] p-4 rounded-3xl">
@@ -374,30 +291,24 @@ const LoginScreen = () => {
     </div>
   );
 };
+
 // ============================================================================
-
-
-// --- ADMIN APP OTIMIZADO (SEM useEffect / SEM LOOP) ---
+// 👑 ADMIN APP
+// ============================================================================
 const AdminApp = () => {
   const { logout, salaoNome, salaoId } = useAuth();
   const [screen, setScreen] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
-  
-  // Este estado controla se o Financeiro pediu para esconder o menu
   const [financeiroHideMenus, setFinanceiroHideMenus] = useState(false);
 
-  // Lógica inteligente: Esconde se tiver modal aberto OU se o financeiro pediu
   const deveEsconderMenus = activeModal !== null || financeiroHideMenus;
-
   const larguraContainer = 'max-w-7xl'; 
 
   return (
-    // 'flex flex-col' garante que o conteudo ocupe 100% da altura
     <div className="min-h-screen font-sans bg-[#0a0a0f] text-white selection:bg-purple-500 selection:text-white flex flex-col">
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 z-20 backdrop-blur-sm transition-opacity duration-300" onClick={() => setIsMenuOpen(false)} />}
       
-      {/* HEADER: Usa a variável calculada deveEsconderMenus */}
       {!deveEsconderMenus && (
         <div className="bg-[#0a0a0f]/80 backdrop-blur-md px-6 py-4 sticky top-0 z-10 flex justify-between items-center border-b border-white/5 transition-all duration-300">
           <div className="flex items-center gap-3">
@@ -409,11 +320,8 @@ const AdminApp = () => {
         </div>
       )}
 
-      {/* ÁREA DE CONTEÚDO */}
       <div className={`mx-auto w-full relative z-0 flex-1 ${!deveEsconderMenus ? 'pb-28 p-4 md:p-8' : 'p-0'} ${larguraContainer}`}>
-        
         {screen === 'dashboard' && <DashboardAdmin onNavigate={setScreen} />}
-        
         {screen === 'financeiro' && (
           <FinanceiroModule 
             onClose={() => {
@@ -422,17 +330,14 @@ const AdminApp = () => {
             }}
           />
         )} 
-        
         {screen === 'agenda' && <AgendaScreen onClose={() => setScreen('dashboard')} />} 
         {screen === 'clientes' && <ClientesScreen onClose={() => setScreen('dashboard')} />} 
       </div>
 
-      {/* MODAIS GERAIS */}
       <NovoAgendamentoModal isOpen={activeModal === 'agendamento'} onClose={() => setActiveModal(null)} onSuccess={() => { setActiveModal(null); setScreen('agenda'); }} />
       <NovoClienteModal isOpen={activeModal === 'cliente'} onClose={() => setActiveModal(null)} />
       <NovoProfissionalModal isOpen={activeModal === 'profissional'} onClose={() => setActiveModal(null)} salaoId={salaoId} />
 
-      {/* MENU INFERIOR: Usa a variável calculada deveEsconderMenus */}
       {!deveEsconderMenus && (
         <div className="fixed bottom-0 left-0 w-full bg-[#0a0a0f]/90 backdrop-blur-lg border-t border-white/5 py-4 px-6 shadow-2xl z-30 transition-all duration-300">
           <div className={`flex justify-between items-end mx-auto relative ${larguraContainer}`}>
@@ -467,10 +372,11 @@ const AdminApp = () => {
   );
 };
 
-// --- APP CONTENT ---
+// ============================================================================
+// 🚀 APP CONTENT
+// ============================================================================
 const AppContent = () => {
   const { user, role, profissionalData, logout, loading: authLoading } = useAuth();
-  
   const [splashFinished, setSplashFinished] = useState(false);
 
   if (!splashFinished) {
