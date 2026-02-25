@@ -177,7 +177,10 @@ const LoginScreen = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin }
+        options: { 
+          // 🚨 A MÁGICA QUE SALVA O MOBILE ESTÁ AQUI:
+          redirectTo: 'https://app.souluni.cloud/' 
+        }
       });
       if (error) throw error;
     } catch (error) {

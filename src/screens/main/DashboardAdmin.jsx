@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { 
   Calendar, Bell, Clock, DollarSign, Users, 
-  Award, Activity, User
+  Award, Activity
 } from 'lucide-react';
 
 import { StatCard } from '../../components/ui/StatCard';
@@ -11,6 +11,7 @@ import { QuickAction } from '../../components/ui/QuickAction';
 
 export const DashboardAdmin = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
+  const [nomeAdmin, setNomeAdmin] = useState('Admin'); // NOVO: Estado para o nome
   
   const [dados, setDados] = useState({
     hoje: { faturamento: 0, agendamentos: 0, clientes: 0, ticket: 0 },
@@ -25,9 +26,16 @@ export const DashboardAdmin = ({ onNavigate }) => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // 1. BUSCA O USUÁRIO E O SALÃO ID (CORREÇÃO CRÍTICA)
+        // 1. BUSCA O USUÁRIO
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+
+        // NOVO: Pega o nome do Google (metadados) ou define 'Admin'
+        // Pega só o primeiro nome para ficar mais amigável
+        const nomeGoogle = user.user_metadata?.full_name?.split(' ')[0] 
+                        || user.user_metadata?.name?.split(' ')[0] 
+                        || 'Admin';
+        setNomeAdmin(nomeGoogle);
 
         const { data: userData } = await supabase
           .from('usuarios')
@@ -117,7 +125,7 @@ export const DashboardAdmin = ({ onNavigate }) => {
     <div className="flex items-center justify-center h-screen bg-[#0a0a0f]">
       <div className="text-center">
         <Activity className="mx-auto mb-4 animate-pulse text-purple-500" size={48} />
-        <p className="text-gray-400">Vinculando seu Salão...</p>
+        <p className="text-gray-400">Carregando painel...</p>
       </div>
     </div>
   );
@@ -127,7 +135,8 @@ export const DashboardAdmin = ({ onNavigate }) => {
       <div className="w-full max-w-7xl mx-auto px-4 pt-6 md:px-8 md:pt-10 pb-24 space-y-8 animate-in fade-in duration-700">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Olá, Carlos 👋</h1>
+            {/* AQUI ESTÁ A CORREÇÃO PRINCIPAL: Usa a variável nomeAdmin */}
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Olá, {nomeAdmin} 👋</h1>
             <p className="text-sm text-gray-400 font-medium uppercase tracking-wide">{dataExtenso}</p>
           </div>
           <button className="bg-white/5 border border-white/10 p-3 rounded-xl hover:bg-white/10 transition-all">
