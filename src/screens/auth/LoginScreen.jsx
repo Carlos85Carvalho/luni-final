@@ -1,26 +1,29 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { supabase } from './services/supabase'; 
+import { supabase } from '../../services/supabase'; 
 import { 
   Home, Users, Calendar, Plus, UserPlus, CalendarPlus, Wallet, Loader2, LogOut,
   Briefcase, User, Lock, Mail, Store, Phone,
-  LayoutDashboard, LineChart, Settings, CheckCircle, ArrowRight
+  LayoutDashboard, LineChart, Settings, CheckCircle, ArrowRight, AlertCircle
 } from 'lucide-react';
 
-import { SplashScreen } from './components/ui/SplashScreen';
-import { InstallAppModal } from './components/ui/InstallAppModal';
+import { SplashScreen } from '../ui/SplashScreen';
+import { InstallAppModal } from '../ui/InstallAppModal';
 
-import { FinanceiroModule } from './screens/financeiro';
-import { AgendaScreen } from './screens/agenda/AgendaScreen.jsx';
-import { ClientesScreen } from './screens/clientes/ClientesScreen.jsx';
-import { DashboardAdmin } from './screens/main/DashboardAdmin.jsx';
-import { ProfessionalDashboard } from './screens/professional/ProfessionalDashboard.jsx';
+import { FinanceiroModule } from '../financeiro';
+import { AgendaScreen } from '../agenda/AgendaScreen.jsx';
+import { ClientesScreen } from '../clientes/ClientesScreen.jsx';
+import { DashboardAdmin } from '../main/DashboardAdmin.jsx';
+import { ProfessionalDashboard } from '../professional/ProfessionalDashboard.jsx';
 
-import { NovoAgendamentoModal } from './screens/agenda/NovoAgendamentoModal.jsx';
-import { NovoClienteModal } from './screens/agenda/NovoClienteModal.jsx';
-import { NovoProfissionalModal } from './screens/agenda/NovoProfissionalModal.jsx';
+import { NovoAgendamentoModal } from '../agenda/NovoAgendamentoModal.jsx';
+import { NovoClienteModal } from '../agenda/NovoClienteModal.jsx';
+import { NovoProfissionalModal } from '../agenda/NovoProfissionalModal.jsx';
+
+// 🏷️ VERSÃO DO SISTEMA AQUI
+const APP_VERSION = "v1.1.0";
 
 // ============================================================================
-// 🔐 AUTH CONTEXT (AUTO-CURA E PROTEÇÃO CONTRA ERRO 400)
+// 🔐 AUTH CONTEXT (AUTO-CURA E PROTEÇÃO CONTRA INVASORES)
 // ============================================================================
 const AuthContext = createContext({});
 
@@ -30,6 +33,7 @@ const AuthProvider = ({ children }) => {
   const [profissionalData, setProfissionalData] = useState(null); 
   const [salaoId, setSalaoId] = useState(null);
   const [salaoNome, setSalaoNome] = useState(''); 
+  const [userName, setUserName] = useState(''); // Guarda o nome real do Google
   const [loading, setLoading] = useState(true);
 
   const checkUserRole = async (currentUser) => {
@@ -38,9 +42,14 @@ const AuthProvider = ({ children }) => {
       setProfissionalData(null);
       setSalaoId(null);
       setSalaoNome('');
+      setUserName('');
       setLoading(false);
       return;
     }
+
+    // Pega o nome do Google ou a primeira parte do e-mail
+    const fullName = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+    setUserName(fullName);
 
     try {
       let userRole = null;
@@ -66,15 +75,14 @@ const AuthProvider = ({ children }) => {
             .eq('id', usuarioLink.profissional_id)
             .maybeSingle();
 
-          // Se não deu erro 400 (como o id=1), salva os dados
           if (!proError && pro) {
             proData = pro;
           }
         }
       }
 
-      // 2. O PLANO B: AUTO-CURA
-      // Se não tem 'proData' (porque deu o erro 400 do ID corrompido) OU se nem existe na tabela usuarios
+      // 2. O PLANO B: LOGIN SOCIAL DO PROFISSIONAL (A MÁGICA ACONTECE AQUI)
+      // Se não tem 'proData' ou nem existe na tabela usuarios ainda
       if (!proData && (!usuarioLink || userRole === 'profissional')) {
         const { data: proFallback } = await supabase
           .from('profissionais')
@@ -83,11 +91,12 @@ const AuthProvider = ({ children }) => {
           .maybeSingle();
 
         if (proFallback) {
+          // Achou o profissional pelo e-mail! (O dono do salão cadastrou)
           proData = proFallback;
           userRole = 'profissional';
           currentSalaoId = proFallback.salao_id;
 
-          // CONSERTA O BANCO: Apaga o "1" errado e coloca o UUID verdadeiro
+          // CONSERTA O BANCO: Cria o vínculo de acesso automaticamente
           await supabase.from('usuarios').upsert({
             id: currentUser.id,
             salao_id: proFallback.salao_id,
@@ -95,7 +104,8 @@ const AuthProvider = ({ children }) => {
             profissional_id: proFallback.id
           });
         } else if (!usuarioLink) {
-          userRole = 'admin'; // Fallback final
+          // 🚨 BLOQUEIO DE INVASORES: Se não achou em lugar nenhum, não vira admin!
+          userRole = 'unauthorized'; 
         }
       }
 
@@ -130,7 +140,7 @@ const AuthProvider = ({ children }) => {
   const login = async (email, password) => await supabase.auth.signInWithPassword({ email, password });
   const logout = async () => { setRole(null); setProfissionalData(null); setSalaoId(null); await supabase.auth.signOut(); };
 
-  return <AuthContext.Provider value={{ user, role, profissionalData, salaoId, salaoNome, login, logout, loading }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, role, profissionalData, salaoId, salaoNome, userName, login, logout, loading }}>{children}</AuthContext.Provider>;
 };
 const useAuth = () => useContext(AuthContext);
 
@@ -462,6 +472,38 @@ const AdminApp = () => {
 };
 
 // ============================================================================
+// 🚨 TELA DE ACESSO NEGADO (Para quem não foi cadastrado pelo dono do salão)
+// ============================================================================
+const UnauthorizedScreen = () => {
+  const { user, logout } = useAuth();
+  return (
+    <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
+      <div className="bg-[#18181b] border border-white/10 p-8 rounded-3xl max-w-md w-full text-center shadow-2xl relative overflow-hidden">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <AlertCircle size={32} />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Acesso Restrito</h2>
+        <p className="text-zinc-400 mb-6 text-sm leading-relaxed">
+          Seu e-mail <b>({user?.email})</b> ainda não possui permissão para acessar nenhum salão.
+        </p>
+        <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-xl text-left mb-8">
+          <p className="text-xs text-purple-200/80 mb-2 font-semibold">O QUE FAZER?</p>
+          <p className="text-xs text-zinc-300">
+            Peça ao gestor do salão para acessar a aba <b>Profissionais</b> e cadastrar o seu e-mail exatamente como está escrito acima.
+          </p>
+        </div>
+        <button 
+          onClick={logout} 
+          className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-medium transition-colors"
+        >
+          Sair e tentar novamente
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
 // 🚀 APP CONTENT
 // ============================================================================
 const AppContent = () => {
@@ -474,7 +516,22 @@ const AppContent = () => {
 
   if (authLoading) return null; 
 
-  if (!user) return <LoginScreen />;
+  // Se o usuário logou, mas o sistema bloqueou (invasor / e-mail não cadastrado)
+  if (role === 'unauthorized') {
+    return (
+      <>
+        <UnauthorizedScreen />
+        <div className="fixed bottom-3 right-4 text-[10px] text-white/20 font-mono z-50 pointer-events-none">{APP_VERSION}</div>
+      </>
+    );
+  }
+
+  if (!user) return (
+    <>
+      <LoginScreen />
+      <div className="fixed bottom-3 right-4 text-[10px] text-white/20 font-mono z-50 pointer-events-none">{APP_VERSION}</div>
+    </>
+  );
 
   return (
     <>
@@ -483,6 +540,8 @@ const AppContent = () => {
         : <AdminApp />
       }
       <InstallAppModal />
+      {/* Exibe a versão fixa no canto dentro do painel */}
+      <div className="fixed bottom-3 right-4 text-[10px] text-white/20 font-mono z-50 pointer-events-none">{APP_VERSION}</div>
     </>
   );
 };
