@@ -6,7 +6,6 @@ import { supabase } from '../../services/supabase';
 
 // --- Componente Interno: Modal de Sucesso ---
 const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
-  // ... (MANTIVE O SEU MODAL DE SUCESSO EXATAMENTE IGUAL) ...
   if (!isOpen || !dados) return null;
 
   const { cliente_nome, telefone, servico, total, itens, profissional } = dados;
@@ -26,7 +25,7 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
     if (itens && itens.length > 0) {
       mensagem += `🛍️ *Produtos Comprados:*\n`;
       itens.forEach(item => {
-        mensagem += `   • ${item.nome} (R$ ${item.preco_venda?.toFixed(2) || item.preco?.toFixed(2)})\n`;
+        mensagem += `   • ${item.nome} (R$ ${Number(item.preco_venda || item.preco || 0).toFixed(2)})\n`;
       });
     }
 
@@ -48,7 +47,7 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
 
         {telefone ? (
           <button onClick={enviarWhatsApp} className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 mb-4 shadow-lg shadow-green-900/20">
-             Enviar no WhatsApp
+            <MessageCircle size={22} /> Enviar no WhatsApp
           </button>
         ) : (
           <div className="w-full p-4 bg-white/5 rounded-2xl text-gray-500 text-sm mb-4 border border-white/5">Sem telefone cadastrado.</div>
@@ -65,18 +64,20 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
   const [loading, setLoading] = useState(false);
   const [salaoId, setSalaoId] = useState(null);
   
-  // Valores e Produtos de Venda (O que a cliente paga)
+  // Valores e Produtos de Venda
   const [valorServico, setValorServico] = useState('');
   const [listaProdutos, setListaProdutos] = useState([]);
   const [buscaProdutoVenda, setBuscaProdutoVenda] = useState('');
   const [carrinhoVenda, setCarrinhoVenda] = useState([]);
+  const [dropdownVendaAberto, setDropdownVendaAberto] = useState(false); // 🚀 NOVO CONTROLE DE UI
   
-  // 🚀 NOVOS ESTADOS: Anamnese e Consumo Interno (O que o salão gasta)
+  // Anamnese e Consumo Interno
   const [abrirAnamnese, setAbrirAnamnese] = useState(false);
   const [anotacoes, setAnotacoes] = useState('');
   const [buscaProdutoConsumo, setBuscaProdutoConsumo] = useState('');
   const [carrinhoConsumo, setCarrinhoConsumo] = useState([]);
   const [categoriaSugerida, setCategoriaSugerida] = useState('');
+  const [dropdownConsumoAberto, setDropdownConsumoAberto] = useState(false); // 🚀 NOVO CONTROLE DE UI
 
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
 
@@ -100,15 +101,18 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
   useEffect(() => {
     if (isOpen && agendamento) {
       const fetchSetup = async () => {
-        // 1. Pega o Salão ID
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: u } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).single();
+          const { data: u } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
           if (u) setSalaoId(u.salao_id);
         }
 
-        // 2. Busca todos os produtos do estoque
-        const { data: prods } = await supabase.from('produtos').select('*').gt('estoque', 0).order('nome');
+        // 🚀 CORREÇÃO 1: Buscando pela coluna 'quantidade_atual' em vez de 'estoque'
+        const { data: prods } = await supabase
+          .from('produtos')
+          .select('*')
+          .gt('quantidade_atual', 0)
+          .order('nome');
         setListaProdutos(prods || []);
       };
       fetchSetup();
@@ -126,19 +130,19 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
       setModalSucessoOpen(false);
       setAbrirAnamnese(false);
 
-      // 🧠 A Inteligência: Descobre a categoria sugerida com base no nome do serviço
       setCategoriaSugerida(sugerirCategoriaProduto(agendamento.servico));
     }
   }, [isOpen, agendamento]);
 
-  // 🧠 FUNÇÃO INTELIGENTE: Lê o serviço e sugere a categoria
+  // 🚀 CORREÇÃO 2: IA de Categorias melhorada para incluir a sua categoria "Progressiva"
   const sugerirCategoriaProduto = (nomeServico) => {
     const s = (nomeServico || '').toLowerCase();
     if (s.includes('color') || s.includes('mecha') || s.includes('luzes') || s.includes('tinta') || s.includes('retoque')) return 'Tintura';
-    if (s.includes('tratamento') || s.includes('hidrata') || s.includes('reconstru') || s.includes('botox') || s.includes('progressiva')) return 'Tratamento';
+    if (s.includes('tratamento') || s.includes('hidrata') || s.includes('reconstru') || s.includes('botox')) return 'Tratamento';
+    if (s.includes('progressiva') || s.includes('liso') || s.includes('alisamento')) return 'Progressiva'; 
     if (s.includes('unha') || s.includes('mão') || s.includes('pé') || s.includes('manicure') || s.includes('pedicure') || s.includes('esmalta')) return 'Esmalte';
     if (s.includes('lavagem') || s.includes('escova') || s.includes('corte')) return 'Shampoo';
-    return ''; // Se não achar, não sugere nada
+    return ''; 
   };
 
   if (!isOpen || !agendamento) return null;
@@ -149,12 +153,14 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
   const adicionarVenda = (produto) => {
     setCarrinhoVenda([...carrinhoVenda, { ...produto, qtd: 1 }]);
     setBuscaProdutoVenda('');
+    setDropdownVendaAberto(false);
   };
 
   // --- AÇÕES DO CONSUMO INTERNO (ANAMNESE) ---
   const adicionarConsumo = (produto) => {
     setCarrinhoConsumo([...carrinhoConsumo, { produto, quantidade_usada: '' }]);
     setBuscaProdutoConsumo('');
+    setDropdownConsumoAberto(false);
   };
 
   const atualizarQuantidadeConsumo = (index, valor) => {
@@ -172,21 +178,21 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
     try {
       if (!salaoId) throw new Error("Erro de autenticação do salão.");
 
-      // 1. Atualiza o Status e o Valor do Agendamento
       await supabase.from('agendamentos').update({ 
         status: 'concluido', 
         valor_total: totalGeral, 
         valor: valorServicoNum 
       }).eq('id', agendamento.id);
 
-      // 2. Desconta produtos de Revenda (Venda direta = 1 unidade)
+      // Desconta produtos de Revenda (Coluna corrigida para quantidade_atual)
       for (const item of carrinhoVenda) {
-        await supabase.from('produtos').update({ estoque: Math.max(0, item.estoque - 1) }).eq('id', item.id);
+        await supabase.from('produtos')
+          .update({ quantidade_atual: Math.max(0, (item.quantidade_atual || 0) - 1) })
+          .eq('id', item.id);
       }
 
-      // 3. 🚀 SALVA A FICHA DE ANAMNESE E DÁ BAIXA FRACIONADA
+      // Salva Ficha e Baixa Consumo
       if (anotacoes || carrinhoConsumo.length > 0) {
-        // A. Cria a ficha mestre
         const { data: fichaData, error: fichaError } = await supabase.from('fichas_anamnese').insert([{
           salao_id: salaoId,
           cliente_id: agendamento.cliente_id || agendamento.clientes?.id,
@@ -196,7 +202,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
 
         if (fichaError) throw fichaError;
 
-        // B. Insere os consumos (Isso vai ativar o Trigger automático no Supabase!)
         if (fichaData && carrinhoConsumo.length > 0) {
           const insertConsumo = carrinhoConsumo
             .filter(c => c.quantidade_usada && Number(c.quantidade_usada) > 0)
@@ -204,7 +209,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
               salao_id: salaoId,
               ficha_id: fichaData.id,
               produto_id: c.produto.id,
-              quantidade_usada: Number(c.quantidade_usada) // Gramas, ml, etc.
+              quantidade_usada: Number(c.quantidade_usada) 
             }));
 
           if (insertConsumo.length > 0) {
@@ -223,14 +228,14 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
     }
   };
 
-  // Filtros de busca independentes
-  const produtosVendaFiltrados = listaProdutos.filter(p => p.nome.toLowerCase().includes(buscaProdutoVenda.toLowerCase()));
+  // 🚀 LÓGICA DE FILTRO MELHORADA PARA VENDA E CONSUMO
+  const produtosVendaFiltrados = listaProdutos.filter(p => p.nome.toLowerCase().includes(buscaProdutoVenda.trim().toLowerCase()));
   
-  // O Filtro de Consumo prioriza a Sugestão do Sistema se o campo de busca estiver vazio!
   const produtosConsumoFiltrados = listaProdutos.filter(p => {
-    if (buscaProdutoConsumo) return p.nome.toLowerCase().includes(buscaProdutoConsumo.toLowerCase());
-    if (categoriaSugerida) return p.categoria?.toLowerCase() === categoriaSugerida.toLowerCase();
-    return true; // Se não tem sugestão, mostra todos
+    const termo = buscaProdutoConsumo.trim().toLowerCase();
+    if (termo) return p.nome.toLowerCase().includes(termo); // Se digitou algo, varre tudo
+    if (categoriaSugerida) return p.categoria?.toLowerCase() === categoriaSugerida.toLowerCase(); // Se não digitou, mostra sugestão
+    return true; // Mostra tudo
   });
 
   return createPortal(
@@ -279,7 +284,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             </div>
           </div>
 
-          {/* Vendas Adicionais (Produtos para a cliente levar) */}
+          {/* Vendas Adicionais (Revenda) */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Venda de Produtos (Revenda)</label>
             <div className="relative">
@@ -288,15 +293,20 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
                 placeholder="Ex: Shampoo Home Care..." 
                 className="w-full bg-[#18181b] border border-white/10 rounded-xl py-3 pl-10 text-white text-sm outline-none focus:border-green-500/50 transition-all"
                 value={buscaProdutoVenda} 
-                onChange={e => setBuscaProdutoVenda(e.target.value)}
+                onChange={e => {
+                  setBuscaProdutoVenda(e.target.value);
+                  setDropdownVendaAberto(true);
+                }}
+                onFocus={() => setDropdownVendaAberto(true)}
+                onBlur={() => setTimeout(() => setDropdownVendaAberto(false), 200)}
               />
-              {buscaProdutoVenda && (
+              {dropdownVendaAberto && (
                 <div className="absolute top-full left-0 w-full bg-[#27272a] border border-white/10 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-2xl custom-scrollbar">
                   {produtosVendaFiltrados.length > 0 ? (
                     produtosVendaFiltrados.map(p => (
                       <div key={p.id} onClick={() => adicionarVenda(p)} className="p-3 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0">
                         <span className="text-white text-sm font-medium">{p.nome}</span>
-                        <span className="text-green-400 text-xs font-bold">R$ {p.preco_venda || p.preco}</span>
+                        <span className="text-green-400 text-xs font-bold">R$ {p.preco_venda || p.preco || 0}</span>
                       </div>
                     ))
                   ) : <div className="p-4 text-center text-gray-500 text-xs">Não encontrado.</div>}
@@ -313,7 +323,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
                       <span className="text-sm text-gray-200 font-medium">{item.nome}</span>
                     </div>
                     <div className="flex gap-3 items-center">
-                      <span className="text-sm font-bold text-white">R$ {item.preco_venda || item.preco}</span>
+                      <span className="text-sm font-bold text-white">R$ {item.preco_venda || item.preco || 0}</span>
                       <button onClick={() => {
                         const novo = [...carrinhoVenda]; novo.splice(idx, 1); setCarrinhoVenda(novo);
                       }} className="text-red-400 hover:text-red-300 p-1.5 rounded-lg"><Trash2 size={14}/></button>
@@ -324,7 +334,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             )}
           </div>
 
-          {/* 🚀 NOVA SEÇÃO: FICHA QUÍMICA E CONSUMO */}
+          {/* FICHA QUÍMICA E CONSUMO */}
           <div className="pt-4 border-t border-white/5">
             {!abrirAnamnese ? (
               <button 
@@ -339,9 +349,8 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
                   <h3 className="text-purple-300 font-bold flex items-center gap-2 text-sm"><Beaker size={16}/> Ficha Química Interna</h3>
                   <button onClick={() => setAbrirAnamnese(false)} className="text-xs text-gray-400 hover:text-white">Ocultar</button>
                 </div>
-                <p className="text-[10px] text-gray-500 mb-2 leading-tight">Registre o que foi gasto (não altera o valor cobrado da cliente, apenas dá baixa no estoque).</p>
+                <p className="text-[10px] text-gray-500 mb-2 leading-tight">Registre o que foi gasto (dá baixa no estoque e salva no histórico da cliente).</p>
 
-                {/* Busca Inteligente de Consumo */}
                 <div className="relative">
                   {categoriaSugerida && !buscaProdutoConsumo && (
                     <div className="absolute -top-2.5 right-3 bg-purple-600 text-[9px] font-bold px-2 py-0.5 rounded text-white flex items-center gap-1 shadow-md">
@@ -353,26 +362,35 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
                     placeholder="Buscar produto utilizado..." 
                     className="w-full bg-[#18181b] border border-purple-500/30 rounded-xl py-3 pl-10 text-white text-sm outline-none focus:border-purple-500 transition-all"
                     value={buscaProdutoConsumo} 
-                    onChange={e => setBuscaProdutoConsumo(e.target.value)}
-                    onFocus={() => { if (!buscaProdutoConsumo && categoriaSugerida) setBuscaProdutoConsumo(' ') }} // Gatilho para abrir a lista sugerida
+                    onChange={e => {
+                      setBuscaProdutoConsumo(e.target.value);
+                      setDropdownConsumoAberto(true);
+                    }}
+                    onFocus={() => setDropdownConsumoAberto(true)}
+                    onBlur={() => setTimeout(() => setDropdownConsumoAberto(false), 200)}
                   />
-                  {buscaProdutoConsumo && (
+                  {dropdownConsumoAberto && (
                     <div className="absolute top-full left-0 w-full bg-[#27272a] border border-purple-500/50 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-2xl custom-scrollbar">
                       {produtosConsumoFiltrados.length > 0 ? (
                         produtosConsumoFiltrados.map(p => (
                           <div key={p.id} onClick={() => adicionarConsumo(p)} className="p-3 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0">
                             <span className="text-white text-sm font-medium">{p.nome}</span>
                             <span className="text-purple-400 text-[10px] uppercase font-bold bg-purple-500/20 px-2 py-1 rounded">
-                              Rende: {p.capacidade_medida || 1} {p.unidade_medida || 'un'}
+                              Estoque: {parseFloat(p.quantidade_atual).toFixed(1)} {p.unidade_medida || 'un'}
                             </span>
                           </div>
                         ))
-                      ) : <div className="p-4 text-center text-gray-500 text-xs">Nenhum produto encontrado.</div>}
+                      ) : (
+                        <div className="p-4 text-center text-gray-500 text-xs">
+                          {categoriaSugerida && !buscaProdutoConsumo 
+                            ? "Nenhum produto dessa categoria no estoque. Digite para buscar outros."
+                            : "Nenhum produto encontrado no estoque."}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Lista do que foi Gasto */}
                 {carrinhoConsumo.length > 0 && (
                   <div className="flex flex-col gap-2">
                     {carrinhoConsumo.map((item, idx) => (
@@ -423,7 +441,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             disabled={loading} 
             className="w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-bold shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="animate-spin" size={20}/> : <><CheckCircle size={20}/> Concluir e Baixar Estoque</>}
+            {loading ? <Loader2 className="animate-spin" size={20}/> : <><CheckCircle size={20}/> Concluir e Salvar Ficha</>}
           </button>
         </div>
 
@@ -437,7 +455,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             telefone: agendamento.telefone || agendamento.clientes?.telefone,
             servico: agendamento.servico,
             total: totalGeral,
-            itens: carrinhoVenda, // Manda pro WhatsApp só o que ela pagou!
+            itens: carrinhoVenda, 
             profissional: nomeProfissional 
         }}
       />

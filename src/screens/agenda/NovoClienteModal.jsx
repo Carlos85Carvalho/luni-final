@@ -42,14 +42,15 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
       }
 
       // 2. Monta o pacote de dados a ser salvo
+      // 🚀 AQUI ESTÁ A CORREÇÃO: Enviando o empresa_id junto!
       const dadosCliente = {
         nome, 
         telefone,
-        salao_id: finalSalaoId // <-- O CARIMBO AQUI!
+        salao_id: finalSalaoId,
+        empresa_id: finalSalaoId 
       };
 
       // Só envia o aniversário se o usuário tiver preenchido
-      // ATENÇÃO: Verifique se o nome da sua coluna no Supabase é 'data_nascimento'
       if (aniversario) {
         dadosCliente.data_nascimento = aniversario; 
       }

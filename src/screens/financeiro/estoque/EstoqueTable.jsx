@@ -2,7 +2,7 @@
 import { Loader2, Package, Edit2, Package as PackageIcon } from 'lucide-react';
 
 export const EstoqueTable = ({
-  produtos = [], // Valor padrão para evitar erro
+  produtos = [], 
   loading,
   onEditarProduto,
   onEntradaEstoque
@@ -15,7 +15,6 @@ export const EstoqueTable = ({
     );
   }
 
-  // Verificação de segurança (?.length)
   if (!produtos || produtos.length === 0) {
     return (
       <div className="text-center py-12 px-4">
@@ -25,17 +24,6 @@ export const EstoqueTable = ({
     );
   }
 
-  // Função para deixar a unidade bonita na tela
-  const formatarUnidade = (unidade) => {
-    switch(unidade) {
-      case 'g': return 'g';
-      case 'ml': return 'ml';
-      case 'app': return 'apps';
-      case 'un': 
-      default: return 'un';
-    }
-  };
-
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
@@ -44,7 +32,7 @@ export const EstoqueTable = ({
             <tr>
               <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Produto</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Categoria</th>
-              <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Estoque</th>
+              <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Estoque (Frascos/Tubos)</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Giro</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Lucro Total</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
@@ -53,25 +41,32 @@ export const EstoqueTable = ({
           </thead>
           <tbody className="divide-y divide-gray-700/50">
             {produtos.map((produto) => {
-              // Adicionei valores padrão (|| 0) para evitar NaN se algum campo for nulo
               const margem = (((produto.preco_venda || 0) - (produto.custo_unitario || 0)) / (produto.custo_unitario || 1) * 100).toFixed(1);
               const status = 
                 produto.quantidade_atual <= produto.estoque_minimo ? 'critico' :
                 produto.rotatividade > 2 ? 'alto-giro' :
                 produto.rotatividade < 0.5 ? 'baixo-giro' : 'normal';
 
-              // Formata a quantidade para não mostrar zeros desnecessários (Ex: 10.0 vira 10, mas 9.5 continua 9.5)
+              // Formata a quantidade para não mostrar zeros desnecessários
               const qtdFormatada = Number(produto.quantidade_atual || 0).toFixed(2).replace(/\.?0+$/, '');
+
+              // 🚀 A MÁGICA DOS TEXTOS AQUI:
+              let infoRendimento = '';
+              if (produto.unidade_medida === 'app') {
+                infoRendimento = ` | Rende: ${produto.capacidade_medida || 1} aplicações/un`;
+              } else if (produto.unidade_medida === 'g') {
+                infoRendimento = ` | Tubo: ${produto.capacidade_medida || 1} g`;
+              } else if (produto.unidade_medida === 'ml') {
+                infoRendimento = ` | Frasco: ${produto.capacidade_medida || 1} ml`;
+              }
 
               return (
                 <tr key={produto.id} className="hover:bg-gray-700/30 transition-colors">
                   <td className="py-4 px-6">
                     <div>
                       <p className="font-medium text-white">{produto.nome}</p>
-                      {/* Subtítulo Dinâmico: Mostra Mínimo e Rendimento se houver */}
                       <p className="text-xs text-gray-400 mt-1">
-                        Mín: {produto.estoque_minimo} {formatarUnidade(produto.unidade_medida)}
-                        {produto.unidade_medida !== 'un' && produto.capacidade_medida && ` | Rende: ${produto.capacidade_medida} ${formatarUnidade(produto.unidade_medida)}`}
+                        Mín: {produto.estoque_minimo} un{infoRendimento}
                       </p>
                     </div>
                   </td>
@@ -93,9 +88,9 @@ export const EstoqueTable = ({
                           }}
                         ></div>
                       </div>
-                      {/* Quantidade Formatada com a Unidade */}
+                      {/* O ESTOQUE AGORA É SEMPRE "un" (Unidades Físicas) */}
                       <span className="font-bold text-white whitespace-nowrap">
-                        {qtdFormatada} <span className="text-xs text-gray-400">{formatarUnidade(produto.unidade_medida)}</span>
+                        {qtdFormatada} <span className="text-xs text-gray-400">un</span>
                       </span>
                     </div>
                   </td>
