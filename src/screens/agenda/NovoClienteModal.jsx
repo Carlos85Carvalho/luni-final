@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Loader2, UserPlus, Phone, User } from 'lucide-react';
+import { X, Save, Loader2, UserPlus, Phone, User, CalendarDays } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 // ✅ IMPORTAÇÃO CORRIGIDA: Apontando para a nova pasta contexts
 import { useAuth } from '../../contexts/AuthContext'; 
@@ -11,6 +11,7 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [aniversario, setAniversario] = useState(''); // 🚀 NOVO ESTADO AQUI
 
   if (!isOpen) return null;
 
@@ -40,12 +41,21 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
         return alert("Erro: Não foi possível identificar o salão vinculado à sua conta.");
       }
 
-      // 2. Salva o cliente com o "carimbo" do salão
-      const { error } = await supabase.from('clientes').insert([{ 
+      // 2. Monta o pacote de dados a ser salvo
+      const dadosCliente = {
         nome, 
         telefone,
         salao_id: finalSalaoId // <-- O CARIMBO AQUI!
-      }]);
+      };
+
+      // Só envia o aniversário se o usuário tiver preenchido
+      // ATENÇÃO: Verifique se o nome da sua coluna no Supabase é 'data_nascimento'
+      if (aniversario) {
+        dadosCliente.data_nascimento = aniversario; 
+      }
+
+      // 3. Salva no banco
+      const { error } = await supabase.from('clientes').insert([dadosCliente]);
       
       if (error) throw error;
       
@@ -53,6 +63,7 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
       onClose();
       setNome('');
       setTelefone('');
+      setAniversario(''); // Limpa o estado do aniversário
 
     } catch (error) {
       alert('Erro ao salvar: ' + error.message);
@@ -93,6 +104,7 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
               />
             </div>
           </div>
+          
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase ml-1 block mb-1">Telefone / WhatsApp</label>
             <div className="relative">
@@ -101,6 +113,19 @@ export const NovoClienteModal = ({ isOpen, onClose }) => {
                 className="w-full pl-10 p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none focus:border-purple-500 focus:bg-white transition-all text-gray-900 placeholder:text-gray-400" 
                 placeholder="(11) 99999-9999"
                 value={telefone} onChange={e => setTelefone(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* 🚀 NOVO CAMPO: DATA DE ANIVERSÁRIO */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase ml-1 block mb-1">Data de Aniversário (Opcional)</label>
+            <div className="relative">
+              <CalendarDays size={18} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none"/>
+              <input 
+                type="date"
+                className="w-full pl-10 p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none focus:border-purple-500 focus:bg-white transition-all text-gray-900 placeholder:text-gray-400" 
+                value={aniversario} onChange={e => setAniversario(e.target.value)}
               />
             </div>
           </div>

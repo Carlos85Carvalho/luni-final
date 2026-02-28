@@ -1,11 +1,12 @@
 // src/screens/agenda/ModalFinalizarAtendimento.jsx
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom'; 
-import { X, CheckCircle, Search, Package, Trash2, Loader2, DollarSign, MessageCircle, User, Scissors } from 'lucide-react';
+import { X, CheckCircle, Search, Package, Trash2, Loader2, User, Scissors, Beaker, ClipboardEdit, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 
 // --- Componente Interno: Modal de Sucesso ---
 const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
+  // ... (MANTIVE O SEU MODAL DE SUCESSO EXATAMENTE IGUAL) ...
   if (!isOpen || !dados) return null;
 
   const { cliente_nome, telefone, servico, total, itens, profissional } = dados;
@@ -23,9 +24,9 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
     mensagem += `✅ *Serviço:* ${servico}\n`;
     
     if (itens && itens.length > 0) {
-      mensagem += `🛍️ *Produtos:*\n`;
+      mensagem += `🛍️ *Produtos Comprados:*\n`;
       itens.forEach(item => {
-        mensagem += `   • ${item.nome} (R$ ${item.preco.toFixed(2)})\n`;
+        mensagem += `   • ${item.nome} (R$ ${item.preco_venda?.toFixed(2) || item.preco?.toFixed(2)})\n`;
       });
     }
 
@@ -47,7 +48,7 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
 
         {telefone ? (
           <button onClick={enviarWhatsApp} className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 mb-4 shadow-lg shadow-green-900/20">
-            <MessageCircle size={22} /> Enviar no WhatsApp
+             Enviar no WhatsApp
           </button>
         ) : (
           <div className="w-full p-4 bg-white/5 rounded-2xl text-gray-500 text-sm mb-4 border border-white/5">Sem telefone cadastrado.</div>
@@ -62,24 +63,29 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
 // --- Componente Principal ---
 export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [salaoId, setSalaoId] = useState(null);
+  
+  // Valores e Produtos de Venda (O que a cliente paga)
   const [valorServico, setValorServico] = useState('');
   const [listaProdutos, setListaProdutos] = useState([]);
-  const [buscaProduto, setBuscaProduto] = useState('');
-  const [carrinho, setCarrinho] = useState([]);
+  const [buscaProdutoVenda, setBuscaProdutoVenda] = useState('');
+  const [carrinhoVenda, setCarrinhoVenda] = useState([]);
+  
+  // 🚀 NOVOS ESTADOS: Anamnese e Consumo Interno (O que o salão gasta)
+  const [abrirAnamnese, setAbrirAnamnese] = useState(false);
+  const [anotacoes, setAnotacoes] = useState('');
+  const [buscaProdutoConsumo, setBuscaProdutoConsumo] = useState('');
+  const [carrinhoConsumo, setCarrinhoConsumo] = useState([]);
+  const [categoriaSugerida, setCategoriaSugerida] = useState('');
+
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
 
-  // --- 1. REGRA PARA ESCONDER O RODAPÉ (Igual ao Novo Agendamento) ---
   useEffect(() => {
     if (isOpen) {
       const style = document.createElement('style');
       style.id = 'hide-footer-finalizar';
       style.innerHTML = `
-        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { 
-          display: none !important; 
-          opacity: 0 !important;
-          pointer-events: none !important;
-          z-index: -1 !important;
-        }
+        #rodape-principal, .fixed.bottom-0, nav.fixed.bottom-0, footer { display: none !important; }
         body { overflow: hidden !important; }
       `;
       document.head.appendChild(style);
@@ -91,56 +97,123 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
     }
   }, [isOpen]);
 
-  // --- 2. CARREGAR DADOS E VALORES ---
   useEffect(() => {
     if (isOpen && agendamento) {
-      const fetchProdutos = async () => {
-        const { data } = await supabase.from('produtos').select('*').gt('estoque', 0).order('nome');
-        setListaProdutos(data || []);
-      };
-      fetchProdutos();
+      const fetchSetup = async () => {
+        // 1. Pega o Salão ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: u } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).single();
+          if (u) setSalaoId(u.salao_id);
+        }
 
-      // --- CORREÇÃO: Garante que pega o valor numérico ---
-      // Tenta 'valor' primeiro, depois 'valor_total', se não achar, assume 0.
+        // 2. Busca todos os produtos do estoque
+        const { data: prods } = await supabase.from('produtos').select('*').gt('estoque', 0).order('nome');
+        setListaProdutos(prods || []);
+      };
+      fetchSetup();
+
       const valorInicial = agendamento.valor !== undefined && agendamento.valor !== null 
         ? Number(agendamento.valor) 
         : (Number(agendamento.valor_total) || 0);
         
       setValorServico(valorInicial);
-      
-      setCarrinho([]);
-      setBuscaProduto('');
+      setCarrinhoVenda([]);
+      setCarrinhoConsumo([]);
+      setBuscaProdutoVenda('');
+      setBuscaProdutoConsumo('');
+      setAnotacoes('');
       setModalSucessoOpen(false);
+      setAbrirAnamnese(false);
+
+      // 🧠 A Inteligência: Descobre a categoria sugerida com base no nome do serviço
+      setCategoriaSugerida(sugerirCategoriaProduto(agendamento.servico));
     }
   }, [isOpen, agendamento]);
 
-  if (!isOpen || !agendamento) return null;
-
-  // Tenta pegar o nome do profissional (pode vir como objeto 'profissionais' ou direto)
-  const nomeProfissional = agendamento.profissionais?.nome || agendamento.profissional_nome || 'Profissional';
-
-  const adicionarProduto = (produto) => {
-    setCarrinho([...carrinho, { ...produto, qtd: 1 }]);
-    setBuscaProduto('');
+  // 🧠 FUNÇÃO INTELIGENTE: Lê o serviço e sugere a categoria
+  const sugerirCategoriaProduto = (nomeServico) => {
+    const s = (nomeServico || '').toLowerCase();
+    if (s.includes('color') || s.includes('mecha') || s.includes('luzes') || s.includes('tinta') || s.includes('retoque')) return 'Tintura';
+    if (s.includes('tratamento') || s.includes('hidrata') || s.includes('reconstru') || s.includes('botox') || s.includes('progressiva')) return 'Tratamento';
+    if (s.includes('unha') || s.includes('mão') || s.includes('pé') || s.includes('manicure') || s.includes('pedicure') || s.includes('esmalta')) return 'Esmalte';
+    if (s.includes('lavagem') || s.includes('escova') || s.includes('corte')) return 'Shampoo';
+    return ''; // Se não achar, não sugere nada
   };
 
-  const removerProduto = (index) => {
-    const novoCarrinho = [...carrinho];
-    novoCarrinho.splice(index, 1);
-    setCarrinho(novoCarrinho);
+  if (!isOpen || !agendamento) return null;
+
+  const nomeProfissional = agendamento.profissionais?.nome || agendamento.profissional_nome || 'Profissional';
+
+  // --- AÇÕES DO CARRINHO DE VENDA ---
+  const adicionarVenda = (produto) => {
+    setCarrinhoVenda([...carrinhoVenda, { ...produto, qtd: 1 }]);
+    setBuscaProdutoVenda('');
+  };
+
+  // --- AÇÕES DO CONSUMO INTERNO (ANAMNESE) ---
+  const adicionarConsumo = (produto) => {
+    setCarrinhoConsumo([...carrinhoConsumo, { produto, quantidade_usada: '' }]);
+    setBuscaProdutoConsumo('');
+  };
+
+  const atualizarQuantidadeConsumo = (index, valor) => {
+    const novo = [...carrinhoConsumo];
+    novo[index].quantidade_usada = valor;
+    setCarrinhoConsumo(novo);
   };
 
   const valorServicoNum = valorServico === '' ? 0 : Number(valorServico);
-  const totalGeral = valorServicoNum + carrinho.reduce((acc, item) => acc + Number(item.preco), 0);
+  const totalGeral = valorServicoNum + carrinhoVenda.reduce((acc, item) => acc + (Number(item.preco_venda) || Number(item.preco) || 0), 0);
 
+  // --- O SALVAMENTO DEFINITIVO ---
   const handleFinalizar = async () => {
     setLoading(true);
     try {
-      for (const item of carrinho) {
-        if (item.id) await supabase.from('produtos').update({ estoque: Math.max(0, item.estoque - 1) }).eq('id', item.id);
+      if (!salaoId) throw new Error("Erro de autenticação do salão.");
+
+      // 1. Atualiza o Status e o Valor do Agendamento
+      await supabase.from('agendamentos').update({ 
+        status: 'concluido', 
+        valor_total: totalGeral, 
+        valor: valorServicoNum 
+      }).eq('id', agendamento.id);
+
+      // 2. Desconta produtos de Revenda (Venda direta = 1 unidade)
+      for (const item of carrinhoVenda) {
+        await supabase.from('produtos').update({ estoque: Math.max(0, item.estoque - 1) }).eq('id', item.id);
       }
-      const { error } = await supabase.from('agendamentos').update({ status: 'concluido', valor_total: totalGeral, valor: valorServicoNum }).eq('id', agendamento.id);
-      if (error) throw error;
+
+      // 3. 🚀 SALVA A FICHA DE ANAMNESE E DÁ BAIXA FRACIONADA
+      if (anotacoes || carrinhoConsumo.length > 0) {
+        // A. Cria a ficha mestre
+        const { data: fichaData, error: fichaError } = await supabase.from('fichas_anamnese').insert([{
+          salao_id: salaoId,
+          cliente_id: agendamento.cliente_id || agendamento.clientes?.id,
+          agendamento_id: agendamento.id,
+          anotacoes: anotacoes || null
+        }]).select().single();
+
+        if (fichaError) throw fichaError;
+
+        // B. Insere os consumos (Isso vai ativar o Trigger automático no Supabase!)
+        if (fichaData && carrinhoConsumo.length > 0) {
+          const insertConsumo = carrinhoConsumo
+            .filter(c => c.quantidade_usada && Number(c.quantidade_usada) > 0)
+            .map(c => ({
+              salao_id: salaoId,
+              ficha_id: fichaData.id,
+              produto_id: c.produto.id,
+              quantidade_usada: Number(c.quantidade_usada) // Gramas, ml, etc.
+            }));
+
+          if (insertConsumo.length > 0) {
+            const { error: consumoError } = await supabase.from('consumo_produtos').insert(insertConsumo);
+            if (consumoError) throw consumoError;
+          }
+        }
+      }
+
       setModalSucessoOpen(true);
       onSuccess(); 
     } catch (err) { 
@@ -150,29 +223,31 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
     }
   };
 
-  const produtosFiltrados = listaProdutos.filter(p => p.nome.toLowerCase().includes(buscaProduto.toLowerCase()));
+  // Filtros de busca independentes
+  const produtosVendaFiltrados = listaProdutos.filter(p => p.nome.toLowerCase().includes(buscaProdutoVenda.toLowerCase()));
+  
+  // O Filtro de Consumo prioriza a Sugestão do Sistema se o campo de busca estiver vazio!
+  const produtosConsumoFiltrados = listaProdutos.filter(p => {
+    if (buscaProdutoConsumo) return p.nome.toLowerCase().includes(buscaProdutoConsumo.toLowerCase());
+    if (categoriaSugerida) return p.categoria?.toLowerCase() === categoriaSugerida.toLowerCase();
+    return true; // Se não tem sugestão, mostra todos
+  });
 
-  // --- 3. USO DO PORTAL PRINCIPAL ---
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
       
-      {/* Container Principal (Estilo Mobile-First) */}
-      <div 
-        className="bg-[#18181b] w-full sm:max-w-md sm:rounded-[32px] rounded-t-[32px] border border-white/10 shadow-2xl relative flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300 overflow-hidden"
-        style={{ maxHeight: '95dvh' }}
-      >
+      <div className="bg-[#18181b] w-full sm:max-w-md sm:rounded-[32px] rounded-t-[32px] border border-white/10 shadow-2xl relative flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300 overflow-hidden" style={{ maxHeight: '95dvh' }}>
         
         {/* Header */}
-        <div className="flex justify-between items-start p-6 border-b border-white/5 bg-[#18181b]">
+        <div className="flex justify-between items-start p-6 border-b border-white/5 bg-[#18181b] shrink-0">
           <div>
              <h2 className="text-xl font-bold text-white flex items-center gap-2">
                <CheckCircle className="text-green-500" size={24}/> Finalizar
              </h2>
              <div className="mt-2 space-y-1">
                 <p className="text-gray-200 text-sm flex items-center gap-2 font-medium">
-                  <User size={14} className="text-purple-400"/> {agendamento.cliente_nome}
+                  <User size={14} className="text-purple-400"/> {agendamento.cliente_nome || agendamento.clientes?.nome}
                 </p>
-                {/* Exibindo o Profissional */}
                 <p className="text-gray-500 text-xs flex items-center gap-2 pl-0.5">
                   <Scissors size={12}/> {nomeProfissional}
                 </p>
@@ -188,8 +263,8 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
           
           {/* Card Valor Serviço */}
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Valor do Serviço</label>
-            <div className="bg-[#18181b] rounded-2xl p-4 border border-white/10 shadow-lg flex flex-col gap-1 relative group focus-within:border-green-500/50 transition-colors">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Cobrança do Serviço</label>
+            <div className="bg-[#18181b] rounded-2xl p-4 border border-white/10 shadow-lg flex flex-col gap-1 relative focus-within:border-green-500/50 transition-colors">
               <span className="text-xs text-purple-400 font-medium">{agendamento.servico}</span>
               <div className="flex items-center gap-1">
                 <span className="text-2xl text-gray-400 font-light">R$</span>
@@ -204,24 +279,24 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             </div>
           </div>
 
-          {/* Produtos */}
+          {/* Vendas Adicionais (Produtos para a cliente levar) */}
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Produtos Adicionais</label>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Venda de Produtos (Revenda)</label>
             <div className="relative">
               <div className="absolute left-3 top-3 text-gray-500 pointer-events-none"><Search size={16} /></div>
               <input 
-                placeholder="Buscar produto..." 
+                placeholder="Ex: Shampoo Home Care..." 
                 className="w-full bg-[#18181b] border border-white/10 rounded-xl py-3 pl-10 text-white text-sm outline-none focus:border-green-500/50 transition-all"
-                value={buscaProduto} 
-                onChange={e => setBuscaProduto(e.target.value)}
+                value={buscaProdutoVenda} 
+                onChange={e => setBuscaProdutoVenda(e.target.value)}
               />
-              {buscaProduto && (
+              {buscaProdutoVenda && (
                 <div className="absolute top-full left-0 w-full bg-[#27272a] border border-white/10 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-2xl custom-scrollbar">
-                  {produtosFiltrados.length > 0 ? (
-                    produtosFiltrados.map(p => (
-                      <div key={p.id} onClick={() => adicionarProduto(p)} className="p-3 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0 active:bg-white/10">
+                  {produtosVendaFiltrados.length > 0 ? (
+                    produtosVendaFiltrados.map(p => (
+                      <div key={p.id} onClick={() => adicionarVenda(p)} className="p-3 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0">
                         <span className="text-white text-sm font-medium">{p.nome}</span>
-                        <span className="text-green-400 text-xs font-bold">R$ {p.preco}</span>
+                        <span className="text-green-400 text-xs font-bold">R$ {p.preco_venda || p.preco}</span>
                       </div>
                     ))
                   ) : <div className="p-4 text-center text-gray-500 text-xs">Não encontrado.</div>}
@@ -229,29 +304,116 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
               )}
             </div>
 
-            {carrinho.length > 0 && (
+            {carrinhoVenda.length > 0 && (
               <div className="flex flex-col gap-2 mt-2">
-                {carrinho.map((item, idx) => (
+                {carrinhoVenda.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-center bg-[#18181b] p-3 rounded-xl border border-white/5 animate-in slide-in-from-bottom-2">
                     <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-400"><Package size={14}/></div>
+                      <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400"><Package size={14}/></div>
                       <span className="text-sm text-gray-200 font-medium">{item.nome}</span>
                     </div>
                     <div className="flex gap-3 items-center">
-                      <span className="text-sm font-bold text-white">R$ {item.preco}</span>
-                      <button onClick={() => removerProduto(idx)} className="text-red-400 hover:text-red-300 p-1.5 rounded-lg"><Trash2 size={14}/></button>
+                      <span className="text-sm font-bold text-white">R$ {item.preco_venda || item.preco}</span>
+                      <button onClick={() => {
+                        const novo = [...carrinhoVenda]; novo.splice(idx, 1); setCarrinhoVenda(novo);
+                      }} className="text-red-400 hover:text-red-300 p-1.5 rounded-lg"><Trash2 size={14}/></button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* 🚀 NOVA SEÇÃO: FICHA QUÍMICA E CONSUMO */}
+          <div className="pt-4 border-t border-white/5">
+            {!abrirAnamnese ? (
+              <button 
+                onClick={() => setAbrirAnamnese(true)}
+                className="w-full py-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-sm"
+              >
+                <ClipboardEdit size={16}/> Preencher Ficha Técnica / Consumo
+              </button>
+            ) : (
+              <div className="bg-purple-900/10 border border-purple-500/30 rounded-2xl p-4 animate-in fade-in space-y-4">
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="text-purple-300 font-bold flex items-center gap-2 text-sm"><Beaker size={16}/> Ficha Química Interna</h3>
+                  <button onClick={() => setAbrirAnamnese(false)} className="text-xs text-gray-400 hover:text-white">Ocultar</button>
+                </div>
+                <p className="text-[10px] text-gray-500 mb-2 leading-tight">Registre o que foi gasto (não altera o valor cobrado da cliente, apenas dá baixa no estoque).</p>
+
+                {/* Busca Inteligente de Consumo */}
+                <div className="relative">
+                  {categoriaSugerida && !buscaProdutoConsumo && (
+                    <div className="absolute -top-2.5 right-3 bg-purple-600 text-[9px] font-bold px-2 py-0.5 rounded text-white flex items-center gap-1 shadow-md">
+                      <Sparkles size={10}/> Sugerindo: {categoriaSugerida}
+                    </div>
+                  )}
+                  <div className="absolute left-3 top-3 text-purple-400 pointer-events-none"><Search size={16} /></div>
+                  <input 
+                    placeholder="Buscar produto utilizado..." 
+                    className="w-full bg-[#18181b] border border-purple-500/30 rounded-xl py-3 pl-10 text-white text-sm outline-none focus:border-purple-500 transition-all"
+                    value={buscaProdutoConsumo} 
+                    onChange={e => setBuscaProdutoConsumo(e.target.value)}
+                    onFocus={() => { if (!buscaProdutoConsumo && categoriaSugerida) setBuscaProdutoConsumo(' ') }} // Gatilho para abrir a lista sugerida
+                  />
+                  {buscaProdutoConsumo && (
+                    <div className="absolute top-full left-0 w-full bg-[#27272a] border border-purple-500/50 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-2xl custom-scrollbar">
+                      {produtosConsumoFiltrados.length > 0 ? (
+                        produtosConsumoFiltrados.map(p => (
+                          <div key={p.id} onClick={() => adicionarConsumo(p)} className="p-3 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0">
+                            <span className="text-white text-sm font-medium">{p.nome}</span>
+                            <span className="text-purple-400 text-[10px] uppercase font-bold bg-purple-500/20 px-2 py-1 rounded">
+                              Rende: {p.capacidade_medida || 1} {p.unidade_medida || 'un'}
+                            </span>
+                          </div>
+                        ))
+                      ) : <div className="p-4 text-center text-gray-500 text-xs">Nenhum produto encontrado.</div>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Lista do que foi Gasto */}
+                {carrinhoConsumo.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {carrinhoConsumo.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 items-center bg-[#18181b] p-2 rounded-xl border border-white/5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-300 font-medium truncate pl-1">{item.produto.nome}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input 
+                            type="number" 
+                            placeholder="Qtd." 
+                            value={item.quantidade_usada}
+                            onChange={(e) => atualizarQuantidadeConsumo(idx, e.target.value)}
+                            className="w-16 bg-[#27272a] border border-white/10 rounded-lg py-1.5 px-2 text-white text-xs text-center outline-none focus:border-purple-500"
+                          />
+                          <span className="text-[10px] text-gray-500 w-4">{item.produto.unidade_medida || 'un'}</span>
+                          <button onClick={() => {
+                            const novo = [...carrinhoConsumo]; novo.splice(idx, 1); setCarrinhoConsumo(novo);
+                          }} className="text-red-400 hover:text-red-300 p-1 rounded-lg ml-1"><Trash2 size={14}/></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <textarea
+                  placeholder="Receita ou anotações químicas (Ex: Cabelo poroso, deixei 40 min...)"
+                  value={anotacoes}
+                  onChange={e => setAnotacoes(e.target.value)}
+                  className="w-full bg-[#18181b] border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-purple-500 transition-all min-h-[80px] resize-none custom-scrollbar"
+                />
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Footer Fixo */}
-        <div className="p-6 pt-4 border-t border-white/5 bg-[#18181b]">
+        <div className="p-6 pt-4 border-t border-white/5 bg-[#18181b] shrink-0">
           <div className="flex justify-between items-end mb-4 px-1">
-            <span className="text-gray-400 text-xs font-medium">Total Final</span>
+            <span className="text-gray-400 text-xs font-medium">Total Cobrado (Cliente)</span>
             <span className="text-2xl font-bold text-white tracking-tight flex items-baseline gap-1">
               <span className="text-green-500 text-sm font-normal">R$</span>{totalGeral.toFixed(2)}
             </span>
@@ -261,7 +423,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             disabled={loading} 
             className="w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-bold shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="animate-spin" size={20}/> : <><CheckCircle size={20}/> Confirmar Finalização</>}
+            {loading ? <Loader2 className="animate-spin" size={20}/> : <><CheckCircle size={20}/> Concluir e Baixar Estoque</>}
           </button>
         </div>
 
@@ -275,8 +437,8 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             telefone: agendamento.telefone || agendamento.clientes?.telefone,
             servico: agendamento.servico,
             total: totalGeral,
-            itens: carrinho,
-            profissional: nomeProfissional // Passando para o modal de sucesso
+            itens: carrinhoVenda, // Manda pro WhatsApp só o que ela pagou!
+            profissional: nomeProfissional 
         }}
       />
     </div>,

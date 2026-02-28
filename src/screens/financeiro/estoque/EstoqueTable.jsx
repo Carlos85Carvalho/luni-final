@@ -25,6 +25,17 @@ export const EstoqueTable = ({
     );
   }
 
+  // Função para deixar a unidade bonita na tela
+  const formatarUnidade = (unidade) => {
+    switch(unidade) {
+      case 'g': return 'g';
+      case 'ml': return 'ml';
+      case 'app': return 'apps';
+      case 'un': 
+      default: return 'un';
+    }
+  };
+
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
@@ -49,12 +60,19 @@ export const EstoqueTable = ({
                 produto.rotatividade > 2 ? 'alto-giro' :
                 produto.rotatividade < 0.5 ? 'baixo-giro' : 'normal';
 
+              // Formata a quantidade para não mostrar zeros desnecessários (Ex: 10.0 vira 10, mas 9.5 continua 9.5)
+              const qtdFormatada = Number(produto.quantidade_atual || 0).toFixed(2).replace(/\.?0+$/, '');
+
               return (
                 <tr key={produto.id} className="hover:bg-gray-700/30 transition-colors">
                   <td className="py-4 px-6">
                     <div>
                       <p className="font-medium text-white">{produto.nome}</p>
-                      <p className="text-xs text-gray-400">Mín: {produto.estoque_minimo} uni</p>
+                      {/* Subtítulo Dinâmico: Mostra Mínimo e Rendimento se houver */}
+                      <p className="text-xs text-gray-400 mt-1">
+                        Mín: {produto.estoque_minimo} {formatarUnidade(produto.unidade_medida)}
+                        {produto.unidade_medida !== 'un' && produto.capacidade_medida && ` | Rende: ${produto.capacidade_medida} ${formatarUnidade(produto.unidade_medida)}`}
+                      </p>
                     </div>
                   </td>
                   <td className="py-4 px-6">
@@ -71,11 +89,14 @@ export const EstoqueTable = ({
                             produto.quantidade_atual <= produto.estoque_minimo * 2 ? 'bg-orange-500' : 'bg-green-500'
                           }`}
                           style={{ 
-                            width: `${Math.min(100, (produto.quantidade_atual / ((produto.estoque_minimo || 1) * 3)) * 100)}%` 
+                            width: `${Math.min(100, ((produto.quantidade_atual || 0) / ((produto.estoque_minimo || 1) * 3)) * 100)}%` 
                           }}
                         ></div>
                       </div>
-                      <span className="font-bold text-white">{produto.quantidade_atual}</span>
+                      {/* Quantidade Formatada com a Unidade */}
+                      <span className="font-bold text-white whitespace-nowrap">
+                        {qtdFormatada} <span className="text-xs text-gray-400">{formatarUnidade(produto.unidade_medida)}</span>
+                      </span>
                     </div>
                   </td>
                   <td className="py-4 px-6">

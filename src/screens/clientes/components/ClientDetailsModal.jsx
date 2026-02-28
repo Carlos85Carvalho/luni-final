@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, MessageCircle, Clock, Scissors, Calendar, Loader2, 
-  AlertCircle, Pencil, Trash2, Save, AlertTriangle, CalendarDays 
+  AlertCircle, Pencil, Trash2, Save, AlertTriangle, CalendarDays, 
+  ClipboardList, FlaskConical, Beaker
 } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 
@@ -10,11 +11,21 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
   const [historico, setHistorico] = useState([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [visualizarHistorico, setVisualizarHistorico] = useState(false);
+  
+  // 🚀 NOVOS ESTADOS PARA ANAMNESE
+  const [fichas, setFichas] = useState([]);
+  const [loadingFichas, setLoadingFichas] = useState(false);
+  const [visualizarAnamnese, setVisualizarAnamnese] = useState(false);
+
   const [gastoTotalReal, setGastoTotalReal] = useState(cliente.gasto_total || 0);
   const [loadingTotal, setLoadingTotal] = useState(true);
+  
+  // ESTADOS DE EDIÇÃO
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(cliente.nome);
   const [editedPhone, setEditedPhone] = useState(cliente.telefone);
+  const [editedNascimento, setEditedNascimento] = useState(cliente.data_nascimento || ''); // 🚀 NOVO CAMPO
+  
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -23,6 +34,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     setLocalCliente(cliente);
     setEditedName(cliente.nome);
     setEditedPhone(cliente.telefone);
+    setEditedNascimento(cliente.data_nascimento || ''); // 🚀 ATUALIZA AO ABRIR
   }, [cliente]);
 
   useEffect(() => {
@@ -63,6 +75,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
   const fetchHistoricoCliente = async () => {
     setLoadingHistorico(true);
     setVisualizarHistorico(true);
+    setVisualizarAnamnese(false); // Fecha anamnese se estiver aberta
     
     const { data, error } = await supabase
       .from('agendamentos')
@@ -74,6 +87,34 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
 
     setHistorico(data || []);
     setLoadingHistorico(false);
+  };
+
+  // 🚀 NOVA FUNÇÃO: Busca as Fichas de Anamnese
+  const fetchAnamneseCliente = async () => {
+    setLoadingFichas(true);
+    setVisualizarAnamnese(true);
+    setVisualizarHistorico(false); // Fecha histórico se estiver aberto
+    
+    // Busca na tabela que criamos (juntando com o agendamento para pegar a data)
+    const { data, error } = await supabase
+      .from('fichas_anamnese')
+      .select(`
+        id,
+        anotacoes,
+        created_at,
+        agendamentos ( data, servico ),
+        consumo_produtos (
+          quantidade_usada,
+          produtos ( nome, unidade_medida )
+        )
+      `)
+      .eq('cliente_id', cliente.id)
+      .order('created_at', { ascending: false });
+
+    if (error) console.error("Erro anamnese:", error);
+
+    setFichas(data || []);
+    setLoadingFichas(false);
   };
 
   const abrirWhatsapp = (telefone) => {
@@ -91,7 +132,11 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
     setSaving(true);
     const { error } = await supabase
       .from('clientes')
-      .update({ nome: editedName, telefone: editedPhone })
+      .update({ 
+        nome: editedName, 
+        telefone: editedPhone,
+        data_nascimento: editedNascimento || null // 🚀 SALVA O ANIVERSÁRIO
+      })
       .eq('id', cliente.id);
 
     if (error) {
@@ -100,7 +145,8 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
       setLocalCliente(prev => ({
         ...prev,
         nome: editedName,
-        telefone: editedPhone
+        telefone: editedPhone,
+        data_nascimento: editedNascimento // 🚀 ATUALIZA VISUALMENTE
       }));
       setIsEditing(false);
     }
@@ -146,6 +192,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
           </div>
         )}
 
+        {/* HEADER */}
         <div className="p-6 pb-4 flex justify-between items-start">
           <div className="flex items-center gap-4 w-full">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg border-2 border-[#18181b] shrink-0">
@@ -157,10 +204,37 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                 <div className="space-y-2">
                   <input className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white font-bold focus:border-purple-500 outline-none" value={editedName} onChange={(e) => setEditedName(e.target.value)} placeholder="Nome" />
                   <input className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-gray-300 focus:border-purple-500 outline-none" value={editedPhone} onChange={(e) => setEditedPhone(e.target.value)} placeholder="Telefone" />
+                  
+                  {/* 🚀 NOVO CAMPO: Aniversário no modo de edição */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 font-bold uppercase w-16">Nasc.:</span>
+                    <input 
+                      type="date" 
+                      className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-gray-300 focus:border-purple-500 outline-none" 
+                      value={editedNascimento} 
+                      onChange={(e) => setEditedNascimento(e.target.value)} 
+                    />
+                  </div>
                 </div>
               ) : (
                 <>
                   <h2 className="text-xl font-bold text-white leading-tight truncate">{localCliente.nome}</h2>
+                  
+                  {/* Informação do Aniversário na visualização */}
+                  {localCliente.data_nascimento ? (
+                    <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-300 font-medium bg-blue-500/10 px-2 py-0.5 rounded-md w-fit border border-blue-500/20">
+                      <CalendarDays size={12}/> 
+                      Nasc: {new Date(localCliente.data_nascimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center gap-1.5 mt-1 text-xs text-orange-400/80 cursor-pointer hover:text-orange-400 font-medium"
+                    >
+                      <CalendarDays size={12}/> Adicionar aniversário
+                    </div>
+                  )}
+
                   <div onClick={() => abrirWhatsapp(localCliente.telefone)} className="flex items-center gap-2 text-green-400 mt-2 cursor-pointer hover:text-green-300 transition-colors bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20 w-fit">
                     <MessageCircle size={16} fill="currentColor" className="text-green-500"/>
                     <span className="text-sm font-bold">WhatsApp</span>
@@ -185,9 +259,11 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
           </div>
         </div>
         
-        {/* --- AJUSTE AQUI: Adicionado pb-32 no mobile para limpar a barra e o botão flutuante --- */}
-        <div className="p-6 pt-2 overflow-y-auto pb-32 sm:pb-10">
-        {!visualizarHistorico ? (
+        {/* CORPO DO MODAL */}
+        <div className="p-6 pt-2 overflow-y-auto pb-32 sm:pb-10 custom-scrollbar">
+        
+        {/* TELA INICIAL (Dashboard do Cliente) */}
+        {!visualizarHistorico && !visualizarAnamnese && (
           <div className="animate-in slide-in-from-right-4 duration-300 space-y-6">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white/5 p-4 rounded-2xl text-center border border-white/5">
@@ -206,15 +282,27 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
               </div>
             </div>
 
-            <button onClick={fetchHistoricoCliente} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2 active:scale-[0.98]">
-              <Clock size={18}/> Ver Histórico Completo
-            </button>
+            {/* BOTÕES DE NAVEGAÇÃO */}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={fetchHistoricoCliente} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2">
+                <Clock size={24} className="text-purple-400"/> 
+                <span className="text-sm">Agendamentos</span>
+              </button>
+
+              <button onClick={fetchAnamneseCliente} className="w-full bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-white font-bold py-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2">
+                <FlaskConical size={24} className="text-purple-400"/> 
+                <span className="text-sm">Ficha Química</span>
+              </button>
+            </div>
           </div>
-        ) : (
+        )}
+
+        {/* TELA DE HISTÓRICO FINANCEIRO/AGENDA */}
+        {visualizarHistorico && (
           <div className="animate-in slide-in-from-right-4 duration-300 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-4">
-              <h3 className="text-white font-bold text-lg">Histórico</h3>
-              <button onClick={() => setVisualizarHistorico(false)} className="text-xs text-purple-400 font-bold uppercase hover:underline">Voltar</button>
+              <h3 className="text-white font-bold text-lg flex items-center gap-2"><Clock size={18} className="text-purple-400"/> Histórico</h3>
+              <button onClick={() => setVisualizarHistorico(false)} className="text-xs text-gray-400 font-bold uppercase hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg">Voltar</button>
             </div>
 
             <div className="space-y-3 flex-1">
@@ -231,7 +319,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-white">{item.servico}</p>
-                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                           <Calendar size={10}/> {new Date(item.data).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
@@ -239,7 +327,7 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
                     <div className="text-right">
                       <span className="text-sm font-bold text-white block">{formatMoney(getValorItem(item))}</span>
                       {getValorItem(item) === 0 && (
-                        <span className="text-[10px] text-yellow-500 flex items-center justify-end gap-1"><AlertCircle size={8}/> Sem valor</span>
+                        <span className="text-[10px] text-yellow-500 flex items-center justify-end gap-1 mt-0.5"><AlertCircle size={8}/> Sem valor</span>
                       )}
                     </div>
                   </div>
@@ -248,6 +336,72 @@ export const ClientDetailsModal = ({ cliente, onClose }) => {
             </div>
           </div>
         )}
+
+        {/* 🚀 TELA DE ANAMNESE / QUÍMICA */}
+        {visualizarAnamnese && (
+          <div className="animate-in slide-in-from-right-4 duration-300 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-4">
+              <h3 className="text-white font-bold text-lg flex items-center gap-2"><FlaskConical size={18} className="text-purple-400"/> Ficha Química</h3>
+              <button onClick={() => setVisualizarAnamnese(false)} className="text-xs text-gray-400 font-bold uppercase hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg">Voltar</button>
+            </div>
+
+            <div className="space-y-4 flex-1">
+              {loadingFichas ? (
+                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-purple-500" size={30}/></div>
+              ) : fichas.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <ClipboardList className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">Nenhuma ficha técnica registrada para esta cliente ainda.</p>
+                </div>
+              ) : (
+                fichas.map((ficha) => (
+                  <div key={ficha.id} className="bg-gray-800/50 p-4 rounded-xl border border-purple-500/20 relative overflow-hidden">
+                    {/* Linha decorativa lateral */}
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>
+                    
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          {ficha.agendamentos?.servico || 'Serviço Avulso'}
+                        </p>
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                          <Calendar size={12}/> 
+                          {new Date(ficha.agendamentos?.data || ficha.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Produtos Consumidos */}
+                    {ficha.consumo_produtos && ficha.consumo_produtos.length > 0 && (
+                      <div className="mb-3 space-y-1.5">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Produtos Utilizados:</p>
+                        {ficha.consumo_produtos.map((consumo, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 w-fit px-2.5 py-1 rounded-md border border-blue-500/20">
+                            <Beaker size={12}/>
+                            <span className="font-medium">{consumo.produtos?.nome}</span>
+                            <span className="text-blue-400/70 font-bold">
+                              ({consumo.quantidade_usada} {consumo.produtos?.unidade_medida})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Anotações do Profissional */}
+                    {ficha.anotacoes && (
+                      <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                        <p className="text-xs text-gray-300 leading-relaxed italic">
+                          "{ficha.anotacoes}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         </div>
       </div>
     </div>

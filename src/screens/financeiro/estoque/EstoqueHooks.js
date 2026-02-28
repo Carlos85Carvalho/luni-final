@@ -1,4 +1,3 @@
-// src/screens/financeiro/estoque/EstoqueHooks.js
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '../../../services/supabase';
 
@@ -20,7 +19,6 @@ export const useEstoque = () => {
 
       if (!usuario?.salao_id) return;
 
-      // Certifique-se de que a view 'vw_lucro_produtos' existe no seu Supabase
       const { data, error } = await supabase
         .from('vw_lucro_produtos')
         .select('*')
@@ -47,35 +45,59 @@ export const useEstoque = () => {
   };
 };
 
+// 🚀 O NOVO MOTOR DE KPIS
 export const useEstoqueKPIs = (produtos) => {
-  // Substituí useState/useEffect por useMemo para corrigir o erro de renderização
   const kpis = useMemo(() => {
     const estadoInicial = {
-      capitalParado: 0,
-      produtosCriticos: 0,
-      maiorGiro: null,
-      maisLucrativo: null
+      valorTotal: 0,
+      lucroEstimado: 0, // Agora ele existe!
+      qtdCriticos: 0,
+      giroMedio: 0,
+      margemMedia: 0,
+      totalItens: 0
     };
 
     if (!produtos || produtos.length === 0) return estadoInicial;
 
-    const capitalParado = produtos.reduce((acc, p) => 
-      acc + (p.quantidade_atual * (p.custo_unitario || 0)), 0);
-    
-    const produtosCriticos = produtos.filter(p => 
-      p.quantidade_atual <= (p.estoque_minimo || 0)).length;
-    
-    const maiorGiro = produtos.reduce((max, p) => 
-      (p.rotatividade || 0) > (max?.rotatividade || 0) ? p : max, null);
-    
-    const maisLucrativo = produtos.reduce((max, p) => 
-      (p.lucro_total || 0) > (max?.lucro_total || 0) ? p : max, null);
+    let totalCusto = 0;
+    let lucroEstimado = 0;
+    let qtdCriticos = 0;
+    let somaGiro = 0;
 
+    produtos.forEach(p => {
+      const qtd = parseFloat(p.quantidade_atual) || 0;
+      const custo = parseFloat(p.custo_unitario) || 0;
+      const venda = parseFloat(p.preco_venda) || 0;
+      const giro = parseFloat(p.rotatividade) || 0;
+
+      // 1. Soma o capital investido na prateleira
+      totalCusto += (qtd * custo);
+
+      // 2. Calcula o Lucro (Apenas se for revenda E se tiver estoque positivo)
+      if (venda > custo && qtd > 0) {
+        lucroEstimado += (venda - custo) * qtd;
+      }
+
+      // 3. Verifica produtos críticos
+      if (qtd <= (p.estoque_minimo || 0)) {
+        qtdCriticos += 1;
+      }
+
+      somaGiro += giro;
+    });
+
+    // 4. Calcula as médias
+    const giroMedio = produtos.length > 0 ? (somaGiro / produtos.length) : 0;
+    const margemMedia = totalCusto > 0 ? (lucroEstimado / totalCusto) * 100 : 0;
+
+    // 5. Devolve exatamente os nomes que a tela EstoqueKPIs.jsx está esperando
     return {
-      capitalParado,
-      produtosCriticos,
-      maiorGiro,
-      maisLucrativo
+      valorTotal: totalCusto,
+      lucroEstimado: lucroEstimado,
+      qtdCriticos: qtdCriticos,
+      giroMedio: giroMedio,
+      margemMedia: margemMedia,
+      totalItens: produtos.length
     };
   }, [produtos]);
 

@@ -9,12 +9,13 @@ export const Estoque = ({ onAbrirModal }) => {
   // Dados brutos da lista (para a tabela)
   const { produtos, loading: produtosLoading } = useEstoque();
   
-  // Estado para os KPIs (Cards do topo) - NOMES CORRIGIDOS!
+  // Estado para os KPIs (Cards do topo)
   const [kpis, setKpis] = useState({
     valorTotal: 0,
+    lucroEstimado: 0, // 🚀 ADICIONADO AQUI: Prepara a caixinha para o lucro
     totalItens: 0, 
-    qtdCriticos: 0, // Corrigido de estoqueCritico
-    giroMedio: 0,   // Corrigido de giroEstoque
+    qtdCriticos: 0, 
+    giroMedio: 0,  
     margemMedia: 0
   });
 
@@ -37,14 +38,14 @@ export const Estoque = ({ onAbrirModal }) => {
           setKpis({
             valorTotal: Number(data.valor_total || data.valorTotal || 0),
             
+            // 🚀 A CONEXÃO MÁGICA: Pega o lucro que vem do banco e passa pro Card!
+            lucroEstimado: Number(data.lucro_estimado || 0), 
+
             // Usamos a lista 'produtos' que já carregou para contar quantos itens tem
             totalItens: produtos ? produtos.length : 0, 
 
-            // --- CORREÇÕES AQUI ---
-            // Conectamos os nomes que o componente EstoqueKPIs exige com os dados que o Banco envia
             qtdCriticos: Number(data.qtd_criticos || data.qtdCriticos || data.estoque_critico || 0),
             giroMedio: Number(data.giro_medio || data.giroMedio || data.giro_estoque || 0),
-            
             margemMedia: Number(data.margem_media || data.margemMedia || 0).toFixed(2) 
           });
         }

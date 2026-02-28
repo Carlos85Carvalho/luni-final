@@ -1,26 +1,38 @@
 // src/screens/financeiro/estoque/EstoqueKPIs.jsx
 import React from 'react';
-// CORREÇÃO: Importamos FinancialCard e damos o apelido de KPICard
 import { FinancialCard as KPICard } from '../components/FinancialCard'; 
-import { DollarSign, AlertTriangle, TrendingUp, BarChart } from 'lucide-react';
+import { DollarSign, AlertTriangle, TrendingUp, BarChart, Wallet } from 'lucide-react';
 
 export const EstoqueKPIs = ({ kpis = {}, loading, onAbrirModal }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
       <KPICard
-        titulo="Valor em Estoque"
-        valor={kpis.valorTotal || 0}
+        titulo="Valor em Custo"
+        // Aceita valorTotal ou valor_total do Supabase
+        valor={kpis.valorTotal || kpis.valor_total || 0}
         icone={DollarSign}
-        cor="green"
+        cor="gray" 
         loading={loading}
-        subTitulo={`${kpis.totalItens || 0} itens`}
+        subTitulo={`${kpis.totalItens || kpis.total_itens || 0} itens`}
         format="currency"
         onClick={() => onAbrirModal('analise-estoque')}
       />
 
       <KPICard
+        titulo="Lucro Estimado"
+        // A Mágica do Lucro conectado ao banco
+        valor={kpis.lucroEstimado || kpis.lucro_estimado || 0}
+        icone={Wallet}
+        cor="green" 
+        loading={loading}
+        subTitulo="Potencial de vendas"
+        format="currency"
+        onClick={() => onAbrirModal('lucro-estoque')}
+      />
+
+      <KPICard
         titulo="Estoque Crítico"
-        valor={kpis.qtdCriticos || 0}
+        valor={kpis.qtdCriticos || kpis.qtd_criticos || 0}
         icone={AlertTriangle}
         cor="red"
         loading={loading}
@@ -31,7 +43,7 @@ export const EstoqueKPIs = ({ kpis = {}, loading, onAbrirModal }) => {
 
       <KPICard
         titulo="Giro de Estoque"
-        valor={kpis.giroMedio || 0}
+        valor={kpis.giroMedio || kpis.giro_medio || 0}
         icone={TrendingUp}
         cor="blue"
         loading={loading}
@@ -42,11 +54,11 @@ export const EstoqueKPIs = ({ kpis = {}, loading, onAbrirModal }) => {
 
       <KPICard
         titulo="Margem Média"
-        valor={kpis.margemMedia || 0}
+        valor={kpis.margemMedia || kpis.margem_media || 0}
         icone={BarChart}
         cor="purple"
         loading={loading}
-        subTitulo="Lucro estimado"
+        subTitulo="Markup médio"
         format="percent"
         onClick={() => onAbrirModal('margem-produtos')}
       />

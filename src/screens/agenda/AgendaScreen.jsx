@@ -1,5 +1,6 @@
 // src/screens/agenda/AgendaScreen.jsx
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabase';
 import { HorizontalCalendar } from '../../components/ui/HorizontalCalendar';
 import { NovoAgendamentoModal } from './NovoAgendamentoModal';
@@ -9,9 +10,109 @@ import { ModalFinalizarAtendimento } from './ModalFinalizarAtendimento.jsx';
 import { 
   Calendar, Clock, Scissors, MessageCircle, Plus, 
   Lock, Search, X, CalendarDays, Loader2, CheckCheck,
-  MoreVertical, Check, CalendarClock, Filter, ChevronDown, XCircle, Trash2, User
+  MoreVertical, Check, CalendarClock, Filter, ChevronDown, 
+  XCircle, Trash2, User, FlaskConical, Beaker, ClipboardList
 } from 'lucide-react';
 
+// --- NOVO COMPONENTE: Modal Rápido de Anamnese ---
+const AnamneseRapidaModal = ({ isOpen, onClose, clienteId, clienteNome }) => {
+  const [fichas, setFichas] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && clienteId) {
+      const fetchFichas = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('fichas_anamnese')
+          .select(`
+            id, anotacoes, created_at,
+            agendamentos ( servico, data ),
+            consumo_produtos ( quantidade_usada, produtos ( nome, unidade_medida ) )
+          `)
+          .eq('cliente_id', clienteId)
+          .order('created_at', { ascending: false });
+        
+        if (!error) setFichas(data || []);
+        setLoading(false);
+      };
+      fetchFichas();
+    }
+  }, [isOpen, clienteId]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div 
+        className="bg-[#18181b] w-full sm:max-w-md sm:rounded-[32px] rounded-t-[32px] border border-white/10 shadow-2xl relative flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300 overflow-hidden" 
+        style={{ maxHeight: '90dvh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start p-6 border-b border-white/5 bg-[#18181b] shrink-0">
+          <div>
+             <h2 className="text-xl font-bold text-white flex items-center gap-2">
+               <FlaskConical className="text-purple-500" size={24}/> Histórico Químico
+             </h2>
+             <p className="text-gray-400 text-sm mt-1">Cliente: <span className="text-white font-bold">{clienteNome}</span></p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+            <X size={18}/>
+          </button>
+        </div>
+
+        {/* Conteúdo */}
+        <div className="overflow-y-auto flex-1 p-6 space-y-4 custom-scrollbar bg-[#09090b]">
+          {loading ? (
+            <div className="flex justify-center py-10"><Loader2 className="animate-spin text-purple-500" size={30}/></div>
+          ) : fichas.length === 0 ? (
+            <div className="text-center py-12 px-4">
+              <ClipboardList className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">Nenhuma ficha técnica registrada para esta cliente.</p>
+            </div>
+          ) : (
+            fichas.map((ficha) => (
+              <div key={ficha.id} className="bg-gray-800/50 p-4 rounded-xl border border-purple-500/20 relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <p className="text-sm font-bold text-white">{ficha.agendamentos?.servico || 'Serviço Avulso'}</p>
+                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                      <Calendar size={12}/> {new Date(ficha.agendamentos?.data || ficha.created_at).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+
+                {ficha.consumo_produtos && ficha.consumo_produtos.length > 0 && (
+                  <div className="mb-3 space-y-1.5">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Produtos Usados:</p>
+                    {ficha.consumo_produtos.map((consumo, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 w-fit px-2.5 py-1 rounded-md border border-blue-500/20">
+                        <Beaker size={12}/>
+                        <span className="font-medium">{consumo.produtos?.nome}</span>
+                        <span className="text-blue-400/70 font-bold">({consumo.quantidade_usada} {consumo.produtos?.unidade_medida})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {ficha.anotacoes && (
+                  <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                    <p className="text-xs text-gray-300 leading-relaxed italic">"{ficha.anotacoes}"</p>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// --- COMPONENTE PRINCIPAL ---
 export const AgendaScreen = () => {
   const [loading, setLoading] = useState(true);
   const [agendamentos, setAgendamentos] = useState([]);
@@ -29,6 +130,9 @@ export const AgendaScreen = () => {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [agendamentoCheckout, setAgendamentoCheckout] = useState(null);
+  
+  // 🚀 ESTADO PARA O MODAL DE ANAMNESE
+  const [modalAnamnese, setModalAnamnese] = useState({ open: false, clienteId: null, clienteNome: '' });
 
   const fetchDados = async () => {
     setLoading(true);
@@ -65,7 +169,6 @@ export const AgendaScreen = () => {
   const agendamentosFiltrados = useMemo(() => {
     let res = agendamentos;
 
-    // Filtro de busca
     if (busca.trim()) {
       const b = busca.toLowerCase();
       res = res.filter(a => 
@@ -75,22 +178,17 @@ export const AgendaScreen = () => {
       );
     }
 
-    // Filtro de status
     if (filtroStatus !== 'todos') res = res.filter(a => a.status === filtroStatus);
 
     const hojeStr = getDataLocal(new Date());
     const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour12: false }).slice(0, 5);
 
     if (visualizacao === 'proximos') {
-      // Separa em dois grupos:
-      // 1) Futuros (a partir de agora) — ordenados do mais próximo ao mais distante
-      // 2) Passados recentes (últimos 30 dias) — ordenados do mais recente ao mais antigo
-
       const futuros = res.filter(a => {
         if (!a.data) return false;
         const dataItem = a.data.substring(0, 10);
         return dataItem > hojeStr || (dataItem === hojeStr && (a.horario || '00:00') >= agoraHora);
-      }); // já vem ordenado ASC pelo fetch (mais próximos primeiro)
+      }); 
 
       const trintaDiasAtras = new Date();
       trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
@@ -100,14 +198,12 @@ export const AgendaScreen = () => {
         if (!a.data) return false;
         const dataItem = a.data.substring(0, 10);
         return dataItem >= dataLimite && dataItem < hojeStr;
-      }).reverse(); // mais recentes primeiro
+      }).reverse(); 
 
-      // Pega até 10 futuros + completa com passados recentes se necessário
       const totalFuturos = futuros.slice(0, 10);
       const vagas = 10 - totalFuturos.length;
       const totalPassados = vagas > 0 ? passadosRecentes.slice(0, vagas) : [];
 
-      // Retorna: futuros primeiro, depois passados recentes
       return [...totalFuturos, ...totalPassados];
     }
 
@@ -156,6 +252,16 @@ export const AgendaScreen = () => {
   const cancelarAgendamento = async (id) => { if (confirm('Cancelar este agendamento?')) { await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); fetchDados(); } setMenuAberto(null); };
   const removerBloqueio = async (id) => { if (confirm('Remover bloqueio?')) { await supabase.from('agendamentos').delete().eq('id', id); fetchDados(); } setMenuAberto(null); };
   const remarcarAgendamento = (agendamento) => { setAgendamentoSelecionado(agendamento); setIsRemarcarOpen(true); setMenuAberto(null); };
+  
+  // 🚀 FUNÇÃO PARA ABRIR A ANAMNESE
+  const abrirAnamnese = (agendamento) => {
+    setModalAnamnese({ 
+      open: true, 
+      clienteId: agendamento.cliente_id || agendamento.clientes?.id, 
+      clienteNome: agendamento.cliente_nome 
+    });
+    setMenuAberto(null);
+  };
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -188,6 +294,14 @@ export const AgendaScreen = () => {
       <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
       <ModalFinalizarAtendimento isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} agendamento={agendamentoCheckout} onSuccess={() => { fetchDados(); setIsCheckoutOpen(false); }} />
       
+      {/* 🚀 Renderizando o Modal de Anamnese */}
+      <AnamneseRapidaModal 
+        isOpen={modalAnamnese.open} 
+        onClose={() => setModalAnamnese({ ...modalAnamnese, open: false })} 
+        clienteId={modalAnamnese.clienteId}
+        clienteNome={modalAnamnese.clienteNome}
+      />
+
       <div className="w-full max-w-[1600px] mx-auto px-4 pt-6 md:px-8 md:pt-10 animate-in fade-in duration-500">
         
         {/* Header */}
@@ -344,6 +458,7 @@ export const AgendaScreen = () => {
                       <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-1 truncate">
                         <Scissors size={12}/> {item.servico}
                       </p>
+                      
                       {item.profissionais?.nome && (
                         <div className="flex items-center gap-2 mt-2.5">
                           <div className="w-5 h-5 rounded-full bg-[#27272a] flex items-center justify-center text-[10px] text-gray-400 border border-white/5">
@@ -354,11 +469,25 @@ export const AgendaScreen = () => {
                           </span>
                         </div>
                       )}
-                      {getStatusBadge(item.status)}
+                      
+                      <div className="flex flex-wrap items-center gap-2">
+                        {getStatusBadge(item.status)}
+                        
+                        {/* 🚀 BOTÃO RÁPIDO: Anamnese direto no Card */}
+                        {item.status !== 'bloqueado' && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); abrirAnamnese(item); }}
+                            className="mt-2 text-[9px] font-bold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 px-2 py-1 rounded-md transition-colors flex items-center gap-1 border border-purple-500/20 shadow-sm"
+                            title="Ver histórico químico e anotações"
+                          >
+                            <FlaskConical size={10}/> Ficha Química
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Menu de Ações */}
+                  {/* Menu de Ações (3 pontinhos) */}
                   <div className="flex flex-col items-end gap-2">
                     {item.status !== 'cancelado' && (
                       <div className="relative">
@@ -369,17 +498,21 @@ export const AgendaScreen = () => {
                           <MoreVertical size={18}/>
                         </button>
                         {menuAberto === item.id && (
-                          <div className="absolute right-0 top-full mt-2 w-48 bg-[#1c1c24] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                          <div className="absolute right-0 top-full mt-2 w-52 bg-[#1c1c24] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
                             {item.status !== 'bloqueado' ? (
                               <>
                                 {item.status === 'agendado' && <button onClick={() => confirmarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-sm border-b border-white/5"><Check size={16}/> Confirmar</button>}
-                                {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirCheckout(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-sm border-b border-white/5"><CheckCheck size={16}/> Concluir</button>}
+                                
+                                {/* 🚀 OPÇÃO NO MENU: Ver Ficha Química */}
+                                <button onClick={() => abrirAnamnese(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-sm border-b border-white/5"><FlaskConical size={16}/> Ficha Química</button>
+
+                                {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirCheckout(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-sm border-b border-white/5"><CheckCheck size={16}/> Concluir Serviço</button>}
                                 {item.telefone && <button onClick={() => window.open(`https://wa.me/55${item.telefone.replace(/\D/g,'')}`)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-sm border-b border-white/5"><MessageCircle size={16}/> WhatsApp</button>}
                                 {item.status !== 'concluido' && <button onClick={() => remarcarAgendamento(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-sm border-b border-white/5"><CalendarClock size={16}/> Remarcar</button>}
                                 {item.status !== 'concluido' && <button onClick={() => cancelarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 text-red-400 text-sm"><XCircle size={16}/> Cancelar</button>}
                               </>
                             ) : (
-                              <button onClick={() => removerBloqueio(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-orange-500/10 text-orange-400 text-sm"><Trash2 size={16}/> Remover</button>
+                              <button onClick={() => removerBloqueio(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-orange-500/10 text-orange-400 text-sm"><Trash2 size={16}/> Remover Bloqueio</button>
                             )}
                           </div>
                         )}

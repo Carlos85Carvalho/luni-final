@@ -1,13 +1,16 @@
 // src/screens/financeiro/estoque/ProdutoModal.jsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Loader2, Package, DollarSign, Hash, Tag } from 'lucide-react';
+import { X, Save, Loader2, Package, DollarSign, Hash, Tag, Scale } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 
 export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
   const [salvando, setSalvando] = useState(false);
   const [salaoId, setSalaoId] = useState(null);
   const [categorias, setCategorias] = useState([]);
+  
+  // NOVO ESTADO: Controla se o usuário quer digitar uma categoria nova
+  const [isNovaCategoria, setIsNovaCategoria] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -16,10 +19,11 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
     preco_venda: '',
     estoque_minimo: '5',
     quantidade_atual: '0',
-    descricao: ''
+    descricao: '',
+    capacidade_medida: '1', 
+    unidade_medida: 'un'
   });
 
-  // Inicializar com dados do produto se for edição
   useEffect(() => {
     if (produto) {
       setFormData({
@@ -29,10 +33,11 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         preco_venda: produto.preco_venda?.toString().replace('.', ',') || '',
         estoque_minimo: produto.estoque_minimo?.toString() || '5',
         quantidade_atual: produto.quantidade_atual?.toString() || '0',
-        descricao: produto.descricao || ''
+        descricao: produto.descricao || '',
+        capacidade_medida: produto.capacidade_medida?.toString() || '1',
+        unidade_medida: produto.unidade_medida || 'un'
       });
     } else {
-      // Limpar formulário se for novo produto
       setFormData({
         nome: '',
         categoria: '',
@@ -40,9 +45,13 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         preco_venda: '',
         estoque_minimo: '5',
         quantidade_atual: '0',
-        descricao: ''
+        descricao: '',
+        capacidade_medida: '1',
+        unidade_medida: 'un'
       });
     }
+    // Sempre reseta o modo de "nova categoria" ao abrir a tela
+    setIsNovaCategoria(false);
   }, [produto, aberto]);
 
   useEffect(() => {
@@ -59,14 +68,12 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
       if (usuario?.salao_id) {
         setSalaoId(usuario.salao_id);
         
-        // Buscar categorias existentes para o autocomplete
         const { data: produtos } = await supabase
           .from('produtos')
           .select('categoria')
           .eq('salao_id', usuario.salao_id)
           .not('categoria', 'is', null);
 
-        // Filtra categorias únicas
         const categoriasUnicas = [...new Set(produtos?.map(p => p.categoria).filter(Boolean))];
         setCategorias(categoriasUnicas);
       }
@@ -96,23 +103,21 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         custo_unitario: parseMoeda(formData.custo_unitario),
         preco_venda: parseMoeda(formData.preco_venda),
         estoque_minimo: parseInt(formData.estoque_minimo) || 5,
-        // Mantém a quantidade atual se for edição, ou 0 se for novo
-        quantidade_atual: produto ? (parseInt(formData.quantidade_atual) || 0) : 0,
+        quantidade_atual: produto ? (parseFloat(formData.quantidade_atual) || 0) : 0,
         descricao: formData.descricao || null,
         ativo: true,
-        // Só adiciona data de criação se for novo
+        capacidade_medida: parseFloat(formData.capacidade_medida) || 1,
+        unidade_medida: formData.unidade_medida,
         ...(produto ? {} : { data_criacao: new Date().toISOString() })
       };
 
       if (produto) {
-        // Atualizar produto existente
         const { error } = await supabase
           .from('produtos')
           .update(produtoData)
           .eq('id', produto.id);
         if (error) throw error;
       } else {
-        // Criar novo produto
         const { error } = await supabase
           .from('produtos')
           .insert([produtoData]);
@@ -136,9 +141,23 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
     return ((venda - custo) / custo * 100).toFixed(1);
   };
 
+  // Lógica para lidar com a seleção da categoria
+  const handleCategoriaChange = (e) => {
+    if (e.target.value === 'nova_categoria') {
+      setIsNovaCategoria(true);
+      setFormData({ ...formData, categoria: '' });
+    } else {
+      setFormData({ ...formData, categoria: e.target.value });
+    }
+  };
+
   if (!aberto) return null;
 
   const margem = calcularMargem();
+  
+  // Junta as categorias padrão com as do banco e remove duplicadas
+  const categoriasBase = ['Shampoo', 'Condicionador', 'Tratamento', 'Tintura', 'Creme', 'Óleo'];
+  const listaCategoriasFinal = [...new Set([...categoriasBase, ...categorias])].sort();
 
   return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
@@ -174,7 +193,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                 type="text"
                 value={formData.nome}
                 onChange={e => setFormData({...formData, nome: e.target.value})}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                 placeholder="Ex: Shampoo Revitalizante"
                 disabled={salvando}
               />
@@ -182,29 +201,55 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            
+            {/* CAMPO DE CATEGORIA INTELIGENTE */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
                 Categoria
               </label>
-              <div className="relative">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <select
-                  value={formData.categoria}
-                  onChange={e => setFormData({...formData, categoria: e.target.value})}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm appearance-none"
-                  disabled={salvando}
-                >
-                  <option value="">Selecionar...</option>
-                  <option value="Shampoo">Shampoo</option>
-                  <option value="Condicionador">Condicionador</option>
-                  <option value="Tratamento">Tratamento</option>
-                  <option value="Tintura">Tintura</option>
-                  <option value="Creme">Creme</option>
-                  <option value="Óleo">Óleo</option>
-                  {categorias.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+              <div className="relative flex gap-2">
+                {!isNovaCategoria ? (
+                  <div className="relative flex-1">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <select
+                      value={formData.categoria}
+                      onChange={handleCategoriaChange}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm appearance-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all cursor-pointer"
+                      disabled={salvando}
+                    >
+                      <option value="">Selecionar...</option>
+                      {listaCategoriasFinal.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      {/* O Pulo do Gato aqui: */}
+                      <option value="nova_categoria" className="text-purple-400 font-bold bg-gray-800">➕ Adicionar nova...</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="relative flex-1 flex items-center gap-2 animate-in slide-in-from-right-2 duration-200">
+                    <div className="relative flex-1">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500" />
+                      <input
+                        type="text"
+                        value={formData.categoria}
+                        onChange={e => setFormData({...formData, categoria: e.target.value})}
+                        placeholder="Digite a categoria..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-purple-500/50 rounded-xl text-white outline-none text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all shadow-[0_0_10px_rgba(168,85,247,0.1)]"
+                        autoFocus
+                        disabled={salvando}
+                      />
+                    </div>
+                    {/* Botão de Cancelar para voltar para a lista */}
+                    <button
+                      type="button"
+                      onClick={() => { setIsNovaCategoria(false); setFormData({...formData, categoria: ''}); }}
+                      className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl hover:bg-gray-700 transition-colors"
+                      title="Voltar para a lista"
+                    >
+                      <X className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -219,9 +264,54 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                   min="1"
                   value={formData.estoque_minimo}
                   onChange={e => setFormData({...formData, estoque_minimo: e.target.value})}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                   placeholder="5"
                   disabled={salvando}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SEÇÃO: UNIDADE E CAPACIDADE */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider" title="Como este produto é fracionado no salão?">
+                Unidade de Medida
+              </label>
+              <div className="relative">
+                <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <select
+                  value={formData.unidade_medida}
+                  onChange={e => setFormData({...formData, unidade_medida: e.target.value})}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm appearance-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all cursor-pointer"
+                  disabled={salvando}
+                >
+                  <option value="un">Inteiro (Unidades)</option>
+                  <option value="g">Peso (Gramas)</option>
+                  <option value="ml">Líquido (Mililitros)</option>
+                  <option value="app">Por Aplicação (Rendimento)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider" title="Qual o tamanho ou rendimento de 1 tubo/frasco?">
+                {formData.unidade_medida === 'g' ? 'Peso do Tubo (g)' : 
+                 formData.unidade_medida === 'ml' ? 'Volume do Frasco (ml)' : 
+                 formData.unidade_medida === 'app' ? 'Rende Quantas Mãos?' : 
+                 'Qtd. da Embalagem'}
+              </label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="number"
+                  min="1"
+                  step="0.1"
+                  value={formData.capacidade_medida}
+                  onChange={e => setFormData({...formData, capacidade_medida: e.target.value})}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                  placeholder="Ex: 60"
+                  disabled={salvando || formData.unidade_medida === 'un'}
                 />
               </div>
             </div>
@@ -238,7 +328,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                   type="text"
                   value={formData.custo_unitario}
                   onChange={e => setFormData({...formData, custo_unitario: e.target.value})}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                   placeholder="0,00"
                   disabled={salvando}
                 />
@@ -255,7 +345,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                   type="text"
                   value={formData.preco_venda}
                   onChange={e => setFormData({...formData, preco_venda: e.target.value})}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                   placeholder="0,00"
                   disabled={salvando}
                 />
@@ -289,7 +379,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
             <textarea
               value={formData.descricao}
               onChange={e => setFormData({...formData, descricao: e.target.value})}
-              className="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm min-h-[80px] resize-none"
+              className="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-700 rounded-xl text-white outline-none text-sm min-h-[80px] resize-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
               placeholder="Detalhes sobre o produto..."
               disabled={salvando}
             />
