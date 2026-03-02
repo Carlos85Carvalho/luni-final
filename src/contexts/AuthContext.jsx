@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '../services/supabase';
 // 1. IMPORTANDO A FUNÇÃO DO FIREBASE (Ajuste o caminho '../firebase' se necessário)
-import { requestNotificationPermission } from '../firebase'; 
+import { requestNotificationPermission } from '../services/firebase';
 
 const AuthContext = createContext({});
 
