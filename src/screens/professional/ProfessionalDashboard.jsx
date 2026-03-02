@@ -1,14 +1,15 @@
 // src/screens/professional/ProfessionalDashboard.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../services/supabase';
+// 1. IMPORTAÇÕES ADICIONADAS PARA NOTIFICAÇÃO E AUTH
 import { requestNotificationPermission } from '../../services/firebase';
+import { useAuth } from '../../contexts/AuthContext';
+
 import { HorizontalCalendar } from '../../components/ui/HorizontalCalendar';
 import { NovoAgendamentoModal } from '../agenda/NovoAgendamentoModal';
 import { RemarcarModal } from '../agenda/RemarcarModal';
 import { NovoClienteModal } from '../agenda/NovoClienteModal';
 import { ModalFinalizarAtendimento } from '../agenda/ModalFinalizarAtendimento';
-
-// 🚀 IMPORTAÇÃO DO SEU MODAL DE HISTÓRICO (Confirme se o caminho da pasta está correto)
 import { ClientDetailsModal } from '../clientes/components/ClientDetailsModal'; 
 
 import { 
@@ -19,6 +20,9 @@ import {
 } from 'lucide-react';
 
 export const ProfessionalDashboard = ({ profissional, onLogout }) => {
+  // 2. ACESSANDO O USUÁRIO DE AUTH PARA O PUSH TOKEN
+  const { user } = useAuth();
+  
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('agenda'); 
   const [agendamentos, setAgendamentos] = useState([]);
@@ -43,7 +47,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
   const [isFinalizarOpen, setIsFinalizarOpen] = useState(false);
   const [agendamentoParaFinalizar, setAgendamentoParaFinalizar] = useState(null);
   
-  // 🚀 CONTROLES DO MODAL DE HISTÓRICO
   const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false);
   const [clienteDetalheSelecionado, setClienteDetalheSelecionado] = useState(null);
 
@@ -191,7 +194,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     if (menuAberto) { document.addEventListener('click', handleClickOutside); return () => document.removeEventListener('click', handleClickOutside); }
   }, [menuAberto]);
 
-  // FUNÇÕES DE AÇÃO RÁPIDA DA AGENDA
   const confirmarAgendamento = async (id) => { await supabase.from('agendamentos').update({ status: 'confirmado' }).eq('id', id); fetchDados(); setMenuAberto(null); };
   const cancelarAgendamento = async (id) => { if (!confirm('Tem certeza que deseja cancelar?')) return; await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); fetchDados(); setMenuAberto(null); };
   const removerBloqueio = async (id) => { if (!confirm('Remover este bloqueio?')) return; await supabase.from('agendamentos').delete().eq('id', id); fetchDados(); setMenuAberto(null); };
@@ -202,7 +204,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     setMenuAberto(null);
   };
 
-  // 🚀 FUNÇÃO PARA ABRIR O HISTÓRICO DO CLIENTE
   const abrirHistoricoCliente = async (clienteId) => {
     if (!clienteId) {
       alert("Este é um cliente avulso. Apenas clientes cadastrados possuem histórico.");
@@ -269,7 +270,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       
-      {/* ----------------- TODOS OS MODAIS DO SISTEMA ----------------- */}
+      {/* Modais */}
       <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={handleAgendamentoSucesso} profissionalId={profissional.id} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
       <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
       <NovoClienteModal isOpen={isNovoClienteOpen} onClose={() => setIsNovoClienteOpen(false)} />
@@ -285,7 +286,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         }}
       />
 
-      {/* 🚀 RENDERIZANDO O MODAL DE HISTÓRICO DO CLIENTE */}
       {isClientDetailsOpen && clienteDetalheSelecionado && (
         <ClientDetailsModal 
           cliente={clienteDetalheSelecionado} 
@@ -295,7 +295,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           }} 
         />
       )}
-      {/* -------------------------------------------------------------- */}
 
       {/* Header */}
       <div className="bg-[#15151a] border-b border-white/5 pt-6 pb-6 px-4 md:px-8">
@@ -313,7 +312,14 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => requestNotificationPermission(profissional.id)} className="p-2.5 bg-white/5 rounded-xl hover:bg-purple-500/20 text-gray-400 hover:text-purple-400 transition-all border border-white/5"><Bell size={18}/></button>
+            {/* BOTÃO DO SINO ATUALIZADO PARA USAR O USER.ID DE AUTH */}
+            <button 
+              onClick={() => requestNotificationPermission(user?.id)} 
+              className="p-2.5 bg-white/5 rounded-xl hover:bg-purple-500/20 text-gray-400 hover:text-purple-400 transition-all border border-white/5 active:scale-95 group"
+              title="Ativar Notificações"
+            >
+              <Bell size={18} className="group-hover:animate-ring transition-colors"/>
+            </button>
             <button onClick={onLogout} className="p-2.5 bg-white/5 rounded-xl hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all border border-white/5"><LogOut size={18}/></button>
           </div>
         </div>
@@ -332,7 +338,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               
-              {/* BOTÕES DE AÇÃO */}
               <div className="flex gap-2">
                 <button onClick={abrirNovoAgendamento} className="flex-1 bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] hover:from-[#4a24cc] hover:to-[#6a30dd] text-white font-bold py-3 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 text-sm md:text-base"><Plus size={18} /> Agendar</button>
                 <button onClick={() => setIsNovoClienteOpen(true)} className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-blue-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95" title="Cadastrar Novo Cliente"><UserPlus size={18} /></button>
@@ -380,7 +385,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                               {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirFinalizarAtendimento(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-xs font-bold border-b border-white/5"><CheckCheck size={14}/> Concluir</button>}
                               {item.telefone && <button onClick={() => window.open(`https://wa.me/55${item.telefone.replace(/\D/g,'')}`)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-xs font-bold border-b border-white/5"><MessageCircle size={14}/> WhatsApp</button>}
                               
-                              {/* 🚀 NOVO BOTÃO DE HISTÓRICO AQUI */}
                               <button onClick={() => abrirHistoricoCliente(item.cliente_id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-xs font-bold border-b border-white/5"><History size={14}/> Ver Histórico</button>
 
                               {item.status !== 'concluido' && <button onClick={() => remarcarAgendamento(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-xs font-bold border-b border-white/5"><CalendarClock size={14}/> Remarcar</button>}
@@ -411,7 +415,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         {tab === 'financeiro' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
             
-            {/* Card Principal - Produção Mensal */}
             <div className="bg-[#18181b] border border-emerald-500/20 p-8 rounded-3xl text-center relative overflow-hidden shadow-2xl group">
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] group-hover:bg-emerald-500/20 transition-all duration-1000"></div>
               <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px]"></div>
@@ -450,7 +453,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Cards de Métricas */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-[#18181b] border border-white/5 p-5 rounded-3xl hover:bg-[#1c1c24] transition-colors group">
                 <div className="flex items-center gap-3 mb-3">
@@ -495,7 +497,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
               </div>
             </div>
 
-            {/* Evolução Mensal */}
             <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6 relative overflow-hidden">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
@@ -529,8 +530,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              {/* Serviços Mais Rentáveis */}
               <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6">
                 <h3 className="text-white font-bold mb-6 text-sm flex items-center gap-2 uppercase tracking-wider">
                   <Award size={16} className="text-yellow-400"/> 
@@ -555,13 +554,9 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                       </div>
                     );
                   })}
-                  {dadosFinanceiros.servicosMaisRentaveis.length === 0 && (
-                    <p className="text-gray-500 text-xs text-center py-4">Sem dados</p>
-                  )}
                 </div>
               </div>
 
-              {/* Horários Produtivos */}
               <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6">
                 <h3 className="text-white font-bold mb-6 text-sm flex items-center gap-2 uppercase tracking-wider">
                   <Zap size={16} className="text-cyan-400"/> 
@@ -587,14 +582,10 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                       </div>
                     );
                   })}
-                  {dadosFinanceiros.horariosMaisProdutivos.length === 0 && (
-                    <p className="text-gray-500 text-xs text-center py-4">Sem dados</p>
-                  )}
                 </div>
               </div>
             </div>
 
-            {/* Produção Diária */}
             <div className="bg-[#18181b] border border-white/5 rounded-3xl p-6 relative">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom'; 
 import { supabase } from '../../services/supabase';
+// 1. IMPORTAÇÕES ADICIONADAS
+import { useAuth } from '../../contexts/AuthContext';
+import { requestNotificationPermission } from '../../services/firebase';
+
 import { 
   Calendar, Bell, Clock, DollarSign, Users, 
   Award, Activity, Gift, MessageCircle, X
@@ -74,6 +78,8 @@ const ModalMensagemAniversario = ({ isOpen, onClose, cliente }) => {
 
 
 export const DashboardAdmin = ({ onNavigate }) => {
+  // 2. ACESSANDO O USUÁRIO DO CONTEXTO
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [nomeAdmin, setNomeAdmin] = useState('Admin'); 
   
@@ -93,18 +99,18 @@ export const DashboardAdmin = ({ onNavigate }) => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) return;
 
-        const nomeGoogle = user.user_metadata?.full_name?.split(' ')[0] 
-                        || user.user_metadata?.name?.split(' ')[0] 
+        const nomeGoogle = currentUser.user_metadata?.full_name?.split(' ')[0] 
+                        || currentUser.user_metadata?.name?.split(' ')[0] 
                         || 'Admin';
         setNomeAdmin(nomeGoogle);
 
         const { data: userData } = await supabase
           .from('usuarios')
           .select('salao_id')
-          .eq('id', user.id)
+          .eq('id', currentUser.id)
           .single();
 
         const salaoId = userData?.salao_id;
@@ -213,8 +219,14 @@ export const DashboardAdmin = ({ onNavigate }) => {
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Olá, {nomeAdmin} 👋</h1>
             <p className="text-sm text-gray-400 font-medium uppercase tracking-wide">{dataExtenso}</p>
           </div>
-          <button className="bg-white/5 border border-white/10 p-3 rounded-xl hover:bg-white/10 transition-all">
-            <Bell size={24} className="text-gray-300" />
+          
+          {/* 3. BOTÃO DO SINO ATUALIZADO PARA PEDIR PERMISSÃO */}
+          <button 
+            onClick={() => requestNotificationPermission(user?.id)}
+            className="bg-white/5 border border-white/10 p-3 rounded-xl hover:bg-white/10 transition-all active:scale-95 group"
+            title="Ativar Notificações"
+          >
+            <Bell size={24} className="text-gray-300 group-hover:text-purple-400 transition-colors" />
           </button>
         </div>
 
