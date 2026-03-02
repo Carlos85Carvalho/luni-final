@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { X, CheckCircle, Search, Package, Trash2, Loader2, User, Scissors, Beaker, ClipboardEdit, Sparkles, MessageCircle, FileText } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 
-// 🚀 AQUI ESTÁ A PRIMEIRA CORREÇÃO: Importação segura do gerador de PDF
+// Importação segura do gerador de PDF
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
 
@@ -14,25 +14,23 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
 
   const { cliente_nome, telefone, servico, valor_servico, total, itens, profissional } = dados;
 
-  // Função Mágica que desenha o PDF
   const gerarPDF = () => {
     try {
       const doc = new jsPDF();
       
-      // 🚀 Proteções extras caso falte algum dado
       const nomeSeguro = cliente_nome || 'Cliente';
       const profSeguro = profissional || 'Equipe';
       const servicoSeguro = servico || 'Atendimento';
       const valServ = Number(valor_servico) || 0;
       const valTot = Number(total) || 0;
 
-      // Cabeçalho do Salão
+      // Cabeçalho
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
-      doc.setTextColor(91, 46, 255); // Roxo Luni
+      doc.setTextColor(91, 46, 255); 
       doc.text("COMPROVANTE DE ATENDIMENTO", 105, 20, { align: "center" });
 
-      // Informações do Cliente
+      // Info
       doc.setFontSize(11);
       doc.setTextColor(50, 50, 50);
       doc.setFont("helvetica", "normal");
@@ -40,21 +38,18 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
       doc.text(`Cliente: ${nomeSeguro}`, 14, 42);
       doc.text(`Profissional: ${profSeguro}`, 14, 49);
 
-      // Preparando os dados da Tabela
+      // Tabela
       const tableColumn = ["Descrição", "Tipo", "Valor"];
       const tableRows = [];
 
-      // Adiciona o Serviço na tabela
       tableRows.push([servicoSeguro, "Serviço", `R$ ${valServ.toFixed(2)}`]);
 
-      // Adiciona os Produtos na tabela
       if (itens && itens.length > 0) {
         itens.forEach(item => {
           tableRows.push([item.nome, "Produto", `R$ ${Number(item.preco_venda || item.preco || 0).toFixed(2)}`]);
         });
       }
 
-      // 🚀 SEGUNDA CORREÇÃO: Usando a tabela do jeito que o Vite aceita sem travar
       autoTable(doc, {
         startY: 60,
         head: [tableColumn],
@@ -64,7 +59,7 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
         styles: { fontSize: 10, cellPadding: 4 },
       });
 
-      // Totalizador
+      // Total
       const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 60;
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
@@ -77,9 +72,7 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
       doc.setTextColor(120, 120, 120);
       doc.text("Obrigado pela preferência! Volte sempre. ✨", 105, finalY + 30, { align: "center" });
 
-      // Baixa o arquivo
-      const nomeArquivo = `Recibo_${nomeSeguro.replace(/\s+/g, '_')}.pdf`;
-      doc.save(nomeArquivo);
+      doc.save(`Recibo_${nomeSeguro.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Ocorreu um erro ao gerar o PDF. Verifique o console.");
@@ -91,20 +84,16 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
       alert("Cliente sem telefone cadastrado.");
       return;
     }
-    
-    gerarPDF(); // Primeiro baixa o PDF
-
-    // Depois abre o WhatsApp com a mensagem
+    gerarPDF(); 
     const num = String(telefone).replace(/\D/g, '');
     const nomeSeguro = cliente_nome ? cliente_nome.split(' ')[0] : 'Cliente';
     const mensagem = `Olá ${nomeSeguro}! ✨\n\nFoi um prazer te receber hoje. Segue em anexo o seu *Comprovante de Atendimento*.\n\nQualquer dúvida, estamos à disposição!`;
     
     setTimeout(() => {
       window.open(`https://wa.me/55${num}?text=${encodeURIComponent(mensagem)}`, '_blank');
-    }, 1000); // Espera 1 segundo para o download terminar
+    }, 1000); 
   };
 
-  // 🚀 TERCEIRA CORREÇÃO: style={{ zIndex: 99999 }} Força o modal a ficar na frente do vidro invisível!
   return createPortal(
     <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300" style={{ zIndex: 99999 }}>
       <div className="bg-[#18181b] border border-white/10 w-full max-w-sm rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
@@ -144,19 +133,17 @@ const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
   );
 };
 
-// --- Componente Principal ---
+// 🚀 AQUI A MÁGICA DA EXPORTAÇÃO CORRETA:
 export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [salaoId, setSalaoId] = useState(null);
   
-  // Valores e Produtos de Venda
   const [valorServico, setValorServico] = useState('');
   const [listaProdutos, setListaProdutos] = useState([]);
   const [buscaProdutoVenda, setBuscaProdutoVenda] = useState('');
   const [carrinhoVenda, setCarrinhoVenda] = useState([]);
   const [dropdownVendaAberto, setDropdownVendaAberto] = useState(false);
   
-  // Anamnese e Consumo Interno
   const [abrirAnamnese, setAbrirAnamnese] = useState(false);
   const [anotacoes, setAnotacoes] = useState('');
   const [buscaProdutoConsumo, setBuscaProdutoConsumo] = useState('');
@@ -342,7 +329,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
         {/* Conteúdo Scrollável */}
         <div className="overflow-y-auto flex-1 p-6 space-y-6 custom-scrollbar bg-[#09090b]">
           
-          {/* Card Valor Serviço */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Cobrança do Serviço</label>
             <div className="bg-[#18181b] rounded-2xl p-4 border border-white/10 shadow-lg flex flex-col gap-1 relative focus-within:border-green-500/50 transition-colors">
@@ -360,7 +346,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             </div>
           </div>
 
-          {/* Vendas Adicionais (Revenda) */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Venda de Produtos (Revenda)</label>
             <div className="relative">
@@ -410,7 +395,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             )}
           </div>
 
-          {/* FICHA QUÍMICA E CONSUMO */}
           <div className="pt-4 border-t border-white/5">
             {!abrirAnamnese ? (
               <button 

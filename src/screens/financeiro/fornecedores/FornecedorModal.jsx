@@ -1,7 +1,7 @@
 // src/screens/financeiro/fornecedores/FornecedorModal.jsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Loader2, User, Mail, Phone, FileText, CheckCircle, Building } from 'lucide-react';
+import { X, Save, Loader2, User, Mail, Phone, FileText, CheckCircle, Building, CreditCard } from 'lucide-react'; // 🚀 Adicionei o ícone CreditCard para o PIX
 import { supabase } from '../../../services/supabase';
 
 export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => {
@@ -14,6 +14,7 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
     email: '',
     telefone: '',
     endereco: '',
+    chave_pix: '', // 🚀 Novo campo
     observacoes: '',
     ativo: true
   });
@@ -27,6 +28,7 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
         email: fornecedor.email || '',
         telefone: fornecedor.telefone || '',
         endereco: fornecedor.endereco || '',
+        chave_pix: fornecedor.chave_pix || '', // 🚀 Carregando a chave PIX
         observacoes: fornecedor.observacoes || '',
         ativo: fornecedor.ativo !== undefined ? fornecedor.ativo : true
       });
@@ -38,6 +40,7 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
         email: '',
         telefone: '',
         endereco: '',
+        chave_pix: '', // 🚀 Limpando a chave PIX
         observacoes: '',
         ativo: true
       });
@@ -78,6 +81,7 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
         email: formData.email || null,
         telefone: formData.telefone || null,
         endereco: formData.endereco || null,
+        chave_pix: formData.chave_pix || null, // 🚀 Enviando a chave PIX para o banco
         observacoes: formData.observacoes || null,
         ativo: formData.ativo,
         // Só adiciona data_cadastro se for novo registro
@@ -105,7 +109,7 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
       onFechar();
     } catch (error) {
       console.error('Erro ao salvar fornecedor:', error);
-      alert('Erro ao salvar fornecedor.');
+      alert('Erro ao salvar fornecedor. Verifique se o banco tem a coluna chave_pix.');
     } finally {
       setSalvando(false);
     }
@@ -218,6 +222,24 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
             />
           </div>
 
+          {/* 🚀 NOVO CAMPO: CHAVE PIX */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              Chave PIX
+            </label>
+            <div className="relative">
+              <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500" />
+              <input
+                type="text"
+                value={formData.chave_pix}
+                onChange={e => setFormData({...formData, chave_pix: e.target.value})}
+                className="w-full pl-10 pr-4 py-2.5 bg-orange-500/5 border border-orange-500/20 focus:border-orange-500 rounded-xl text-white outline-none text-sm transition-colors"
+                placeholder="CPF, CNPJ, E-mail, Telefone ou Aleatória"
+                disabled={salvando}
+              />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
               Observações
@@ -243,7 +265,7 @@ export const FornecedorModal = ({ aberto, onFechar, onSucesso, fornecedor }) => 
               className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500"
               disabled={salvando}
             />
-            <label htmlFor="ativo" className="text-sm text-gray-300 flex items-center gap-2">
+            <label htmlFor="ativo" className="text-sm text-gray-300 flex items-center gap-2 cursor-pointer">
               <CheckCircle className="w-4 h-4" />
               Fornecedor ativo
             </label>

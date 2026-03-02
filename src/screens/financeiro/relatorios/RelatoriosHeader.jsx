@@ -1,11 +1,12 @@
 // src/screens/financeiro/relatorios/RelatoriosHeader.jsx
-import { FileText, Download, Calendar, Filter } from 'lucide-react';
+import { FileText, Download, Calendar, Filter, Loader2 } from 'lucide-react';
 
 export const RelatoriosHeader = ({ 
   periodoSelecionado, 
   setPeriodoSelecionado, 
   periodos,
-  onExportarTodos 
+  onExportarTodos,
+  loading 
 }) => {
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
@@ -27,10 +28,7 @@ export const RelatoriosHeader = ({
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
               value={periodoSelecionado}
-              onChange={(e) => {
-                console.log('📅 [HEADER] Período alterado:', e.target.value);
-                setPeriodoSelecionado(e.target.value);
-              }}
+              onChange={(e) => setPeriodoSelecionado(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-sm appearance-none cursor-pointer"
             >
               {periodos.map(periodo => (
@@ -41,12 +39,14 @@ export const RelatoriosHeader = ({
             </select>
           </div>
 
+          {/* 🚀 BOTÃO PREMIUM ATUALIZADO */}
           <button
             onClick={onExportarTodos}
-            className="px-4 py-2.5 border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white rounded-lg flex items-center justify-center gap-2 font-medium transition-all"
+            disabled={loading}
+            className="px-4 py-2.5 border border-purple-500/50 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 rounded-lg flex items-center justify-center gap-2 font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-4 h-4" />
-            Exportar Todos
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Gerar PDF Executivo
           </button>
         </div>
       </div>
@@ -59,22 +59,12 @@ export const RelatoriosHeader = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-400 mb-1 block font-medium">
-                Data Inicial
-              </label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-              />
+              <label className="text-xs text-gray-400 mb-1 block font-medium">Data Inicial</label>
+              <input type="date" className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block font-medium">
-                Data Final
-              </label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-              />
+              <label className="text-xs text-gray-400 mb-1 block font-medium">Data Final</label>
+              <input type="date" className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
             </div>
           </div>
         </div>

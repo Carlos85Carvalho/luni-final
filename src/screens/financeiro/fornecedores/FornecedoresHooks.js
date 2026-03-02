@@ -70,7 +70,6 @@ export const useFornecedoresKPIs = (fornecedores) => {
 
       if (!usuario?.salao_id) return;
 
-      // Importante: Certifique-se que a view 'vw_ranking_fornecedores' existe no Supabase
       const { data: rankingData } = await supabase
         .from('vw_ranking_fornecedores')
         .select('*')
@@ -78,9 +77,20 @@ export const useFornecedoresKPIs = (fornecedores) => {
         .limit(5);
 
       const ranking = rankingData || [];
-      const totalGasto = ranking.reduce((acc, f) => acc + (f.total_gasto || 0), 0);
-      const fornecedorTop = ranking[0] || null;
-      const indiceDependencia = fornecedorTop?.percentual || 0;
+      
+      // 1. Calcula o total somando os gastos de todos os fornecedores
+      const totalGasto = ranking.reduce((acc, f) => acc + Number(f.total_gasto || 0), 0);
+      
+      // 2. Pega o Fornecedor Top 1
+      const fornecedorTop = ranking.length > 0 ? ranking[0] : null;
+      
+      // 3. 🚀 MATEMÁTICA REAL DO ÍNDICE DE DEPENDÊNCIA
+      let indiceDependencia = 0;
+      if (totalGasto > 0 && fornecedorTop) {
+        // (Gasto com o Top 1 / Total Gasto) * 100
+        const calculoReal = (Number(fornecedorTop.total_gasto) / totalGasto) * 100;
+        indiceDependencia = Math.round(calculoReal); // Arredonda para não ficar números quebrados (ex: 73.54%)
+      }
 
       setKpis({
         ranking,
@@ -97,7 +107,6 @@ export const useFornecedoresKPIs = (fornecedores) => {
 
   useEffect(() => {
     carregarRanking();
-    // Adicionamos 'fornecedores' aqui. Se a lista mudar, os KPIs atualizam.
   }, [carregarRanking, fornecedores]);
 
   return {

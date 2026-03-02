@@ -5,15 +5,17 @@ import { requestNotificationPermission } from '../../services/firebase';
 import { HorizontalCalendar } from '../../components/ui/HorizontalCalendar';
 import { NovoAgendamentoModal } from '../agenda/NovoAgendamentoModal';
 import { RemarcarModal } from '../agenda/RemarcarModal';
-// IMPORTAÇÃO NOVA DO MODAL DE CLIENTE
 import { NovoClienteModal } from '../agenda/NovoClienteModal';
+import { ModalFinalizarAtendimento } from '../agenda/ModalFinalizarAtendimento';
+
+// 🚀 IMPORTAÇÃO DO SEU MODAL DE HISTÓRICO (Confirme se o caminho da pasta está correto)
+import { ClientDetailsModal } from '../clientes/components/ClientDetailsModal'; 
 
 import { 
   Calendar, Clock, LogOut, Scissors, Star, Bell, MessageCircle, Plus, Lock, Search, 
   TrendingUp, Trash2, History, CheckCheck, XCircle, Loader2,
-  MoreVertical, CalendarClock, Check, Wallet, TrendingDown, Target,
-  Users, DollarSign, BarChart3, PieChart, ArrowUpRight, ArrowDownRight,
-  Award, Zap, Package, UserPlus // Adicionado UserPlus aqui
+  MoreVertical, CalendarClock, Check, Wallet, ArrowUpRight, ArrowDownRight,
+  Award, Zap, UserPlus, BarChart3, Users, DollarSign 
 } from 'lucide-react';
 
 export const ProfessionalDashboard = ({ profissional, onLogout }) => {
@@ -29,21 +31,22 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
   const [agendamentoParaEditar, setAgendamentoParaEditar] = useState(null);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
   const [dadosFinanceiros, setDadosFinanceiros] = useState({
-    mesAtual: 0,
-    mesAnterior: 0,
-    taxaCrescimento: 0,
-    taxaConfirmacao: 0,
-    taxaCancelamento: 0,
-    servicosMaisRentaveis: [],
-    horariosMaisProdutivos: [],
-    evolucaoMensal: [],
-    metaMensal: 5000,
+    mesAtual: 0, mesAnterior: 0, taxaCrescimento: 0, taxaConfirmacao: 0,
+    taxaCancelamento: 0, servicosMaisRentaveis: [], horariosMaisProdutivos: [],
+    evolucaoMensal: [], metaMensal: 5000,
   });
 
+  // CONTROLES DOS MODAIS
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRemarcarOpen, setIsRemarcarOpen] = useState(false);
-  // ESTADO NOVO PARA O MODAL DE CLIENTE
   const [isNovoClienteOpen, setIsNovoClienteOpen] = useState(false);
+  const [isFinalizarOpen, setIsFinalizarOpen] = useState(false);
+  const [agendamentoParaFinalizar, setAgendamentoParaFinalizar] = useState(null);
+  
+  // 🚀 CONTROLES DO MODAL DE HISTÓRICO
+  const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false);
+  const [clienteDetalheSelecionado, setClienteDetalheSelecionado] = useState(null);
+
   const [modalTipo, setModalTipo] = useState('agendamento'); 
 
   const getDataLocal = (dataObj) => {
@@ -62,14 +65,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     const mesAtual = hoje.getMonth();
     const anoAtual = hoje.getFullYear();
     
-    // Dados do mês atual
     const agendamentosMesAtual = agendamentos.filter(a => {
       if (!a.data) return false;
       const d = new Date(a.data);
       return d.getMonth() === mesAtual && d.getFullYear() === anoAtual && a.status !== 'cancelado' && a.status !== 'bloqueado';
     });
 
-    // Dados do mês anterior
     const mesAnterior = mesAtual === 0 ? 11 : mesAtual - 1;
     const anoMesAnterior = mesAtual === 0 ? anoAtual - 1 : anoAtual;
     const agendamentosMesAnterior = agendamentos.filter(a => {
@@ -80,15 +81,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
     const totalMesAtual = agendamentosMesAtual.reduce((acc, a) => acc + Number(a.valor_total || a.valor || 0), 0);
     const totalMesAnterior = agendamentosMesAnterior.reduce((acc, a) => acc + Number(a.valor_total || a.valor || 0), 0);
-    
     const taxaCrescimento = totalMesAnterior > 0 ? ((totalMesAtual - totalMesAnterior) / totalMesAnterior) * 100 : 0;
 
-    // Taxa de confirmação
     const totalAgendados = agendamentosMesAtual.filter(a => a.status === 'agendado' || a.status === 'confirmado' || a.status === 'concluido').length;
     const totalConfirmados = agendamentosMesAtual.filter(a => a.status === 'confirmado' || a.status === 'concluido').length;
     const taxaConfirmacao = totalAgendados > 0 ? (totalConfirmados / totalAgendados) * 100 : 0;
 
-    // Taxa de cancelamento
     const totalCancelados = agendamentos.filter(a => {
       if (!a.data) return false;
       const d = new Date(a.data);
@@ -97,18 +95,13 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     const totalAtendimentos = totalAgendados + totalCancelados;
     const taxaCancelamento = totalAtendimentos > 0 ? (totalCancelados / totalAtendimentos) * 100 : 0;
 
-    // Serviços mais rentáveis
     const servicosPorValor = {};
     agendamentosMesAtual.forEach(a => {
       const servico = a.servico || 'Outros';
       servicosPorValor[servico] = (servicosPorValor[servico] || 0) + Number(a.valor_total || a.valor || 0);
     });
-    const servicosMaisRentaveis = Object.entries(servicosPorValor)
-      .map(([servico, valor]) => ({ servico, valor }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 5);
+    const servicosMaisRentaveis = Object.entries(servicosPorValor).map(([servico, valor]) => ({ servico, valor })).sort((a, b) => b.valor - a.valor).slice(0, 5);
 
-    // Horários mais produtivos
     const horariosPorValor = {};
     agendamentosMesAtual.forEach(a => {
       if (!a.horario) return;
@@ -116,11 +109,8 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
       const periodo = hora < 12 ? 'Manhã' : hora < 18 ? 'Tarde' : 'Noite';
       horariosPorValor[periodo] = (horariosPorValor[periodo] || 0) + Number(a.valor_total || a.valor || 0);
     });
-    const horariosMaisProdutivos = Object.entries(horariosPorValor)
-      .map(([periodo, valor]) => ({ periodo, valor }))
-      .sort((a, b) => b.valor - a.valor);
+    const horariosMaisProdutivos = Object.entries(horariosPorValor).map(([periodo, valor]) => ({ periodo, valor })).sort((a, b) => b.valor - a.valor);
 
-    // Evolução dos últimos 6 meses
     const evolucaoMensal = [];
     for (let i = 5; i >= 0; i--) {
       const mes = mesAtual - i;
@@ -139,22 +129,11 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
       evolucaoMensal.push({ mes: nomeMes, valor: totalMes });
     }
 
-    return {
-      mesAtual: totalMesAtual,
-      mesAnterior: totalMesAnterior,
-      taxaCrescimento,
-      taxaConfirmacao,
-      taxaCancelamento,
-      servicosMaisRentaveis,
-      horariosMaisProdutivos,
-      evolucaoMensal,
-      metaMensal: 5000,
-    };
+    return { mesAtual: totalMesAtual, mesAnterior: totalMesAnterior, taxaCrescimento, taxaConfirmacao, taxaCancelamento, servicosMaisRentaveis, horariosMaisProdutivos, evolucaoMensal, metaMensal: 5000 };
   }, []);
 
   const fetchDados = useCallback(async () => {
     if (!profissional?.id) return;
-
     setLoading(true);
     const hoje = new Date();
     const hojeStr = getDataLocal(hoje);
@@ -181,19 +160,9 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
       const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString();
       const agendamentosMesAtual = todosAgendamentos?.filter(a => a.data && a.data >= inicioMes) || [];
 
-      const totalMes = agendamentosMesAtual
-        ?.filter(a => a.status !== 'cancelado' && a.status !== 'bloqueado')
-        ?.reduce((acc, curr) => acc + Number(curr.valor_total || curr.valor || 0), 0) || 0;
-      
-      const totalHoje = agendaHoje
-        ?.filter(a => a.status !== 'bloqueado')
-        ?.reduce((acc, curr) => acc + Number(curr.valor_total || curr.valor || 0), 0) || 0;
-
-      const clientesUnicos = new Set(
-        agendamentosMesAtual
-          ?.filter(a => a.status !== 'cancelado' && a.status !== 'bloqueado')
-          ?.map(a => a.cliente_nome.toLowerCase())
-      ).size;
+      const totalMes = agendamentosMesAtual?.filter(a => a.status !== 'cancelado' && a.status !== 'bloqueado')?.reduce((acc, curr) => acc + Number(curr.valor_total || curr.valor || 0), 0) || 0;
+      const totalHoje = agendaHoje?.filter(a => a.status !== 'bloqueado')?.reduce((acc, curr) => acc + Number(curr.valor_total || curr.valor || 0), 0) || 0;
+      const clientesUnicos = new Set(agendamentosMesAtual?.filter(a => a.status !== 'cancelado' && a.status !== 'bloqueado')?.map(a => a.cliente_nome.toLowerCase())).size;
 
       const producaoPorDia = {};
       agendamentosMesAtual?.forEach(ag => {
@@ -205,15 +174,8 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
       setAgendamentos(todosAgendamentos || []);
       setProducaoMensal(Object.entries(producaoPorDia).map(([dia, valor]) => ({ dia: parseInt(dia), valor })));
-      setResumo({
-        hoje: totalHoje,
-        mes: totalMes,
-        proximos: proximos.length,
-        total_clientes: clientesUnicos
-      });
-
-      const dadosFinan = calcularDadosFinanceiros(todosAgendamentos || []);
-      setDadosFinanceiros(dadosFinan);
+      setResumo({ hoje: totalHoje, mes: totalMes, proximos: proximos.length, total_clientes: clientesUnicos });
+      setDadosFinanceiros(calcularDadosFinanceiros(todosAgendamentos || []));
 
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
@@ -226,32 +188,45 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
   useEffect(() => {
     const handleClickOutside = () => setMenuAberto(null);
-    if (menuAberto) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
+    if (menuAberto) { document.addEventListener('click', handleClickOutside); return () => document.removeEventListener('click', handleClickOutside); }
   }, [menuAberto]);
 
+  // FUNÇÕES DE AÇÃO RÁPIDA DA AGENDA
   const confirmarAgendamento = async (id) => { await supabase.from('agendamentos').update({ status: 'confirmado' }).eq('id', id); fetchDados(); setMenuAberto(null); };
-  const concluirAtendimento = async (id) => { await supabase.from('agendamentos').update({ status: 'concluido' }).eq('id', id); fetchDados(); setMenuAberto(null); };
   const cancelarAgendamento = async (id) => { if (!confirm('Tem certeza que deseja cancelar?')) return; await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id); fetchDados(); setMenuAberto(null); };
   const removerBloqueio = async (id) => { if (!confirm('Remover este bloqueio?')) return; await supabase.from('agendamentos').delete().eq('id', id); fetchDados(); setMenuAberto(null); };
   
-  const remarcarAgendamento = (agendamento) => {
-    setAgendamentoSelecionado(agendamento);
-    setIsRemarcarOpen(true);
+  const abrirFinalizarAtendimento = (agendamento) => {
+    setAgendamentoParaFinalizar(agendamento);
+    setIsFinalizarOpen(true);
     setMenuAberto(null);
   };
 
+  // 🚀 FUNÇÃO PARA ABRIR O HISTÓRICO DO CLIENTE
+  const abrirHistoricoCliente = async (clienteId) => {
+    if (!clienteId) {
+      alert("Este é um cliente avulso. Apenas clientes cadastrados possuem histórico.");
+      return;
+    }
+    const { data } = await supabase.from('clientes').select('*').eq('id', clienteId).single();
+    if (data) {
+      setClienteDetalheSelecionado(data);
+      setIsClientDetailsOpen(true);
+    } else {
+      alert("Não foi possível carregar o histórico deste cliente.");
+    }
+    setMenuAberto(null);
+  };
+  
+  const remarcarAgendamento = (agendamento) => { setAgendamentoSelecionado(agendamento); setIsRemarcarOpen(true); setMenuAberto(null); };
   const abrirNovoAgendamento = () => { setAgendamentoParaEditar(null); setModalTipo('agendamento'); setIsModalOpen(true); };
   const abrirBloqueio = () => { setModalTipo('bloqueio'); setIsModalOpen(true); };
   const handleAgendamentoSucesso = () => { setIsModalOpen(false); setAgendamentoParaEditar(null); fetchDados(); };
 
   const agendamentosFiltrados = useMemo(() => {
     let resultado = agendamentos;
-    if (busca.trim()) {
-      resultado = resultado.filter(ag => ag.cliente_nome.toLowerCase().includes(busca.toLowerCase()) || ag.servico?.toLowerCase().includes(busca.toLowerCase()));
-    }
+    if (busca.trim()) resultado = resultado.filter(ag => ag.cliente_nome.toLowerCase().includes(busca.toLowerCase()) || ag.servico?.toLowerCase().includes(busca.toLowerCase()));
+    
     const hoje = new Date();
     const hojeStr = getDataLocal(hoje);
     const agoraHora = hoje.toLocaleTimeString('pt-BR', { hour12: false }).slice(0, 5);
@@ -263,22 +238,14 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
         return (d > hojeStr || (d === hojeStr && ag.horario >= agoraHora)) && ag.status !== 'concluido' && ag.status !== 'cancelado';
       }).slice(0, 10);
     }
-    if (visualizacao === 'dia') {
-      const alvo = getDataLocal(selectedDate);
-      return resultado.filter(ag => ag.data && ag.data.substring(0, 10) === alvo);
-    }
+    if (visualizacao === 'dia') return resultado.filter(ag => ag.data && ag.data.substring(0, 10) === getDataLocal(selectedDate));
     if (visualizacao === 'semana') {
       const d = new Date();
-      const seg = new Date(d.setDate(d.getDate() - d.getDate() + 1));
-      const dom = new Date(d.setDate(d.getDate() - d.getDate() + 7));
-      const segStr = getDataLocal(seg);
-      const domStr = getDataLocal(dom);
+      const segStr = getDataLocal(new Date(d.setDate(d.getDate() - d.getDay() + 1)));
+      const domStr = getDataLocal(new Date(d.setDate(d.getDate() - d.getDay() + 7)));
       return resultado.filter(ag => ag.data && ag.data.substring(0, 10) >= segStr && ag.data.substring(0, 10) <= domStr);
     }
-    if (visualizacao === 'todos') {
-      const inicioMesStr = hoje.toISOString().substring(0, 8) + '01';
-      return resultado.filter(a => a.data && a.data >= inicioMesStr);
-    }
+    if (visualizacao === 'todos') return resultado.filter(a => a.data && a.data >= (hoje.toISOString().substring(0, 8) + '01'));
     return resultado;
   }, [agendamentos, busca, visualizacao, selectedDate]);
 
@@ -292,27 +259,43 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
     };
     const badge = badges[status] || badges.agendado;
     const Icon = badge.icon;
-    return (
-      <div className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase border flex items-center gap-1 shadow-sm mt-1 w-fit ${badge.color}`}>
-        <Icon size={10} /> {badge.label}
-      </div>
-    );
+    return <div className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase border flex items-center gap-1 shadow-sm mt-1 w-fit ${badge.color}`}><Icon size={10} /> {badge.label}</div>;
   };
 
   const porcentagemMeta = (dadosFinanceiros.mesAtual / dadosFinanceiros.metaMensal) * 100;
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white">
-      <Loader2 className="animate-spin text-[#5B2EFF]" size={40} />
-    </div>
-  );
+  if (loading) return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white"><Loader2 className="animate-spin text-[#5B2EFF]" size={40} /></div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* MODAIS */}
+      
+      {/* ----------------- TODOS OS MODAIS DO SISTEMA ----------------- */}
       <NovoAgendamentoModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setAgendamentoParaEditar(null); }} onSuccess={handleAgendamentoSucesso} profissionalId={profissional.id} tipo={modalTipo} agendamentoParaEditar={agendamentoParaEditar} />
       <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
       <NovoClienteModal isOpen={isNovoClienteOpen} onClose={() => setIsNovoClienteOpen(false)} />
+      
+      <ModalFinalizarAtendimento 
+        isOpen={isFinalizarOpen}
+        onClose={() => { setIsFinalizarOpen(false); setAgendamentoParaFinalizar(null); }}
+        agendamento={agendamentoParaFinalizar}
+        onSuccess={() => {
+          setIsFinalizarOpen(false);
+          setAgendamentoParaFinalizar(null);
+          fetchDados(); 
+        }}
+      />
+
+      {/* 🚀 RENDERIZANDO O MODAL DE HISTÓRICO DO CLIENTE */}
+      {isClientDetailsOpen && clienteDetalheSelecionado && (
+        <ClientDetailsModal 
+          cliente={clienteDetalheSelecionado} 
+          onClose={() => {
+            setIsClientDetailsOpen(false);
+            setClienteDetalheSelecionado(null);
+          }} 
+        />
+      )}
+      {/* -------------------------------------------------------------- */}
 
       {/* Header */}
       <div className="bg-[#15151a] border-b border-white/5 pt-6 pb-6 px-4 md:px-8">
@@ -349,28 +332,11 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               
-              {/* BOTÕES DE AÇÃO: AGENDAR, NOVO CLIENTE, BLOQUEIO */}
+              {/* BOTÕES DE AÇÃO */}
               <div className="flex gap-2">
-                <button 
-                  onClick={abrirNovoAgendamento} 
-                  className="flex-1 bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] hover:from-[#4a24cc] hover:to-[#6a30dd] text-white font-bold py-3 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 text-sm md:text-base"
-                >
-                  <Plus size={18} /> Agendar
-                </button>
-                <button 
-                  onClick={() => setIsNovoClienteOpen(true)} 
-                  className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-blue-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95"
-                  title="Cadastrar Novo Cliente"
-                >
-                  <UserPlus size={18} />
-                </button>
-                <button 
-                  onClick={abrirBloqueio} 
-                  className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-orange-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95"
-                  title="Bloquear Horário"
-                >
-                  <Lock size={18} />
-                </button>
+                <button onClick={abrirNovoAgendamento} className="flex-1 bg-gradient-to-r from-[#5B2EFF] to-[#7C3EFF] hover:from-[#4a24cc] hover:to-[#6a30dd] text-white font-bold py-3 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 text-sm md:text-base"><Plus size={18} /> Agendar</button>
+                <button onClick={() => setIsNovoClienteOpen(true)} className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-blue-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95" title="Cadastrar Novo Cliente"><UserPlus size={18} /></button>
+                <button onClick={abrirBloqueio} className="bg-[#1c1c24] border border-white/10 text-gray-400 hover:text-orange-400 px-4 rounded-2xl flex items-center justify-center transition-all active:scale-95" title="Bloquear Horário"><Lock size={18} /></button>
               </div>
 
               <div className="relative">
@@ -411,8 +377,12 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                           {item.status !== 'bloqueado' ? (
                             <>
                               {item.status === 'agendado' && <button onClick={() => confirmarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-xs font-bold border-b border-white/5"><Check size={14}/> Confirmar</button>}
-                              {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => concluirAtendimento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-xs font-bold border-b border-white/5"><CheckCheck size={14}/> Concluir</button>}
+                              {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirFinalizarAtendimento(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-xs font-bold border-b border-white/5"><CheckCheck size={14}/> Concluir</button>}
                               {item.telefone && <button onClick={() => window.open(`https://wa.me/55${item.telefone.replace(/\D/g,'')}`)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-xs font-bold border-b border-white/5"><MessageCircle size={14}/> WhatsApp</button>}
+                              
+                              {/* 🚀 NOVO BOTÃO DE HISTÓRICO AQUI */}
+                              <button onClick={() => abrirHistoricoCliente(item.cliente_id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-xs font-bold border-b border-white/5"><History size={14}/> Ver Histórico</button>
+
                               {item.status !== 'concluido' && <button onClick={() => remarcarAgendamento(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-xs font-bold border-b border-white/5"><CalendarClock size={14}/> Remarcar</button>}
                               {item.status !== 'concluido' && <button onClick={() => cancelarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 text-red-400 text-xs font-bold"><XCircle size={14}/> Cancelar</button>}
                             </>
@@ -428,7 +398,7 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                     <span className={`text-sm font-bold ${item.status === 'concluido' ? 'text-gray-500 line-through' : 'text-emerald-400'}`}>R$ {Number(item.valor_total || item.valor || 0).toFixed(2)}</span>
                     <div className="flex gap-2">
                       {item.status === 'agendado' && <button onClick={() => confirmarAgendamento(item.id)} className="px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 text-[10px] font-bold hover:bg-green-500/20 transition-all flex items-center gap-1"><Check size={12}/> Confirmar</button>}
-                      {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => concluirAtendimento(item.id)} className="px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20 text-[10px] font-bold hover:bg-blue-500/20 transition-all flex items-center gap-1"><CheckCheck size={12}/> Concluir</button>}
+                      {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirFinalizarAtendimento(item)} className="px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20 text-[10px] font-bold hover:bg-blue-500/20 transition-all flex items-center gap-1"><CheckCheck size={12}/> Concluir</button>}
                     </div>
                   </div>
                 </div>

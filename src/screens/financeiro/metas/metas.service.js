@@ -1,12 +1,5 @@
+// src/screens/financeiro/metas/metas.service.js
 import { supabase } from '../../../services/supabase';
-
-// Função auxiliar para pegar o intervalo do mês atual
-const getIntervaloMensal = () => {
-  const data = new Date();
-  const inicio = new Date(data.getFullYear(), data.getMonth(), 1).toISOString();
-  const fim = new Date(data.getFullYear(), data.getMonth() + 1, 0, 23, 59, 59).toISOString();
-  return { inicio, fim };
-};
 
 export const metasService = {
   async getMetas(salaoId) {
@@ -22,49 +15,61 @@ export const metasService = {
     return data || [];
   },
 
-  // CORREÇÃO AQUI: Agora a função busca os dados reais no banco
-  async getMetasComProgresso(salaoId) {
-    // 1. Busca as metas cadastradas
+  async getMetasComProgresso(salaoId, periodo) {
     const metas = await this.getMetas(salaoId);
     
-    // 2. Define o período (Mês Atual) para cálculo do histórico
-    const { inicio, fim } = getIntervaloMensal();
+    if (!periodo || !periodo.inicio || !periodo.fim) return metas;
 
-    // 3. Busca Agendamentos (Faturamento e Atendimentos)
+    const dataInicioQuery = `${periodo.inicio} 00:00:00`;
+    const dataFimQuery = `${periodo.fim} 23:59:59`;
+
+    // 1. Busca Agendamentos (Atendimentos do mês)
     const { data: agendamentos } = await supabase
       .from('agendamentos')
-      .select('valor_total, status')
+      .select('valor, valor_total, preco')
       .eq('salao_id', salaoId)
-      .gte('data', inicio)
-      .lte('data', fim)
-      .neq('status', 'cancelado');
+      .eq('status', 'concluido')
+      .gte('data', dataInicioQuery)
+      .lte('data', dataFimQuery);
 
-    // 4. Busca Despesas
+    // 2. Busca Despesas do Ciclo
     const { data: despesas } = await supabase
       .from('despesas')
       .select('valor')
       .eq('salao_id', salaoId)
-      .gte('data_vencimento', inicio)
-      .lte('data_vencimento', fim);
+      .gte('data_vencimento', dataInicioQuery)
+      .lte('data_vencimento', dataFimQuery);
 
-    // 5. Busca Vendas (Caso você tenha uma tabela separada de vendas de produtos)
-    // Se não tiver tabela de vendas, pode comentar essa parte ou usar agendamentos como base
+    // 3. Busca Vendas
     const { data: vendas } = await supabase
       .from('vendas') 
-      .select('valor_total')
+      .select('total, valor_total')
       .eq('salao_id', salaoId)
-      .gte('data_venda', inicio)
-      .lte('data_venda', fim);
+      .in('status', ['concluida', 'pago'])
+      .gte('data_venda', dataInicioQuery)
+      .lte('data_venda', dataFimQuery);
+
+    // 🚀 4. NOVO: BUSCA OS CLIENTES CADASTRADOS NO PERÍODO
+    // Nota: Usei 'created_at' que é o padrão do Supabase. 
+    // Se o seu banco usar 'data_cadastro', é só trocar aqui embaixo!
+    const { data: novosClientes } = await supabase
+      .from('clientes')
+      .select('id')
+      .eq('salao_id', salaoId)
+      .gte('created_at', dataInicioQuery)
+      .lte('created_at', dataFimQuery);
 
     // --- CÁLCULOS DOS TOTAIS ---
-    const faturamentoTotal = agendamentos?.reduce((acc, curr) => acc + (Number(curr.valor_total) || 0), 0) || 0;
-    const vendasTotal = vendas?.reduce((acc, curr) => acc + (Number(curr.valor_total) || 0), 0) || 0;
+    const faturamentoAgenda = agendamentos?.reduce((acc, curr) => acc + (Number(curr.valor || curr.valor_total || curr.preco) || 0), 0) || 0;
+    const vendasTotal = vendas?.reduce((acc, curr) => acc + (Number(curr.total || curr.valor_total) || 0), 0) || 0;
+    
+    const faturamentoTotal = faturamentoAgenda + vendasTotal; 
     const despesasTotal = despesas?.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0) || 0;
     const lucroTotal = faturamentoTotal - despesasTotal;
-    const atendimentosTotal = agendamentos?.length || 0;
     
-    console.log("📊 Totais Calculados:", { faturamentoTotal, despesasTotal, lucroTotal });
-
+    const atendimentosTotal = agendamentos?.length || 0;
+    const totalNovosClientesCadastrados = novosClientes?.length || 0; // 🚀 Número real de cadastros
+    
     // --- MAPEAMENTO PARA AS METAS ---
     return metas.map(meta => {
       let valorAtual = 0;
@@ -80,16 +85,21 @@ export const metasService = {
         valorAtual = despesasTotal;
       }
       else if (tipo.includes('venda')) {
-        // Se a meta for em valor monetário, usa o total de vendas, senão a quantidade
         valorAtual = vendasTotal > 0 ? vendasTotal : faturamentoTotal; 
       }
-      else if (tipo === 'clientes_atendidos' || tipo.includes('cliente')) {
+      // 🚀 SEPARAÇÃO INTELIGENTE DA LÓGICA
+      else if (tipo.includes('novo') && tipo.includes('cliente')) {
+        // Se a meta for "Novos Clientes", conta só os cadastros novos
+        valorAtual = totalNovosClientesCadastrados;
+      }
+      else if (tipo === 'clientes_atendidos' || tipo.includes('atendimento') || tipo.includes('cliente')) {
+        // Se for "Meta de Atendimentos", conta os agendamentos concluídos
         valorAtual = atendimentosTotal;
       }
       
       return {
         ...meta,
-        valor_atual: valorAtual // Agora envia o valor real calculado do banco
+        valor_atual: valorAtual 
       };
     });
   },
@@ -109,10 +119,7 @@ export const metasService = {
       .select()
       .single();
 
-    if (error) {
-      console.error("Erro Supabase:", error);
-      throw error;
-    }
+    if (error) throw error;
     return data;
   },
 

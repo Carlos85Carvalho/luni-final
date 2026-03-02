@@ -5,35 +5,16 @@ import { RelatoriosHeader } from './RelatoriosHeader';
 import { RelatoriosGrid } from './RelatoriosGrid';
 import { RelatoriosHistorico } from './RelatoriosHistorico';
 import { RelatorioModal } from './RelatorioModal';
-import { 
-  DollarSign, 
-  Package, 
-  Truck, 
-  Target, 
-  ShoppingCart, 
-  Users,
-  Activity, 
-  Scissors,
-  Menu,
-  X,
-  ChevronDown
-} from 'lucide-react';
+import { DollarSign, Package, Truck, Target, ShoppingCart, Users, Activity, Scissors, Menu, X, ChevronDown } from 'lucide-react';
 
 export const Relatorios = () => {
   const [periodoSelecionado, setPeriodoSelecionado] = useState('mes');
-  
-  // Controle do Modal de Exibição
   const [modalAberto, setModalAberto] = useState(false);
   const [dadosModal, setDadosModal] = useState(null);
-
-  // NOVO: Controle do Hambúrguer de Relatórios no Mobile
   const [menuRelatoriosAberto, setMenuRelatoriosAberto] = useState(false);
 
-  const { relatoriosGerados, loading, gerarRelatorio } = useRelatorios();
+  const { relatoriosGerados, loading, gerarRelatorio, exportarDadosPDF } = useRelatorios();
 
-  // =========================================================================
-  // LISTA DE RELATÓRIOS
-  // =========================================================================
   const tiposRelatorio = [
     { id: 'financeiro', titulo: 'Relatório Financeiro', descricao: 'Receitas, despesas e lucro.', icone: DollarSign, cor: 'green' },
     { id: 'metas', titulo: 'Relatório de Metas', descricao: 'Progresso do objetivo mensal.', icone: Target, cor: 'purple' },
@@ -52,9 +33,6 @@ export const Relatorios = () => {
     { id: 'ano', label: 'Este Ano' }
   ];
 
-  // =========================================================================
-  // FUNÇÕES DE AÇÃO
-  // =========================================================================
   const handleAcaoRelatorio = async (tipo) => {
     try {
       const dadosRelatorio = await gerarRelatorio(tipo, periodoSelecionado);
@@ -72,7 +50,6 @@ export const Relatorios = () => {
     setModalAberto(true);
   };
 
-  // Helper para garantir as cores do Tailwind no Mobile
   const getCorClasses = (cor) => {
     const cores = {
       green: 'bg-green-500/20 text-green-400',
@@ -87,23 +64,17 @@ export const Relatorios = () => {
     return cores[cor] || 'bg-gray-500/20 text-gray-400';
   };
 
-  // =========================================================================
-  // RENDERIZAÇÃO DA TELA
-  // =========================================================================
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
       
-      {/* Header com Filtro de Período */}
       <RelatoriosHeader 
         periodoSelecionado={periodoSelecionado}
         setPeriodoSelecionado={setPeriodoSelecionado}
         periodos={periodos}
-        onExportarTodos={() => console.log('Exportar todos')}
+        onExportarTodos={() => exportarDadosPDF(periodoSelecionado)}
+        loading={loading} 
       />
 
-      {/* ========================================================= */}
-      {/* 📱 MODO MOBILE: MENU HAMBÚRGUER DE RELATÓRIOS */}
-      {/* ========================================================= */}
       <div className="md:hidden relative z-30">
         <button 
           onClick={() => setMenuRelatoriosAberto(!menuRelatoriosAberto)}
@@ -121,15 +92,8 @@ export const Relatorios = () => {
           {menuRelatoriosAberto ? <X size={24} className="text-gray-400" /> : <ChevronDown size={24} className="text-gray-400" />}
         </button>
 
-        {/* OVERLAY: Para clicar fora e fechar */}
-        {menuRelatoriosAberto && (
-          <div 
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-            onClick={() => setMenuRelatoriosAberto(false)}
-          />
-        )}
+        {menuRelatoriosAberto && <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setMenuRelatoriosAberto(false)} />}
 
-        {/* LISTA DE OPÇÕES (DROPDOWN) */}
         {menuRelatoriosAberto && (
           <div className="absolute left-0 right-0 top-[80px] z-50 bg-[#18181b] border border-gray-700/60 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2">
             <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -152,9 +116,7 @@ export const Relatorios = () => {
                       <h3 className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">
                         {relatorio.titulo}
                       </h3>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {relatorio.descricao}
-                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">{relatorio.descricao}</p>
                     </div>
                   </button>
                 );
@@ -164,35 +126,15 @@ export const Relatorios = () => {
         )}
       </div>
 
-      {/* ========================================================= */}
-      {/* 💻 MODO DESKTOP: GRID DE CARDS (Seu componente original) */}
-      {/* ========================================================= */}
       <div className="hidden md:block">
-        <RelatoriosGrid
-          tiposRelatorio={tiposRelatorio}
-          periodoSelecionado={periodoSelecionado}
-          onGerarRelatorio={handleAcaoRelatorio}
-          onVisualizarPreview={handleAcaoRelatorio}
-          loading={loading}
-        />
+        <RelatoriosGrid tiposRelatorio={tiposRelatorio} periodoSelecionado={periodoSelecionado} onGerarRelatorio={handleAcaoRelatorio} onVisualizarPreview={handleAcaoRelatorio} loading={loading} />
       </div>
 
-      {/* Lista de Histórico */}
       {relatoriosGerados.length > 0 && (
-        <RelatoriosHistorico
-          relatoriosGerados={relatoriosGerados}
-          loading={loading}
-          onVisualizar={handleVisualizarHistorico}
-          onExportar={(item) => console.log('Exportar', item)}
-        />
+        <RelatoriosHistorico relatoriosGerados={relatoriosGerados} loading={loading} onVisualizar={handleVisualizarHistorico} onExportar={(item) => console.log('Exportar', item)} />
       )}
 
-      {/* MODAL RENDERIZADO AQUI */}
-      <RelatorioModal 
-        aberto={modalAberto}
-        onFechar={() => setModalAberto(false)}
-        dados={dadosModal}
-      />
+      <RelatorioModal aberto={modalAberto} onFechar={() => setModalAberto(false)} dados={dadosModal} />
       
     </div>
   );
