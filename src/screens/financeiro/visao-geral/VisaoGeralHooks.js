@@ -3,24 +3,14 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../services/supabase';
 
 export const useVisaoGeral = () => {
-  // Estado dos KPIs (Cards do topo)
-  const [kpis, setKpis] = useState({
-    receita: 0,
-    despesas: 0,
-    lucro: 0,
-    saldo: 0
-  });
-
-  // Novos estados para os Gráficos
+  const [kpis, setKpis] = useState({ receita: 0, despesas: 0, lucro: 0, saldo: 0 });
   const [graficoEvolucao, setGraficoEvolucao] = useState([]);
   const [graficoDistribuicao, setGraficoDistribuicao] = useState([]);
-  
   const [loading, setLoading] = useState(true);
 
   const carregarDadosDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Identifica o usuário e o salão
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -34,65 +24,73 @@ export const useVisaoGeral = () => {
             .single();
           salaoId = usuario?.salao_id;
       }
-      
-      // Fallback final
       if (!salaoId) salaoId = user.id;
 
-      // ==========================================================
-      // BUSCA 1: KPIs (Cards do Topo - Mês Atual)
-      // ==========================================================
-      const { data: dataKPI, error: errorKPI } = await supabase
-        .from('vw_visao_geral_kpis')
-        .select('*')
+      // 1. BUSCA DAS VIEWS (Agora o Supabase já traz a soma completa da Receita!)
+      const { data: dataKPI } = await supabase.from('vw_visao_geral_kpis').select('*').eq('salao_id', salaoId).maybeSingle();
+      const { data: evolucaoData } = await supabase.from('vw_grafico_evolucao').select('mes_abreviado, receita, despesa').eq('salao_id', salaoId).order('data_ordenacao', { ascending: true });
+      const { data: distribuicaoData } = await supabase.from('vw_grafico_distribuicao').select('categoria, valor_total').eq('salao_id', salaoId);
+
+      // 2. BUSCA DA AGENDA (Apenas para arrumar o Gráfico de Barras dos últimos 6 meses)
+      const hoje = new Date();
+      const mesAtualIndex = hoje.getMonth();
+      const anoAtual = hoje.getFullYear();
+
+      const dataSeisMesesAtras = new Date(anoAtual, mesAtualIndex - 5, 1);
+      const dataInicialStr = dataSeisMesesAtras.toISOString().split('T')[0];
+
+      const { data: agendamentosData } = await supabase
+        .from('agendamentos')
+        .select('*, servicos(preco_base)')
         .eq('salao_id', salaoId)
-        .maybeSingle();
+        .eq('status', 'concluido')
+        .gte('data', dataInicialStr);
 
-      if (errorKPI) console.error('Erro KPIs:', errorKPI);
+      // 3. CÁLCULO DA AGENDA POR MÊS (Para o Gráfico)
+      const receitaAgendaPorMes = {};
+      const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-      const receita = Number(dataKPI?.receita || 0);
+      (agendamentosData || []).forEach(ag => {
+        const valorAgendamento = Number(ag.valor || ag.valor_total || ag.preco || ag.servicos?.preco_base || 0);
+        if (valorAgendamento === 0) return;
+
+        const [ano, mes] = ag.data?.split('T')[0].split('-') || [];
+        if (!ano || !mes) return;
+        
+        const mesAg = parseInt(mes, 10) - 1;
+        const nomeMes = mesesNomes[mesAg];
+        
+        if (!receitaAgendaPorMes[nomeMes]) receitaAgendaPorMes[nomeMes] = 0;
+        receitaAgendaPorMes[nomeMes] += valorAgendamento;
+      });
+
+      // 4. ATUALIZANDO OS KPIS (Puxando direto da View Consertada do Supabase)
+      const receitaTotal = Number(dataKPI?.receita || 0); // 🚀 O Supabase já manda o valor perfeito!
       const despesas = Number(dataKPI?.despesas || 0);
-      const lucro = receita - despesas;
+      const lucro = receitaTotal - despesas;
 
       setKpis({
-        receita,
+        receita: receitaTotal,
         despesas,
         lucro,
         saldo: lucro
       });
 
-      // ==========================================================
-      // BUSCA 2: Gráfico de Evolução (Barras - Últimos 6 meses)
-      // ==========================================================
-      const { data: evolucaoData, error: errorEvo } = await supabase
-        .from('vw_grafico_evolucao')
-        .select('mes_abreviado, receita, despesa')
-        .eq('salao_id', salaoId)
-        .order('data_ordenacao', { ascending: true });
-
-      if (errorEvo) console.error('Erro Gráfico Evolução:', errorEvo);
-
-      // Formata para o Recharts (Array de objetos com chaves numéricas)
-      const evolucaoFormatada = (evolucaoData || []).map(item => ({
-        name: item.mes_abreviado,      // Eixo X (Jan, Fev...)
-        Receita: Number(item.receita), // Barra Roxa
-        Despesa: Number(item.despesa)  // Barra Rosa
-      }));
+      // 5. ATUALIZANDO O GRÁFICO DE BARRAS
+      const evolucaoFormatada = (evolucaoData || []).map(item => {
+        const extraAgenda = receitaAgendaPorMes[item.mes_abreviado] || 0;
+        return {
+          name: item.mes_abreviado,
+          Receita: Number(item.receita) + extraAgenda,
+          Despesa: Number(item.despesa)
+        };
+      });
       setGraficoEvolucao(evolucaoFormatada);
 
-      // ==========================================================
-      // BUSCA 3: Gráfico de Distribuição (Pizza - Despesas do Mês)
-      // ==========================================================
-      const { data: distribuicaoData, error: errorDist } = await supabase
-        .from('vw_grafico_distribuicao')
-        .select('categoria, valor_total')
-        .eq('salao_id', salaoId);
-
-      if (errorDist) console.error('Erro Gráfico Pizza:', errorDist);
-
-      // Formata para o Recharts (name e value)
+      // 6. ATUALIZANDO O GRÁFICO DE PIZZA
       const distribuicaoFormatada = (distribuicaoData || []).map(item => ({
-        name: item.categoria || 'Outros', // Legenda
-        value: Number(item.valor_total)   // Tamanho da fatia
+        name: item.categoria || 'Outros',
+        value: Number(item.valor_total)
       }));
       setGraficoDistribuicao(distribuicaoFormatada);
 
@@ -107,12 +105,5 @@ export const useVisaoGeral = () => {
     carregarDadosDashboard();
   }, [carregarDadosDashboard]);
 
-  // Retorna tudo para a tela usar
-  return {
-    kpis,
-    graficoEvolucao,
-    graficoDistribuicao,
-    loading,
-    refresh: carregarDadosDashboard
-  };
+  return { kpis, graficoEvolucao, graficoDistribuicao, loading, refresh: carregarDadosDashboard };
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom'; // 🚀 A MÁGICA FOI IMPORTADA AQUI
 import { X, QrCode, Banknote, CreditCard, Clock3, RefreshCw, User, Search, MessageCircle, CheckCircle, Printer } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 import jsPDF from 'jspdf';
@@ -10,21 +11,25 @@ import jsPDF from 'jspdf';
 const BtnPagamento = ({ icon, label, color, onClick, disabled }) => {
   const IconComponent = icon;
   const colors = {
-    green: 'border-green-200 hover:bg-green-50 text-green-700',
-    amber: 'border-amber-200 hover:bg-amber-50 text-amber-700',
-    blue: 'border-blue-200 hover:bg-blue-50 text-blue-700',
-    orange: 'border-orange-200 hover:bg-orange-50 text-orange-700',
+    green: 'border-green-500/30 bg-green-500/5 hover:bg-green-500/10 text-green-400',
+    amber: 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400',
+    blue: 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400',
+    orange: 'border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-orange-400',
   };
 
   return (
-    <button onClick={onClick} disabled={disabled} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colors[color]}`}>
-      <IconComponent size={24} /> <span className="font-bold">{label}</span>
+    <button 
+      onClick={onClick} 
+      disabled={disabled} 
+      className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colors[color]}`}
+    >
+      <IconComponent size={28} /> <span className="font-bold text-sm">{label}</span>
     </button>
   );
 };
 
 // ============================================================================
-// 2. COMPONENTES DE MODAL
+// 2. COMPONENTES DE MODAL (AGORA COM PORTAL)
 // ============================================================================
 
 // --- MODAL DE SELEÇÃO DE CLIENTES ---
@@ -38,12 +43,9 @@ export const ClientesSelectionModal = ({ aberto, onClose, onSelecionar }) => {
       const fetchClientes = async () => {
         setLoading(true);
         const { data, error } = await supabase.from('clientes').select('*').order('nome');
-        if (!error) {
-            setClientes(data || []);
-        }
+        if (!error) setClientes(data || []);
         setLoading(false);
       };
-      
       fetchClientes();
     }
   }, [aberto]);
@@ -55,72 +57,79 @@ export const ClientesSelectionModal = ({ aberto, onClose, onSelecionar }) => {
 
   if (!aberto) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-lg h-[600px] flex flex-col shadow-2xl animate-in zoom-in-95">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-            <User className="text-purple-600" /> Selecionar Cliente
+  // 🚀 createPortal GARANTE QUE NADA VAI CORTAR A TELA
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+      <div 
+        className="bg-[#18181b] border border-white/10 w-full sm:max-w-md rounded-t-[32px] sm:rounded-3xl flex flex-col shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 overflow-hidden"
+        style={{ maxHeight: '90dvh', minHeight: '50vh' }}
+      >
+        <div className="p-5 border-b border-white/5 flex justify-between items-center shrink-0 bg-[#18181b]">
+          <h3 className="font-bold text-lg text-white flex items-center gap-3">
+            <div className="p-2 bg-purple-500/20 rounded-xl">
+              <User className="text-purple-400" size={18} />
+            </div>
+            Selecionar Cliente
           </h3>
-          <button onClick={onClose}><X size={20} className="text-gray-500 hover:text-gray-800"/></button>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="p-4 bg-gray-50 border-b">
+        <div className="p-4 bg-[#18181b] border-b border-white/5 shrink-0">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18}/>
             <input 
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
+              value={busca} onChange={e => setBusca(e.target.value)}
               placeholder="Buscar por nome ou telefone..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none"
+              className="w-full pl-12 pr-4 py-3 bg-[#09090b] rounded-xl border border-white/10 text-white placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all text-sm"
               autoFocus
             />
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 bg-[#09090b] custom-scrollbar">
           {loading ? (
-             <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>
+             <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>
           ) : clientesFiltrados.length === 0 ? (
-            <p className="text-center text-gray-400 py-10">Nenhum cliente encontrado.</p>
+            <div className="flex flex-col items-center justify-center py-20 text-gray-600">
+              <User size={48} className="opacity-20 mb-4"/>
+              <p className="text-sm">Nenhum cliente encontrado.</p>
+            </div>
           ) : (
             clientesFiltrados.map(cliente => (
-              <div 
-                key={cliente.id} 
-                onClick={() => { onSelecionar(cliente); onClose(); }}
-                className="flex justify-between items-center p-3 hover:bg-purple-50 rounded-xl cursor-pointer transition-colors border-b border-gray-100 last:border-0"
-              >
+              <div key={cliente.id} onClick={() => { onSelecionar(cliente); onClose(); }} className="flex justify-between items-center p-4 bg-[#18181b] hover:bg-purple-500/10 hover:border-purple-500/30 border border-white/5 rounded-2xl cursor-pointer transition-all group">
                 <div>
-                  <div className="font-bold text-gray-800">{cliente.nome}</div>
-                  <div className="text-sm text-gray-500">{cliente.telefone || 'Sem telefone'}</div>
+                  <div className="font-bold text-gray-200 group-hover:text-purple-300 transition-colors">{cliente.nome}</div>
+                  <div className="text-xs text-gray-500 mt-1">{cliente.telefone || 'Sem telefone cadastrado'}</div>
                 </div>
-                <div className="p-2 bg-gray-100 rounded-full text-gray-400">
-                   <User size={16} />
+                <div className="p-2.5 bg-white/5 group-hover:bg-purple-500/20 rounded-xl text-gray-400 group-hover:text-purple-400 transition-colors">
+                   <CheckCircle size={18} />
                 </div>
               </div>
             ))
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
 // --- MODAL DE PAGAMENTO ---
 export const PagamentoModal = ({ aberto, onClose, total, onFinalizar, processando }) => {
   if (!aberto) return null;
-  
   const valorTotal = Number(total) || 0;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95">
-        <div className="flex justify-between items-center mb-6">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+      <div className="bg-[#18181b] border border-white/10 rounded-t-[32px] sm:rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300">
+        <div className="flex justify-between items-start mb-8">
           <div>
-            <h3 className="text-xl font-bold text-gray-800">Pagamento</h3>
-            <p className="text-gray-500 text-sm">Total a pagar: <span className="font-bold text-gray-900">R$ {valorTotal.toFixed(2)}</span></p>
+            <h3 className="text-2xl font-bold text-white mb-1">Pagamento</h3>
+            <p className="text-gray-400 text-sm">Total a pagar: <span className="font-bold text-emerald-400 text-lg ml-1">R$ {valorTotal.toFixed(2)}</span></p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X size={20} /></button>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <BtnPagamento icon={QrCode} label="PIX" color="green" onClick={() => onFinalizar('pix')} disabled={processando} />
@@ -128,49 +137,58 @@ export const PagamentoModal = ({ aberto, onClose, total, onFinalizar, processand
           <BtnPagamento icon={CreditCard} label="Crédito" color="blue" onClick={() => onFinalizar('credito')} disabled={processando} />
           <BtnPagamento icon={CreditCard} label="Débito" color="orange" onClick={() => onFinalizar('debito')} disabled={processando} />
         </div>
-        {processando && <p className="text-center mt-4 text-purple-600 animate-pulse font-medium">Processando venda...</p>}
+        {processando && (
+          <div className="mt-6 flex items-center justify-center gap-2 text-purple-400 animate-pulse bg-purple-500/10 py-3 rounded-xl">
+            <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+            <span className="font-bold text-sm">Processando venda...</span>
+          </div>
+        )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
 // --- MODAL DE VENDAS PENDENTES ---
 export const VendasPendentesModal = ({ aberto, onClose, vendasPendentes = [], onRecuperar, onUsarCliente }) => {
   if (!aberto) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2"><Clock3 className="text-amber-600" /> Vendas Pendentes</h3>
-          <button onClick={onClose}><X size={20} className="text-gray-500 hover:text-gray-800"/></button>
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-[#18181b] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center shrink-0">
+          <h3 className="font-bold text-xl text-white flex items-center gap-3">
+            <div className="p-2 bg-amber-500/20 rounded-xl"><Clock3 className="text-amber-400" size={20} /></div> 
+            Vendas Pendentes
+          </h3>
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white"><X size={18}/></button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
+        <div className="p-6 overflow-y-auto flex-1 bg-[#09090b] custom-scrollbar">
           {vendasPendentes.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <Clock3 size={48} className="mx-auto mb-3 opacity-20" />
-              <p>Nenhuma venda pendente.</p>
+            <div className="text-center py-16 text-gray-600">
+              <Clock3 size={48} className="mx-auto mb-4 opacity-20" />
+              <p>Nenhuma venda pendente no momento.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {vendasPendentes.map(venda => (
-                <div key={venda.id} className="bg-white p-4 rounded-xl border border-amber-100 shadow-sm">
-                  <div className="flex justify-between items-start mb-3">
+                <div key={venda.id} className="bg-[#18181b] p-5 rounded-2xl border border-amber-500/20 shadow-lg">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <div className="font-bold text-gray-800">Venda #{venda.numero_venda}</div>
-                      <div className="text-xs text-gray-500">{new Date(venda.created_at).toLocaleString()}</div>
-                      {venda.clientes && <div className="text-sm text-amber-700 mt-1 font-medium">{venda.clientes.nome}</div>}
+                      <div className="font-bold text-white text-lg">Venda #{venda.numero_venda}</div>
+                      <div className="text-xs text-gray-500 mt-1">{new Date(venda.created_at).toLocaleString()}</div>
+                      {venda.clientes && <div className="text-sm text-amber-400 mt-2 font-medium bg-amber-500/10 w-fit px-2 py-1 rounded-md">{venda.clientes.nome}</div>}
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg">R$ {(venda.total || 0).toFixed(2)}</div>
-                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Pendente</span>
+                      <div className="font-bold text-2xl text-emerald-400">R$ {(venda.total || 0).toFixed(2)}</div>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md uppercase font-bold mt-1 inline-block">Pendente</span>
                     </div>
                   </div>
-                  <div className="flex gap-2 border-t pt-3">
-                    <button onClick={() => onRecuperar(venda)} className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2">
-                      <RefreshCw size={14} /> Recuperar Venda
+                  <div className="flex gap-3 border-t border-white/5 pt-4">
+                    <button onClick={() => onRecuperar(venda)} className="flex-1 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                      <RefreshCw size={16} /> Recuperar Venda
                     </button>
                     {venda.clientes && (
-                      <button onClick={() => onUsarCliente(venda.clientes)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                      <button onClick={() => onUsarCliente(venda.clientes)} className="px-5 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold transition-colors">
                         Usar Cliente
                       </button>
                     )}
@@ -181,7 +199,8 @@ export const VendasPendentesModal = ({ aberto, onClose, vendasPendentes = [], on
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -191,119 +210,92 @@ export const EditarPrecoModal = ({ aberto, onClose, item, onSalvar }) => {
 
   if (!aberto || !item) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
-        <h3 className="font-bold text-lg mb-1">Editar Preço</h3>
-        <p className="text-gray-500 text-sm mb-4">{item.nome}</p>
-        <input 
-          type="number" 
-          value={preco} 
-          onChange={e => setPreco(e.target.value)} 
-          className="w-full p-3 border rounded-xl mb-4 text-lg font-bold text-center focus:ring-2 focus:ring-purple-500 outline-none"
-          autoFocus
-        />
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium">Cancelar</button>
-          <button onClick={() => { onSalvar(item.id, Number(preco)); onClose(); }} className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold">Salvar</button>
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 z-[99999] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-[#18181b] border border-white/10 rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+        <h3 className="font-bold text-xl text-white mb-1">Editar Preço</h3>
+        <p className="text-gray-400 text-sm mb-6">{item.nome}</p>
+        
+        <div className="relative mb-6">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span>
+          <input 
+            type="number" 
+            value={preco} 
+            onChange={e => setPreco(e.target.value)} 
+            className="w-full py-4 pl-12 pr-4 bg-[#09090b] border border-white/10 rounded-2xl text-2xl font-bold text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all"
+            autoFocus
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-xl text-white font-bold transition-colors">Cancelar</button>
+          <button onClick={() => { onSalvar(item.id, Number(preco)); onClose(); }} className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-purple-900/30">Salvar</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
 // ============================================================================
-// MODAL DE SUCESSO / WHATSAPP / PDF (SUPER ATUALIZADO)
+// MODAL DE SUCESSO / WHATSAPP / PDF
 // ============================================================================
 export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
   if (!aberto || !dadosVenda) return null;
 
   const { cliente, total, carrinho, vendaId, subtotal, desconto, formaPagamento } = dadosVenda;
 
-  // --- Função que DESENHA o PDF na memória (mas não baixa ainda) ---
   const construirPDF = () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
     let y = 10; 
 
     doc.setFont('courier', 'bold');
     doc.setFontSize(12);
-    doc.text('LUNI SISTEMA', 40, y, { align: 'center' });
-    y += 5;
-    doc.setFontSize(8);
-    doc.setFont('courier', 'normal');
-    doc.text('Comprovante de Venda', 40, y, { align: 'center' });
-    y += 6;
-    doc.text('--------------------------------', 40, y, { align: 'center' });
-    y += 5;
-    doc.text(`DATA: ${new Date().toLocaleString()}`, 5, y);
-    y += 4;
-    doc.text(`VENDA: #${vendaId?.toString().slice(0, 8) || '000'}`, 5, y);
-    y += 6;
+    doc.text('LUNI SISTEMA', 40, y, { align: 'center' }); y += 5;
+    doc.setFontSize(8); doc.setFont('courier', 'normal');
+    doc.text('Comprovante de Venda', 40, y, { align: 'center' }); y += 6;
+    doc.text('--------------------------------', 40, y, { align: 'center' }); y += 5;
+    doc.text(`DATA: ${new Date().toLocaleString()}`, 5, y); y += 4;
+    doc.text(`VENDA: #${vendaId?.toString().slice(0, 8) || '000'}`, 5, y); y += 6;
 
     if (cliente) {
-      doc.text(`CLIENTE: ${cliente.nome.toUpperCase().substring(0, 30)}`, 5, y);
-      y += 4;
-      if (cliente.telefone) {
-        doc.text(`TEL: ${cliente.telefone}`, 5, y);
-        y += 4;
-      }
+      doc.text(`CLIENTE: ${cliente.nome.toUpperCase().substring(0, 30)}`, 5, y); y += 4;
+      if (cliente.telefone) { doc.text(`TEL: ${cliente.telefone}`, 5, y); y += 4; }
     } else {
-      doc.text('CLIENTE: CONSUMIDOR FINAL', 5, y);
-      y += 4;
+      doc.text('CLIENTE: CONSUMIDOR FINAL', 5, y); y += 4;
     }
-    doc.text('--------------------------------', 40, y, { align: 'center' });
-    y += 5;
-    doc.setFont('courier', 'bold');
-    doc.text('ITEM  QTD   TOTAL', 5, y);
-    y += 4;
+    doc.text('--------------------------------', 40, y, { align: 'center' }); y += 5;
+    doc.setFont('courier', 'bold'); doc.text('ITEM  QTD   TOTAL', 5, y); y += 4;
     doc.setFont('courier', 'normal');
 
     carrinho.forEach((item, index) => {
       const nomeProduto = item.nome.toUpperCase().substring(0, 25); 
-      doc.text(`${index + 1} ${nomeProduto}`, 5, y);
-      y += 4;
+      doc.text(`${index + 1} ${nomeProduto}`, 5, y); y += 4;
       const valTotalItem = (item.qtd * item.preco_venda).toFixed(2);
       const linhaValores = `${item.qtd}x R$${item.preco_venda.toFixed(2)} = R$${valTotalItem}`;
-      doc.text(linhaValores, 10, y); 
-      y += 4;
+      doc.text(linhaValores, 10, y); y += 4;
     });
 
-    doc.text('--------------------------------', 40, y, { align: 'center' });
-    y += 5;
+    doc.text('--------------------------------', 40, y, { align: 'center' }); y += 5;
     doc.setFont('courier', 'bold');
     
-    if (subtotal) {
-        doc.text(`SUBTOTAL:     R$ ${subtotal.toFixed(2)}`, 75, y, { align: 'right' });
-        y += 4;
-    }
-    if (desconto && desconto > 0) {
-      doc.text(`DESCONTO:    -R$ ${desconto.toFixed(2)}`, 75, y, { align: 'right' });
-      y += 4;
-    }
+    if (subtotal) { doc.text(`SUBTOTAL:     R$ ${subtotal.toFixed(2)}`, 75, y, { align: 'right' }); y += 4; }
+    if (desconto && desconto > 0) { doc.text(`DESCONTO:    -R$ ${desconto.toFixed(2)}`, 75, y, { align: 'right' }); y += 4; }
 
-    doc.setFontSize(10);
-    doc.text(`TOTAL: R$ ${total.toFixed(2)}`, 75, y, { align: 'right' });
-    y += 6;
-    doc.setFontSize(8);
-    doc.setFont('courier', 'normal');
-    doc.text(`PAGAMENTO: ${formaPagamento?.toUpperCase() || 'DINHEIRO'}`, 5, y);
-    y += 8;
-    doc.text('Obrigado pela preferencia!', 40, y, { align: 'center' });
-    y += 6;
-    doc.setFontSize(6);
-    doc.text('Gerado via Luni App', 40, y, { align: 'center' });
+    doc.setFontSize(10); doc.text(`TOTAL: R$ ${total.toFixed(2)}`, 75, y, { align: 'right' }); y += 6;
+    doc.setFontSize(8); doc.setFont('courier', 'normal');
+    doc.text(`PAGAMENTO: ${formaPagamento?.toUpperCase() || 'DINHEIRO'}`, 5, y); y += 8;
+    doc.text('Obrigado pela preferencia!', 40, y, { align: 'center' }); y += 6;
+    doc.setFontSize(6); doc.text('Gerado via Luni App', 40, y, { align: 'center' });
 
     return doc;
   };
 
-  // --- Função do Botão "Imprimir/Abrir PDF" ---
   const abrirOuBaixarPDF = () => {
     const doc = construirPDF();
-    // Em vez de baixar direto, abre em uma nova aba para visualização
     window.open(doc.output('bloburl'), '_blank');
   };
 
-  // --- Função do Botão "Enviar no WhatsApp" ---
   const compartilharPDFnoWhatsApp = async () => {
     if (!cliente?.telefone) {
       alert("Este cliente não possui telefone cadastrado.");
@@ -311,11 +303,9 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
     }
 
     const doc = construirPDF();
-    // Pega o arquivo cru na memória
     const pdfBlob = doc.output('blob');
     const arquivoPdf = new File([pdfBlob], `comprovante_${vendaId || 'luni'}.pdf`, { type: 'application/pdf' });
 
-    // TENTA ENVIAR O ARQUIVO DIRETO (Funciona perfeitamente em Celulares iOS/Android)
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivoPdf] })) {
       try {
         await navigator.share({
@@ -323,65 +313,61 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
           text: `Olá ${cliente.nome}, muito obrigado pela preferência! Aqui está o seu comprovante.`,
           files: [arquivoPdf]
         });
-        return; // Sucesso! Finaliza aqui.
+        return; 
       } catch (error) {
         console.log('Compartilhamento cancelado ou falhou', error);
         return;
       }
     }
 
-    // FALLBACK: Se estiver no Computador (Onde o Chrome/Windows às vezes bloqueia arquivo direto)
     alert("No computador, o comprovante será baixado para você anexar na conversa.");
-    doc.save(`comprovante_${vendaId || 'luni'}.pdf`); // Força o download
+    doc.save(`comprovante_${vendaId || 'luni'}.pdf`);
     
-    // E abre a conversa de texto
     const telefone = cliente.telefone.replace(/\D/g, '');
     const mensagem = `Olá ${cliente.nome}, muito obrigado pela preferência! Estou te enviando o comprovante da compra em anexo.`;
     const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(link, '_blank');
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 flex flex-col items-center text-center">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 z-[99999] flex items-end sm:items-center justify-center p-4 backdrop-blur-md">
+      <div className="bg-[#18181b] border border-white/10 rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 flex flex-col items-center text-center relative overflow-hidden">
         
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle size={40} className="text-green-600" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-400"></div>
+
+        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6 ring-1 ring-green-500/30">
+          <CheckCircle size={40} className="text-green-500" />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Venda Realizada!</h2>
-        <p className="text-gray-500 mb-6">O pagamento foi confirmado.</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Venda Realizada!</h2>
+        <p className="text-gray-400 mb-8 text-sm">O pagamento foi confirmado com sucesso.</p>
 
         <div className="w-full space-y-3">
              <button 
               onClick={abrirOuBaixarPDF}
-              className="w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+              className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/10 transition-all active:scale-95"
             >
-              <Printer size={20} />
-              Visualizar Comprovante
+              <Printer size={20} /> Visualizar Comprovante
             </button>
 
             {cliente ? (
               <button 
                 onClick={compartilharPDFnoWhatsApp}
-                className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-200 transition-all active:scale-95"
+                className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-green-900/20 transition-all active:scale-95"
               >
-                <MessageCircle size={20} />
-                Enviar no WhatsApp
+                <MessageCircle size={22} /> Enviar no WhatsApp
               </button>
             ) : (
-              <p className="text-xs text-gray-400">Cliente não identificado para envio de WhatsApp.</p>
+              <div className="w-full p-3 bg-white/5 rounded-2xl text-gray-500 text-xs border border-white/5">Cliente não identificado para envio.</div>
             )}
         </div>
 
-        <button 
-          onClick={onClose} 
-          className="mt-6 text-gray-400 hover:text-gray-600 font-medium text-sm underline"
-        >
-          Fechar e Iniciar Nova Venda
+        <button onClick={onClose} className="mt-6 py-2 px-4 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 font-medium text-sm transition-colors">
+          Fechar Janela
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -391,57 +377,18 @@ export const VendaConcluidaModal = ({ aberto, onClose, dadosVenda }) => {
 // ============================================================================
 
 export const PDVModals = ({
-  modalState,
-  onClose,
-  onFinalizarPagamento,
-  onRecuperarVenda,
-  onUsarCliente,
-  onSalvarPreco,
-  setCliente, 
-  totalPagamento,
-  processandoPagamento,
-  vendasPendentes,
+  modalState, onClose, onFinalizarPagamento, onRecuperarVenda,
+  onUsarCliente, onSalvarPreco, setCliente, totalPagamento, processandoPagamento, vendasPendentes,
 }) => {
-  
   const { view, dados, isOpen } = modalState || {};
 
   return (
     <>
-      <PagamentoModal
-        aberto={isOpen && view === 'pagamento'}
-        onClose={onClose}
-        total={totalPagamento}
-        onFinalizar={onFinalizarPagamento}
-        processando={processandoPagamento}
-      />
-
-      <ClientesSelectionModal 
-        aberto={isOpen && view === 'selecionar-cliente'}
-        onClose={onClose}
-        onSelecionar={setCliente}
-      />
-
-      <VendasPendentesModal
-        aberto={isOpen && view === 'vendas-pendentes'}
-        onClose={onClose}
-        vendasPendentes={vendasPendentes}
-        onRecuperar={onRecuperarVenda}
-        onUsarCliente={onUsarCliente}
-      />
-
-      <EditarPrecoModal
-        key={dados?.id || 'editor'}
-        aberto={isOpen && view === 'editar-preco'}
-        onClose={onClose}
-        item={dados}
-        onSalvar={onSalvarPreco}
-      />
-
-      <VendaConcluidaModal
-        aberto={isOpen && view === 'sucesso'}
-        onClose={onClose}
-        dadosVenda={dados} 
-      />
+      <PagamentoModal aberto={isOpen && view === 'pagamento'} onClose={onClose} total={totalPagamento} onFinalizar={onFinalizarPagamento} processando={processandoPagamento} />
+      <ClientesSelectionModal aberto={isOpen && view === 'selecionar-cliente'} onClose={onClose} onSelecionar={setCliente} />
+      <VendasPendentesModal aberto={isOpen && view === 'vendas-pendentes'} onClose={onClose} vendasPendentes={vendasPendentes} onRecuperar={onRecuperarVenda} onUsarCliente={onUsarCliente} />
+      <EditarPrecoModal key={dados?.id || 'editor'} aberto={isOpen && view === 'editar-preco'} onClose={onClose} item={dados} onSalvar={onSalvarPreco} />
+      <VendaConcluidaModal aberto={isOpen && view === 'sucesso'} onClose={onClose} dadosVenda={dados} />
     </>
   );
 };

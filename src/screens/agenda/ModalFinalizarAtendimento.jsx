@@ -1,58 +1,143 @@
 // src/screens/agenda/ModalFinalizarAtendimento.jsx
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom'; 
-import { X, CheckCircle, Search, Package, Trash2, Loader2, User, Scissors, Beaker, ClipboardEdit, Sparkles } from 'lucide-react';
+import { X, CheckCircle, Search, Package, Trash2, Loader2, User, Scissors, Beaker, ClipboardEdit, Sparkles, MessageCircle, FileText } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 
-// --- Componente Interno: Modal de Sucesso ---
+// 🚀 AQUI ESTÁ A PRIMEIRA CORREÇÃO: Importação segura do gerador de PDF
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; 
+
+// --- Componente Interno: Modal de Sucesso com PDF ---
 const ModalSucessoAgenda = ({ isOpen, onClose, dados }) => {
   if (!isOpen || !dados) return null;
 
-  const { cliente_nome, telefone, servico, total, itens, profissional } = dados;
+  const { cliente_nome, telefone, servico, valor_servico, total, itens, profissional } = dados;
+
+  // Função Mágica que desenha o PDF
+  const gerarPDF = () => {
+    try {
+      const doc = new jsPDF();
+      
+      // 🚀 Proteções extras caso falte algum dado
+      const nomeSeguro = cliente_nome || 'Cliente';
+      const profSeguro = profissional || 'Equipe';
+      const servicoSeguro = servico || 'Atendimento';
+      const valServ = Number(valor_servico) || 0;
+      const valTot = Number(total) || 0;
+
+      // Cabeçalho do Salão
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(91, 46, 255); // Roxo Luni
+      doc.text("COMPROVANTE DE ATENDIMENTO", 105, 20, { align: "center" });
+
+      // Informações do Cliente
+      doc.setFontSize(11);
+      doc.setTextColor(50, 50, 50);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`, 14, 35);
+      doc.text(`Cliente: ${nomeSeguro}`, 14, 42);
+      doc.text(`Profissional: ${profSeguro}`, 14, 49);
+
+      // Preparando os dados da Tabela
+      const tableColumn = ["Descrição", "Tipo", "Valor"];
+      const tableRows = [];
+
+      // Adiciona o Serviço na tabela
+      tableRows.push([servicoSeguro, "Serviço", `R$ ${valServ.toFixed(2)}`]);
+
+      // Adiciona os Produtos na tabela
+      if (itens && itens.length > 0) {
+        itens.forEach(item => {
+          tableRows.push([item.nome, "Produto", `R$ ${Number(item.preco_venda || item.preco || 0).toFixed(2)}`]);
+        });
+      }
+
+      // 🚀 SEGUNDA CORREÇÃO: Usando a tabela do jeito que o Vite aceita sem travar
+      autoTable(doc, {
+        startY: 60,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [91, 46, 255], textColor: [255, 255, 255] },
+        styles: { fontSize: 10, cellPadding: 4 },
+      });
+
+      // Totalizador
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 60;
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL PAGO: R$ ${valTot.toFixed(2)}`, 14, finalY + 15);
+
+      // Rodapé
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(120, 120, 120);
+      doc.text("Obrigado pela preferência! Volte sempre. ✨", 105, finalY + 30, { align: "center" });
+
+      // Baixa o arquivo
+      const nomeArquivo = `Recibo_${nomeSeguro.replace(/\s+/g, '_')}.pdf`;
+      doc.save(nomeArquivo);
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      alert("Ocorreu um erro ao gerar o PDF. Verifique o console.");
+    }
+  };
 
   const enviarWhatsApp = () => {
     if (!telefone) {
       alert("Cliente sem telefone cadastrado.");
       return;
     }
-
-    const num = telefone.replace(/\D/g, '');
-    let mensagem = `*COMPROVANTE DE ATENDIMENTO*\n\n`;
-    mensagem += `Olá ${cliente_nome}, tudo bem?\n`;
-    mensagem += `Aqui está o resumo do seu atendimento com *${profissional}*:\n\n`;
-    mensagem += `✅ *Serviço:* ${servico}\n`;
     
-    if (itens && itens.length > 0) {
-      mensagem += `🛍️ *Produtos Comprados:*\n`;
-      itens.forEach(item => {
-        mensagem += `   • ${item.nome} (R$ ${Number(item.preco_venda || item.preco || 0).toFixed(2)})\n`;
-      });
-    }
+    gerarPDF(); // Primeiro baixa o PDF
 
-    mensagem += `\n💰 *Total: R$ ${total.toFixed(2)}*\n\n`;
-    mensagem += `Obrigado pela preferência! Volte sempre. ✨`;
-
-    window.open(`https://wa.me/55${num}?text=${encodeURIComponent(mensagem)}`, '_blank');
+    // Depois abre o WhatsApp com a mensagem
+    const num = String(telefone).replace(/\D/g, '');
+    const nomeSeguro = cliente_nome ? cliente_nome.split(' ')[0] : 'Cliente';
+    const mensagem = `Olá ${nomeSeguro}! ✨\n\nFoi um prazer te receber hoje. Segue em anexo o seu *Comprovante de Atendimento*.\n\nQualquer dúvida, estamos à disposição!`;
+    
+    setTimeout(() => {
+      window.open(`https://wa.me/55${num}?text=${encodeURIComponent(mensagem)}`, '_blank');
+    }, 1000); // Espera 1 segundo para o download terminar
   };
 
+  // 🚀 TERCEIRA CORREÇÃO: style={{ zIndex: 99999 }} Força o modal a ficar na frente do vidro invisível!
   return createPortal(
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[10000] flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300" style={{ zIndex: 99999 }}>
       <div className="bg-[#18181b] border border-white/10 w-full max-w-sm rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-400"></div>
         <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6 ring-1 ring-green-500/30">
           <CheckCircle size={40} className="text-green-500" />
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">Sucesso!</h2>
-        <p className="text-gray-400 text-sm mb-8 leading-relaxed">Atendimento finalizado.<br/>Deseja enviar o comprovante?</p>
+        <p className="text-gray-400 text-sm mb-8 leading-relaxed">Atendimento salvo com sucesso.<br/>Escolha como enviar o recibo:</p>
 
-        {telefone ? (
-          <button onClick={enviarWhatsApp} className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 mb-4 shadow-lg shadow-green-900/20">
-            <MessageCircle size={22} /> Enviar no WhatsApp
+        <div className="flex flex-col gap-3 w-full mb-4">
+          {telefone ? (
+            <button onClick={enviarWhatsApp} className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-green-900/20">
+              <MessageCircle size={22} /> WhatsApp + PDF
+            </button>
+          ) : (
+            <div className="w-full p-3 bg-white/5 rounded-2xl text-gray-500 text-sm border border-white/5">Sem telefone cadastrado.</div>
+          )}
+          
+          <button onClick={gerarPDF} className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all border border-white/10">
+            <FileText size={18} /> Apenas Baixar PDF
           </button>
-        ) : (
-          <div className="w-full p-4 bg-white/5 rounded-2xl text-gray-500 text-sm mb-4 border border-white/5">Sem telefone cadastrado.</div>
-        )}
-        <button onClick={onClose} className="text-gray-500 hover:text-white text-sm font-medium py-2 px-4 rounded-xl hover:bg-white/5 transition-colors">Fechar Janela</button>
+        </div>
+
+        <button 
+          onClick={() => {
+            if (dados.onSuccess) dados.onSuccess();
+            onClose();
+          }} 
+          className="text-gray-500 hover:text-white text-sm font-medium py-2 px-4 rounded-xl hover:bg-white/5 transition-colors mt-2"
+        >
+          Fechar Janela
+        </button>
       </div>
     </div>,
     document.body
@@ -69,7 +154,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
   const [listaProdutos, setListaProdutos] = useState([]);
   const [buscaProdutoVenda, setBuscaProdutoVenda] = useState('');
   const [carrinhoVenda, setCarrinhoVenda] = useState([]);
-  const [dropdownVendaAberto, setDropdownVendaAberto] = useState(false); // 🚀 NOVO CONTROLE DE UI
+  const [dropdownVendaAberto, setDropdownVendaAberto] = useState(false);
   
   // Anamnese e Consumo Interno
   const [abrirAnamnese, setAbrirAnamnese] = useState(false);
@@ -77,7 +162,7 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
   const [buscaProdutoConsumo, setBuscaProdutoConsumo] = useState('');
   const [carrinhoConsumo, setCarrinhoConsumo] = useState([]);
   const [categoriaSugerida, setCategoriaSugerida] = useState('');
-  const [dropdownConsumoAberto, setDropdownConsumoAberto] = useState(false); // 🚀 NOVO CONTROLE DE UI
+  const [dropdownConsumoAberto, setDropdownConsumoAberto] = useState(false);
 
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
 
@@ -107,7 +192,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
           if (u) setSalaoId(u.salao_id);
         }
 
-        // 🚀 CORREÇÃO 1: Buscando pela coluna 'quantidade_atual' em vez de 'estoque'
         const { data: prods } = await supabase
           .from('produtos')
           .select('*')
@@ -134,7 +218,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
     }
   }, [isOpen, agendamento]);
 
-  // 🚀 CORREÇÃO 2: IA de Categorias melhorada para incluir a sua categoria "Progressiva"
   const sugerirCategoriaProduto = (nomeServico) => {
     const s = (nomeServico || '').toLowerCase();
     if (s.includes('color') || s.includes('mecha') || s.includes('luzes') || s.includes('tinta') || s.includes('retoque')) return 'Tintura';
@@ -149,14 +232,12 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
 
   const nomeProfissional = agendamento.profissionais?.nome || agendamento.profissional_nome || 'Profissional';
 
-  // --- AÇÕES DO CARRINHO DE VENDA ---
   const adicionarVenda = (produto) => {
     setCarrinhoVenda([...carrinhoVenda, { ...produto, qtd: 1 }]);
     setBuscaProdutoVenda('');
     setDropdownVendaAberto(false);
   };
 
-  // --- AÇÕES DO CONSUMO INTERNO (ANAMNESE) ---
   const adicionarConsumo = (produto) => {
     setCarrinhoConsumo([...carrinhoConsumo, { produto, quantidade_usada: '' }]);
     setBuscaProdutoConsumo('');
@@ -172,7 +253,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
   const valorServicoNum = valorServico === '' ? 0 : Number(valorServico);
   const totalGeral = valorServicoNum + carrinhoVenda.reduce((acc, item) => acc + (Number(item.preco_venda) || Number(item.preco) || 0), 0);
 
-  // --- O SALVAMENTO DEFINITIVO ---
   const handleFinalizar = async () => {
     setLoading(true);
     try {
@@ -184,14 +264,12 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
         valor: valorServicoNum 
       }).eq('id', agendamento.id);
 
-      // Desconta produtos de Revenda (Coluna corrigida para quantidade_atual)
       for (const item of carrinhoVenda) {
         await supabase.from('produtos')
           .update({ quantidade_atual: Math.max(0, (item.quantidade_atual || 0) - 1) })
           .eq('id', item.id);
       }
 
-      // Salva Ficha e Baixa Consumo
       if (anotacoes || carrinhoConsumo.length > 0) {
         const { data: fichaData, error: fichaError } = await supabase.from('fichas_anamnese').insert([{
           salao_id: salaoId,
@@ -220,7 +298,6 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
       }
 
       setModalSucessoOpen(true);
-      onSuccess(); 
     } catch (err) { 
       alert('Erro: ' + err.message); 
     } finally { 
@@ -228,18 +305,17 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
     }
   };
 
-  // 🚀 LÓGICA DE FILTRO MELHORADA PARA VENDA E CONSUMO
   const produtosVendaFiltrados = listaProdutos.filter(p => p.nome.toLowerCase().includes(buscaProdutoVenda.trim().toLowerCase()));
   
   const produtosConsumoFiltrados = listaProdutos.filter(p => {
     const termo = buscaProdutoConsumo.trim().toLowerCase();
-    if (termo) return p.nome.toLowerCase().includes(termo); // Se digitou algo, varre tudo
-    if (categoriaSugerida) return p.categoria?.toLowerCase() === categoriaSugerida.toLowerCase(); // Se não digitou, mostra sugestão
-    return true; // Mostra tudo
+    if (termo) return p.nome.toLowerCase().includes(termo); 
+    if (categoriaSugerida) return p.categoria?.toLowerCase() === categoriaSugerida.toLowerCase(); 
+    return true; 
   });
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200" style={{ zIndex: 99990 }}>
       
       <div className="bg-[#18181b] w-full sm:max-w-md sm:rounded-[32px] rounded-t-[32px] border border-white/10 shadow-2xl relative flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300 overflow-hidden" style={{ maxHeight: '95dvh' }}>
         
@@ -454,9 +530,11 @@ export const ModalFinalizarAtendimento = ({ isOpen, onClose, agendamento, onSucc
             cliente_nome: agendamento.cliente_nome || agendamento.clientes?.nome,
             telefone: agendamento.telefone || agendamento.clientes?.telefone,
             servico: agendamento.servico,
+            valor_servico: valorServicoNum, 
             total: totalGeral,
             itens: carrinhoVenda, 
-            profissional: nomeProfissional 
+            profissional: nomeProfissional,
+            onSuccess: onSuccess 
         }}
       />
     </div>,

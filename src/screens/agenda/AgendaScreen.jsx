@@ -14,7 +14,7 @@ import {
   XCircle, Trash2, User, FlaskConical, Beaker, ClipboardList
 } from 'lucide-react';
 
-// --- NOVO COMPONENTE: Modal Rápido de Anamnese ---
+// --- COMPONENTE: Modal Rápido de Anamnese ---
 const AnamneseRapidaModal = ({ isOpen, onClose, clienteId, clienteNome }) => {
   const [fichas, setFichas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +49,6 @@ const AnamneseRapidaModal = ({ isOpen, onClose, clienteId, clienteNome }) => {
         style={{ maxHeight: '90dvh' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex justify-between items-start p-6 border-b border-white/5 bg-[#18181b] shrink-0">
           <div>
              <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -62,7 +61,6 @@ const AnamneseRapidaModal = ({ isOpen, onClose, clienteId, clienteNome }) => {
           </button>
         </div>
 
-        {/* Conteúdo */}
         <div className="overflow-y-auto flex-1 p-6 space-y-4 custom-scrollbar bg-[#09090b]">
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 className="animate-spin text-purple-500" size={30}/></div>
@@ -131,7 +129,6 @@ export const AgendaScreen = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [agendamentoCheckout, setAgendamentoCheckout] = useState(null);
   
-  // 🚀 ESTADO PARA O MODAL DE ANAMNESE
   const [modalAnamnese, setModalAnamnese] = useState({ open: false, clienteId: null, clienteNome: '' });
 
   const fetchDados = async () => {
@@ -184,7 +181,10 @@ export const AgendaScreen = () => {
     const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour12: false }).slice(0, 5);
 
     if (visualizacao === 'proximos') {
-      const futuros = res.filter(a => {
+      // 🚀 A MÁGICA DA LIMPEZA: Oculta Concluídos e Cancelados na aba "Próximos"
+      const agendamentosPendentes = res.filter(a => a.status !== 'concluido' && a.status !== 'cancelado');
+
+      const futuros = agendamentosPendentes.filter(a => {
         if (!a.data) return false;
         const dataItem = a.data.substring(0, 10);
         return dataItem > hojeStr || (dataItem === hojeStr && (a.horario || '00:00') >= agoraHora);
@@ -194,7 +194,8 @@ export const AgendaScreen = () => {
       trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
       const dataLimite = getDataLocal(trintaDiasAtras);
 
-      const passadosRecentes = res.filter(a => {
+      // Pega os que ficaram para trás (esquecidos) mas que não foram cancelados ou concluídos
+      const passadosRecentes = agendamentosPendentes.filter(a => {
         if (!a.data) return false;
         const dataItem = a.data.substring(0, 10);
         return dataItem >= dataLimite && dataItem < hojeStr;
@@ -253,7 +254,6 @@ export const AgendaScreen = () => {
   const removerBloqueio = async (id) => { if (confirm('Remover bloqueio?')) { await supabase.from('agendamentos').delete().eq('id', id); fetchDados(); } setMenuAberto(null); };
   const remarcarAgendamento = (agendamento) => { setAgendamentoSelecionado(agendamento); setIsRemarcarOpen(true); setMenuAberto(null); };
   
-  // 🚀 FUNÇÃO PARA ABRIR A ANAMNESE
   const abrirAnamnese = (agendamento) => {
     setModalAnamnese({ 
       open: true, 
@@ -294,7 +294,6 @@ export const AgendaScreen = () => {
       <RemarcarModal isOpen={isRemarcarOpen} onClose={() => setIsRemarcarOpen(false)} onSuccess={fetchDados} agendamento={agendamentoSelecionado} />
       <ModalFinalizarAtendimento isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} agendamento={agendamentoCheckout} onSuccess={() => { fetchDados(); setIsCheckoutOpen(false); }} />
       
-      {/* 🚀 Renderizando o Modal de Anamnese */}
       <AnamneseRapidaModal 
         isOpen={modalAnamnese.open} 
         onClose={() => setModalAnamnese({ ...modalAnamnese, open: false })} 
@@ -304,7 +303,6 @@ export const AgendaScreen = () => {
 
       <div className="w-full max-w-[1600px] mx-auto px-4 pt-6 md:px-8 md:pt-10 animate-in fade-in duration-500">
         
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-1">Agenda</h1>
@@ -428,7 +426,9 @@ export const AgendaScreen = () => {
           ) : agendamentosFiltrados.length === 0 ? (
             <div className="col-span-full py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-3xl bg-[#18181b]/50">
               <CalendarDays size={40} className="text-gray-600 mb-3 opacity-50"/>
-              <p className="text-gray-500 font-medium">Nenhum agendamento encontrado</p>
+              <p className="text-gray-500 font-medium">
+                {visualizacao === 'proximos' ? 'Sua agenda de próximos está limpa!' : 'Nenhum agendamento encontrado'}
+              </p>
             </div>
           ) : (
             agendamentosFiltrados.map(item => (
@@ -473,7 +473,6 @@ export const AgendaScreen = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         {getStatusBadge(item.status)}
                         
-                        {/* 🚀 BOTÃO RÁPIDO: Anamnese direto no Card */}
                         {item.status !== 'bloqueado' && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); abrirAnamnese(item); }}
@@ -503,7 +502,6 @@ export const AgendaScreen = () => {
                               <>
                                 {item.status === 'agendado' && <button onClick={() => confirmarAgendamento(item.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-green-500/10 text-green-400 text-sm border-b border-white/5"><Check size={16}/> Confirmar</button>}
                                 
-                                {/* 🚀 OPÇÃO NO MENU: Ver Ficha Química */}
                                 <button onClick={() => abrirAnamnese(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-purple-500/10 text-purple-400 text-sm border-b border-white/5"><FlaskConical size={16}/> Ficha Química</button>
 
                                 {(item.status === 'agendado' || item.status === 'confirmado') && <button onClick={() => abrirCheckout(item)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 text-blue-400 text-sm border-b border-white/5"><CheckCheck size={16}/> Concluir Serviço</button>}

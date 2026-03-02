@@ -1,7 +1,7 @@
 import React from 'react';
 import { Trophy, Crown } from 'lucide-react';
 
-export const Rankings = ({ clientes }) => {
+export const Rankings = ({ clientes, onSelect }) => { // 🚀 AQUI: Adicionamos o recebedor do clique
   
   // Função segura de formatação
   const formatMoney = (val) => {
@@ -19,7 +19,11 @@ export const Rankings = ({ clientes }) => {
     .slice(0, 3);
 
   const RankingRow = ({ cliente, index, colorClass, valor }) => (
-    <div className="flex items-center justify-between p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors rounded-lg">
+    // 🚀 AQUI: O card virou um botão clicável
+    <div 
+      onClick={() => onSelect && onSelect(cliente)}
+      className="flex items-center justify-between p-3 border-b border-white/5 last:border-0 hover:bg-white/10 transition-colors rounded-lg cursor-pointer"
+    >
       <div className="flex items-center gap-3">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-lg ${
           index === 0 

@@ -1,7 +1,7 @@
 // src/screens/financeiro/estoque/ProdutoModal.jsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Loader2, Package, DollarSign, Hash, Tag, Scale } from 'lucide-react';
+import { X, Save, Loader2, Package, DollarSign, Hash, Tag, Scale, ShoppingBag } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 
 export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
@@ -9,7 +9,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
   const [salaoId, setSalaoId] = useState(null);
   const [categorias, setCategorias] = useState([]);
   
-  // NOVO ESTADO: Controla se o usuário quer digitar uma categoria nova
+  // Controle se o usuário quer digitar uma categoria nova
   const [isNovaCategoria, setIsNovaCategoria] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -21,7 +21,8 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
     quantidade_atual: '0',
     descricao: '',
     capacidade_medida: '1', 
-    unidade_medida: 'un'
+    unidade_medida: 'un',
+    exibir_pdv: false // 🚀 NOVO CAMPO: Define se o produto vai pra vitrine do PDV
   });
 
   useEffect(() => {
@@ -35,7 +36,8 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         quantidade_atual: produto.quantidade_atual?.toString() || '0',
         descricao: produto.descricao || '',
         capacidade_medida: produto.capacidade_medida?.toString() || '1',
-        unidade_medida: produto.unidade_medida || 'un'
+        unidade_medida: produto.unidade_medida || 'un',
+        exibir_pdv: produto.exibir_pdv ?? false // 🚀 Puxa do banco se existir, se não, false
       });
     } else {
       setFormData({
@@ -47,7 +49,8 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         quantidade_atual: '0',
         descricao: '',
         capacidade_medida: '1',
-        unidade_medida: 'un'
+        unidade_medida: 'un',
+        exibir_pdv: false // Por padrão, não vai pro PDV (ideal para químicas)
       });
     }
     // Sempre reseta o modo de "nova categoria" ao abrir a tela
@@ -108,6 +111,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         ativo: true,
         capacidade_medida: parseFloat(formData.capacidade_medida) || 1,
         unidade_medida: formData.unidade_medida,
+        exibir_pdv: formData.exibir_pdv, // 🚀 SALVA O INTERRUPTOR NO BANCO
         ...(produto ? {} : { data_criacao: new Date().toISOString() })
       };
 
@@ -141,7 +145,6 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
     return ((venda - custo) / custo * 100).toFixed(1);
   };
 
-  // Lógica para lidar com a seleção da categoria
   const handleCategoriaChange = (e) => {
     if (e.target.value === 'nova_categoria') {
       setIsNovaCategoria(true);
@@ -155,13 +158,12 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
 
   const margem = calcularMargem();
   
-  // Junta as categorias padrão com as do banco e remove duplicadas
   const categoriasBase = ['Shampoo', 'Condicionador', 'Tratamento', 'Tintura', 'Creme', 'Óleo'];
   const listaCategoriasFinal = [...new Set([...categoriasBase, ...categorias])].sort();
 
   return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
-      <div className="bg-gray-900 border border-gray-700 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden relative">
+      <div className="bg-gray-900 border border-gray-700 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -183,7 +185,29 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          <div className="space-y-1.5">
+          
+          {/* 🚀 O INTERRUPTOR DO PDV VAI AQUI, EM DESTAQUE! */}
+          <div 
+            className="bg-gray-800/40 border border-purple-500/20 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-gray-800/60 transition-colors"
+            onClick={() => setFormData({...formData, exibir_pdv: !formData.exibir_pdv})}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${formData.exibir_pdv ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-800 text-gray-500'}`}>
+                <ShoppingBag size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Vender no PDV (Vitrine)</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Ative apenas para produtos de Revenda (Home Care)</p>
+              </div>
+            </div>
+            
+            {/* Toggle Switch Visual */}
+            <div className={`w-11 h-6 rounded-full transition-colors relative ${formData.exibir_pdv ? 'bg-purple-600' : 'bg-gray-700'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${formData.exibir_pdv ? 'left-6' : 'left-1'}`} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-2">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
               Nome do Produto*
             </label>
@@ -201,7 +225,6 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            
             {/* CAMPO DE CATEGORIA INTELIGENTE */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -221,7 +244,6 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                       {listaCategoriasFinal.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
-                      {/* O Pulo do Gato aqui: */}
                       <option value="nova_categoria" className="text-purple-400 font-bold bg-gray-800">➕ Adicionar nova...</option>
                     </select>
                   </div>
@@ -239,7 +261,6 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
                         disabled={salvando}
                       />
                     </div>
-                    {/* Botão de Cancelar para voltar para a lista */}
                     <button
                       type="button"
                       onClick={() => { setIsNovaCategoria(false); setFormData({...formData, categoria: ''}); }}
@@ -387,10 +408,10 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-800 bg-gray-900/95 flex gap-3">
+        <div className="p-6 border-t border-gray-800 bg-gray-900/95 flex gap-3 shrink-0">
           <button
             onClick={onFechar}
-            className="flex-1 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 rounded-xl"
+            className="flex-1 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 rounded-xl transition-colors"
             disabled={salvando}
           >
             Cancelar
@@ -398,7 +419,7 @@ export const ProdutoModal = ({ aberto, onFechar, onSucesso, produto }) => {
           <button
             onClick={handleSubmit}
             disabled={salvando}
-            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:from-blue-600 hover:to-purple-600 transition-all"
+            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:from-blue-600 hover:to-purple-600 transition-all active:scale-95"
           >
             {salvando ? (
               <Loader2 className="w-4 h-4 animate-spin" />

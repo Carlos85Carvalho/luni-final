@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Search, X, ArrowLeft } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Search, X, ArrowLeft, MessageCircle, Sparkles } from 'lucide-react';
 
 // CORREÇÃO 1: Apenas 2 níveis para voltar até 'src' e entrar em 'hooks'
 import { useClientes } from '../../hooks/useClientes';
@@ -10,6 +11,69 @@ import { ClientList } from './components/ClientList';
 import { Rankings } from './components/Rankings'; 
 import { ClientDetailsModal } from './components/ClientDetailsModal';
 
+// --- NOVO COMPONENTE: Modal de Mensagem para Clientes Perdidos ---
+const ModalMensagemReconquista = ({ isOpen, onClose, cliente }) => {
+  const [mensagem, setMensagem] = useState('');
+
+  // Preenche a mensagem com gatilho mental de saudade e escassez
+  useEffect(() => {
+    if (cliente) {
+      const primeiroNome = cliente.nome.split(' ')[0];
+      setMensagem(`Olá ${primeiroNome}, que saudade de você! ✨\n\nNotamos que faz um tempinho que você não vem cuidar da sua beleza com a gente.\n\nPara celebrar o seu retorno, liberamos um presente especial de *15% OFF* em qualquer serviço para você usar esta semana. Vamos agendar seu momento? 💜`);
+    }
+  }, [cliente]);
+
+  if (!isOpen || !cliente) return null;
+
+  const enviarWhatsApp = () => {
+    if (!cliente.telefone) {
+      alert("Este cliente não tem telefone cadastrado.");
+      return;
+    }
+    const num = cliente.telefone.replace(/\D/g, '');
+    window.open(`https://wa.me/55${num}?text=${encodeURIComponent(mensagem)}`, '_blank');
+    onClose();
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-[#18181b] border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative flex flex-col animate-in slide-in-from-bottom-4">
+        
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/5 rounded-full text-gray-400 hover:bg-white/10 transition-colors">
+          <X size={18}/>
+        </button>
+
+        <div className="flex items-center gap-3 mb-4 mt-2">
+          <div className="w-12 h-12 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-500 border border-purple-500/20">
+            <Sparkles size={24}/>
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white leading-tight">Reconquistar Cliente</h2>
+            <p className="text-sm text-gray-400">Para: <span className="text-white font-medium">{cliente.nome}</span></p>
+          </div>
+        </div>
+
+        <div className="space-y-2 mb-6">
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Editar Mensagem (Opcional)</label>
+          <textarea
+            className="w-full bg-[#09090b] border border-white/10 rounded-xl p-4 text-sm text-white outline-none focus:border-purple-500 transition-all min-h-[140px] resize-none custom-scrollbar"
+            value={mensagem}
+            onChange={(e) => setMensagem(e.target.value)}
+          />
+        </div>
+
+        <button 
+          onClick={enviarWhatsApp} 
+          className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-green-900/20"
+        >
+          <MessageCircle size={22} /> Enviar Promoção
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 export const ClientesScreen = ({ onClose }) => {
   const { clientes, loading } = useClientes();
   
@@ -17,6 +81,9 @@ export const ClientesScreen = ({ onClose }) => {
   const [filtroAtivo, setFiltroAtivo] = useState('todos');
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
   
+  // 🚀 ESTADO DO MODAL DE RECONQUISTA
+  const [modalCampanha, setModalCampanha] = useState({ open: false, cliente: null });
+
   // Estado para controlar visualização (Dashboard ou Lista)
   const [modoVisualizacao, setModoVisualizacao] = useState('dashboard');
 
@@ -61,6 +128,13 @@ export const ClientesScreen = ({ onClose }) => {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
       
+      {/* 🚀 Renderizando o Modal de Campanha aqui */}
+      <ModalMensagemReconquista 
+        isOpen={modalCampanha.open} 
+        onClose={() => setModalCampanha({ open: false, cliente: null })} 
+        cliente={modalCampanha.cliente} 
+      />
+
       {/* HEADER */}
       <div className="mb-6 px-4 pt-6">
         <div className="flex justify-between items-center mb-6">
@@ -127,7 +201,11 @@ export const ClientesScreen = ({ onClose }) => {
       {/* CONTEÚDO */}
       {!deveMostrarLista ? (
         <div className="animate-in fade-in duration-500">
-           <Rankings clientes={clientes} />
+           {/* 🚀 Passando o onSelect para os Rankings virarem botões clicáveis */}
+           <Rankings 
+             clientes={clientes} 
+             onSelect={setClienteSelecionado} 
+           />
         </div>
       ) : (
         <div className="animate-in slide-in-from-bottom-8 duration-500">
@@ -135,6 +213,8 @@ export const ClientesScreen = ({ onClose }) => {
             loading={loading} 
             clientes={clientesFiltrados} 
             onSelect={setClienteSelecionado} 
+            filtroAtivo={filtroAtivo} // 🚀 Passando para a lista saber quando mostrar o botão de Winback
+            onDispararCampanha={(cliente) => setModalCampanha({ open: true, cliente })} // 🚀 Função que abre o modal
           />
         </div>
       )}

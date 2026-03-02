@@ -1,11 +1,10 @@
-import { supabase } from '../../services/supabase';
+// src/screens/financeiro/pdv/PDV.service.js
+import { supabase } from '../../../services/supabase';
 import jsPDF from 'jspdf';
-import * as QRCodeGenerator from 'qrcode';
 
 export const pdvService = {
   // --- CARREGAMENTO DE DADOS ---
   async carregarDadosIniciais(userId) {
-    // 1. Buscar ID do Salão do usuário logado
     const { data: userData } = await supabase
       .from('usuarios')
       .select('salao_id')
@@ -15,41 +14,22 @@ export const pdvService = {
     if (!userData) throw new Error('Usuário não encontrado');
     const salaoId = userData.salao_id;
 
-    // 2. Buscar Dados em Paralelo
-    const [config, ultimaVenda, produtos, servicos, clientes, agendamentos, vendasPendentes] = await Promise.all([
-      // Configurações
+    // 🚀 REMOVIDA A BUSCA PELO "numero_venda" AQUI TAMBÉM
+    const [config, produtos, servicos, clientes, vendasPendentes] = await Promise.all([
       supabase.from('config_salao').select('*').eq('salao_id', salaoId).single(),
       
-      // Última Venda (para gerar próximo número)
-      supabase.from('vendas').select('numero_venda').eq('salao_id', salaoId).order('numero_venda', { ascending: false }).limit(1).single(),
+      supabase.from('produtos')
+        .select('*')
+        .eq('salao_id', salaoId)
+        .eq('ativo', true)
+        .eq('exibir_pdv', true) 
+        .order('nome'),
       
-      // Produtos Ativos com Estoque
-      supabase.from('produtos').select('*').eq('salao_id', salaoId).eq('ativo', true).gt('quantidade_atual', 0).order('nome'),
-      
-      // Serviços Ativos
       supabase.from('servicos').select('*').eq('salao_id', salaoId).eq('ativo', true).order('nome'),
-      
-      // Clientes
       supabase.from('clientes').select('*').eq('salao_id', salaoId).eq('ativo', true).order('nome'),
-      
-      // Agendamentos de Hoje
-      supabase.from('agendamentos')
-        .select(`*, clientes (nome, telefone, whatsapp), servicos (nome, preco_base)`)
-        .eq('salao_id', salaoId)
-        .gte('data', new Date().toISOString().split('T')[0])
-        .lte('data', new Date().toISOString().split('T')[0])
-        .eq('status', 'confirmado')
-        .order('hora_inicio'),
-
-      // Vendas Pendentes
-      supabase.from('vendas')
-        .select('*, clientes(nome)')
-        .eq('salao_id', salaoId)
-        .eq('status', 'pendente')
-        .order('created_at', { ascending: false })
+      supabase.from('vendas').select('*, clientes(nome)').eq('salao_id', salaoId).eq('status', 'pendente').order('created_at', { ascending: false })
     ]);
 
-    // Processar Clientes (Status e Dias sem Visita)
     const clientesProcessados = (clientes.data || []).map(cliente => ({
       ...cliente,
       dias_sem_visita: cliente.ultima_visita 
@@ -61,11 +41,10 @@ export const pdvService = {
     return {
       salaoId,
       config: config.data?.config_fidelidade || { ativo: true, pontosPorReal: 1, valorMinimoParaPontos: 10, cashbackPercentual: 5 },
-      ultimoNumeroVenda: ultimaVenda.data?.numero_venda || 0,
       produtos: produtos.data || [],
       servicos: servicos.data || [],
       clientes: clientesProcessados,
-      agendamentos: agendamentos.data || [],
+      agendamentos: [], 
       vendasPendentes: vendasPendentes.data || []
     };
   },
@@ -85,42 +64,35 @@ export const pdvService = {
   // --- FINALIZAÇÃO DE VENDA ---
   async finalizarVenda(dadosVenda) {
     const { 
-      salaoId, carrinho, cliente, total, subtotal, desconto, 
-      formaPagamento, ultimoNumeroVenda, pontosGanhos, valorCashback 
+      salaoId, carrinho, cliente, total, subtotal, desconto, formaPagamento 
     } = dadosVenda;
 
-    // 1. Gerar Número da Venda
-    let numeroVenda = ultimoNumeroVenda + 1;
-    // Tenta pegar do banco para garantir sequência (opcional, se tiver RPC)
-    // const { data: rpcNum } = await supabase.rpc('get_proximo_numero_venda', { p_salao_id: salaoId });
-    // if (rpcNum) numeroVenda = rpcNum;
-
-    // 2. Criar Venda
+    // 1. Salva a Capa da Venda
     const { data: venda, error } = await supabase
       .from('vendas')
       .insert([{
         salao_id: salaoId,
+        empresa_id: salaoId, 
         cliente_id: cliente?.id || null,
         subtotal,
         desconto,
         total,
         forma_pagamento: formaPagamento,
-        status: 'concluida',
-        numero_venda: numeroVenda,
-        pontos_gerados: pontosGanhos,
-        cashback_gerado: valorCashback
+        status: 'concluida'
+        // 🚀 APAGADO: numero_venda. O banco vai aceitar a venda livremente agora!
       }])
       .select()
       .single();
 
     if (error) throw error;
 
-    // 3. Salvar Itens e Atualizar Estoque
+    // 2. Salva os Itens da Venda
     for (const item of carrinho) {
       await supabase.from('itens_venda').insert([{
         venda_id: venda.id,
+        empresa_id: salaoId, 
         produto_id: item.tipo === 'produto' ? item.id : null,
-        servico_id: item.tipo === 'servico' ? item.id : null,
+        servico_id: (item.tipo === 'servico') ? item.servico_id : null,
         tipo: item.tipo,
         quantidade: item.qtd,
         preco_unitario: item.preco_venda,
@@ -128,35 +100,30 @@ export const pdvService = {
         nome: item.nome
       }]);
 
+      // Dá baixa no estoque
       if (item.tipo === 'produto') {
-        // Baixa no Estoque
         const { data: prod } = await supabase.from('produtos').select('quantidade_atual').eq('id', item.id).single();
         if (prod) {
           await supabase.from('produtos')
             .update({ quantidade_atual: prod.quantidade_atual - item.qtd })
             .eq('id', item.id);
             
-          // Registro de Movimentação
           await supabase.from('movimentacoes_estoque').insert([{
             salao_id: salaoId,
+            empresa_id: salaoId, 
             produto_id: item.id,
             tipo: 'saida',
             quantidade: item.qtd,
-            observacoes: `Venda #${venda.numero_venda}`
+            observacoes: `Venda PDV (Balcão)`
           }]);
         }
-      } else if (item.tipo === 'servico' && item.agendamento_id) {
-        // Concluir Agendamento
-        await supabase.from('agendamentos').update({ status: 'concluido' }).eq('id', item.agendamento_id);
       }
     }
 
-    // 4. Atualizar Cliente (Fidelidade)
+    // 3. Atualiza Cliente
     if (cliente) {
       await supabase.from('clientes')
         .update({ 
-          pontos: (cliente.pontos || 0) + pontosGanhos,
-          saldo_cashback: (cliente.saldo_cashback || 0) + valorCashback,
           total_gasto: (cliente.total_gasto || 0) + total,
           total_compras: (cliente.total_compras || 0) + 1,
           ultima_visita: new Date().toISOString(),
@@ -174,7 +141,9 @@ export const pdvService = {
     let y = 5;
     const margin = 4;
 
-    // Cabeçalho
+    // 🚀 Gera um código curto e bonito usando o ID da venda do banco
+    const codigoVenda = venda?.id ? String(venda.id).substring(0, 6).toUpperCase() : '001';
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text(dadosSalao.nome || 'Salão', 40, y, { align: 'center' });
@@ -182,15 +151,14 @@ export const pdvService = {
     
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Venda #${venda.numero_venda}`, margin, y);
+    doc.text(`Venda #${codigoVenda}`, margin, y);
     y += 4;
     doc.text(new Date().toLocaleString('pt-BR'), margin, y);
     y += 6;
 
-    doc.line(margin, y, 76, y); // Linha
+    doc.line(margin, y, 76, y);
     y += 5;
 
-    // Itens
     doc.setFont('helvetica', 'bold');
     doc.text('ITENS', margin, y);
     y += 4;
@@ -207,18 +175,15 @@ export const pdvService = {
     doc.line(margin, y, 76, y);
     y += 5;
 
-    // Totais
     doc.setFont('helvetica', 'bold');
     doc.text(`TOTAL: R$ ${venda.total.toFixed(2)}`, 76, y, { align: 'right' });
     y += 5;
     doc.setFont('helvetica', 'normal');
     doc.text(`Pagamento: ${venda.forma_pagamento.toUpperCase()}`, margin, y);
     
-    // QR Code PIX (Se for o caso)
     if (venda.forma_pagamento === 'pix') {
-       y += 10;
-       // Aqui entraria a lógica do QRCodeGenerator se necessário
-       doc.text('Pagamento via PIX', 40, y, { align: 'center' });
+        y += 10;
+        doc.text('Pagamento via PIX', 40, y, { align: 'center' });
     }
 
     y += 10;
