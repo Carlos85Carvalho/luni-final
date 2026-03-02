@@ -1,5 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '../services/supabase';
+// 1. IMPORTANDO A FUNÇÃO DO FIREBASE (Ajuste o caminho '../firebase' se necessário)
+import { requestNotificationPermission } from '../firebase'; 
 
 const AuthContext = createContext({});
 
@@ -105,7 +107,20 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email, password) => await supabase.auth.signInWithPassword({ email, password });
+  // 2. FUNÇÃO DE LOGIN ATUALIZADA PARA CHAMAR AS NOTIFICAÇÕES
+  const login = async (email, password) => {
+    const result = await supabase.auth.signInWithPassword({ email, password });
+    
+    // Se o login deu certo e retornou um usuário...
+    if (result.data?.user) {
+      // Pede permissão e salva o Token no Supabase!
+      // Usamos .catch() para que se o usuário cancelar, não trave o login dele.
+      requestNotificationPermission(result.data.user.id).catch(console.error);
+    }
+    
+    return result; // Retorna para a tela de login continuar o processo
+  };
+
   const logout = async () => { setRole(null); setProfissionalData(null); setSalaoId(null); await supabase.auth.signOut(); };
 
   return (
