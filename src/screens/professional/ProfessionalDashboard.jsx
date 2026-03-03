@@ -16,7 +16,7 @@ import {
   Calendar, Clock, LogOut, Scissors, Star, Bell, MessageCircle, Plus, Lock, Search, 
   TrendingUp, Trash2, History, CheckCheck, XCircle, Loader2,
   MoreVertical, CalendarClock, Check, Wallet, ArrowUpRight, ArrowDownRight,
-  Award, Zap, UserPlus, BarChart3, Users, DollarSign 
+  Award, Zap, UserPlus, BarChart3, Users, DollarSign, CalendarDays
 } from 'lucide-react';
 
 export const ProfessionalDashboard = ({ profissional, onLogout }) => {
@@ -265,6 +265,21 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
 
   const porcentagemMeta = (dadosFinanceiros.mesAtual / dadosFinanceiros.metaMensal) * 100;
 
+  // Função para formatar a data do agendamento (ex: "15 Mar")
+  const formatarDataAgendamento = (dataString) => {
+    if (!dataString) return '';
+    try {
+      // Ajusta o fuso horário para garantir o dia correto
+      const [ano, mes, dia] = dataString.split('T')[0].split('-');
+      const dataFormatada = new Date(ano, mes - 1, dia);
+      
+      const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      return `${dia} ${meses[dataFormatada.getMonth()]}`;
+    } catch {
+      return '';
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white"><Loader2 className="animate-spin text-[#5B2EFF]" size={40} /></div>;
 
   return (
@@ -312,7 +327,6 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            {/* BOTÃO DO SINO ATUALIZADO PARA USAR O USER.ID DE AUTH */}
             <button 
               onClick={() => requestNotificationPermission(user?.id)} 
               className="p-2.5 bg-white/5 rounded-xl hover:bg-purple-500/20 text-gray-400 hover:text-purple-400 transition-all border border-white/5 active:scale-95 group"
@@ -365,9 +379,18 @@ export const ProfessionalDashboard = ({ profissional, onLogout }) => {
                 <div key={item.id} className={`bg-[#15151a] relative rounded-2xl p-4 border shadow-lg transition-all hover:border-purple-500/30 ${item.status === 'bloqueado' ? 'border-orange-500/20 bg-orange-500/5' : 'border-white/5'}`}>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="flex flex-col items-center justify-center bg-[#1c1c24] rounded-xl px-3 py-2 border border-white/10 min-w-[60px]">
-                        <span className="text-base font-bold text-white mt-0.5">{item.horario.slice(0, 5)}</span>
+                      
+                      {/* CARD DE HORA E DATA ATUALIZADO */}
+                      <div className="flex flex-col items-center justify-center bg-[#1c1c24] rounded-xl px-2 py-1.5 border border-white/10 min-w-[65px]">
+                        <span className="text-base font-bold text-white">{item.horario.slice(0, 5)}</span>
+                        {/* A data só aparece se a visualização for Próximos, Semana ou Todos */}
+                        {visualizacao !== 'dia' && (
+                          <span className="text-[10px] text-gray-400 uppercase font-bold mt-0.5 border-t border-white/10 w-full text-center pt-0.5 flex items-center justify-center gap-1">
+                            <CalendarDays size={8}/> {formatarDataAgendamento(item.data)}
+                          </span>
+                        )}
                       </div>
+
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-bold truncate text-white">{item.cliente_nome}</h3>
                         <p className="text-gray-400 text-xs truncate mt-0.5">{item.status === 'bloqueado' ? <Lock size={10} className="inline mr-1"/> : <Scissors size={10} className="inline mr-1"/>} {item.servico}</p>
