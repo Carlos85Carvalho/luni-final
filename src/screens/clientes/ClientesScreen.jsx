@@ -10,18 +10,17 @@ import { ClientList } from './components/ClientList';
 import { Rankings } from './components/Rankings'; 
 import { ClientDetailsModal } from './components/ClientDetailsModal';
 
-// --- COMPONENTE DE RECONQUISTA (LIMPO) ---
+// --- COMPONENTE DE RECONQUISTA ---
 const ModalMensagemReconquista = ({ isOpen, onClose, cliente }) => {
   const [mensagem, setMensagem] = useState('');
 
-  // Sincroniza a mensagem apenas quando o cliente mudar ou o modal abrir
   useEffect(() => {
     if (cliente && isOpen) {
       const primeiroNome = cliente.nome.split(' ')[0];
       const template = `Olá ${primeiroNome}, que saudade de você! ✨\n\nNotamos que faz um tempinho que você não vem cuidar da sua beleza com a gente.\n\nPara celebrar o seu retorno, liberamos um presente especial de *15% OFF* em qualquer serviço para você usar esta semana. Vamos agendar seu momento? 💜`;
       setMensagem(template);
     }
-  }, [cliente, isOpen]); // Adicionada a dependência 'isOpen' para limpeza técnica
+  }, [cliente, isOpen]); 
 
   if (!isOpen || !cliente) return null;
 
@@ -71,8 +70,9 @@ const ModalMensagemReconquista = ({ isOpen, onClose, cliente }) => {
 };
 
 export const ClientesScreen = ({ onClose }) => {
-  const { salaoId } = useAuth();
-  const { clientes, loading } = useClientes();
+  // 🔥 CORREÇÃO 1: Extrair o loading da Autenticação para a trava inteligente
+  const { salaoId, loading: authLoading } = useAuth();
+  const { clientes, loading: clientesLoading } = useClientes();
   
   const [busca, setBusca] = useState('');
   const [filtroAtivo, setFiltroAtivo] = useState('todos');
@@ -114,11 +114,24 @@ export const ClientesScreen = ({ onClose }) => {
 
   const deveMostrarLista = modoVisualizacao === 'lista' || busca.length > 0;
 
-  // Trava de segurança: aguarda o ID do salão
-  if (!salaoId) {
+  // 🔥 CORREÇÃO 2: Trava inteligente de Loading
+  if (authLoading || (salaoId && clientesLoading)) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <Loader2 className="animate-spin text-purple-500" size={40} />
+      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-purple-500 mb-4" size={40} />
+        <p className="text-gray-400 text-sm">Carregando dados do salão...</p>
+      </div>
+    );
+  }
+
+  // 🔥 CORREÇÃO 3: Mensagem de erro caso o usuário logado não tenha um salão configurado
+  if (!authLoading && !salaoId) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center text-center p-6">
+        <X size={50} className="text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold text-white mb-2">Acesso Restrito</h2>
+        <p className="text-gray-400 max-w-md">Seu usuário de teste ainda não está vinculado a um Salão. Acesse o banco de dados e adicione o seu ID na tabela.</p>
+        <button onClick={onClose} className="mt-8 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">Voltar</button>
       </div>
     );
   }
@@ -206,7 +219,7 @@ export const ClientesScreen = ({ onClose }) => {
       ) : (
         <div className="animate-in slide-in-from-bottom-8 duration-500">
            <ClientList 
-            loading={loading} 
+            loading={clientesLoading} 
             clientes={clientesFiltrados} 
             onSelect={setClienteSelecionado} 
             filtroAtivo={filtroAtivo} 

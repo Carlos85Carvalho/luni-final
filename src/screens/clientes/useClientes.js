@@ -1,26 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext'; // Puxa o seu sistema de login
+import { useAuth } from '../contexts/AuthContext';
 
 export const useClientes = () => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { salaoId } = useAuth(); // Pega o ID dinâmico do salão logado
+  const { salaoId } = useAuth(); 
 
-  useEffect(() => {
-    // Só executa a busca quando o sistema confirmar qual salão está logado
-    if (salaoId) {
-      fetchClientes();
+  const fetchClientes = useCallback(async () => {
+    // 🔥 A CORREÇÃO ESTÁ AQUI: Se não tiver ID, pare de carregar imediatamente!
+    if (!salaoId) {
+      setLoading(false); 
+      return;
     }
-  }, [salaoId]);
-
-  const fetchClientes = async () => {
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
-        .eq('salao_id', salaoId) // 🔥 ESTA É A TRAVA DE SEGURANÇA
+        .eq('salao_id', salaoId)
         .order('nome');
 
       if (error) throw error;
@@ -30,7 +29,11 @@ export const useClientes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [salaoId]);
+
+  useEffect(() => {
+    fetchClientes();
+  }, [fetchClientes]);
 
   return { clientes, loading, refresh: fetchClientes };
 };
