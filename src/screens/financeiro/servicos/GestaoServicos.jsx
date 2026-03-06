@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../services/supabase';
+import { useAuth } from '../../../contexts/AuthContext'; // 🛡️ Importado para pegar o ID do salão
 import { 
   Scissors, Plus, Clock, DollarSign, Trash2, Sparkles, Zap, Loader2, 
   Hourglass, FolderPlus, Tag, Palette, Droplet, Search, Menu, X
@@ -18,36 +19,44 @@ const CATEGORIAS_INICIAIS = [
 ];
 
 export const GestaoServicos = () => {
+  const { salaoId } = useAuth(); // 🛡️ A "Chave" do seu salão
   const [loading, setLoading] = useState(true);
   const [servicos, setServicos] = useState([]);
   const [categorias, setCategorias] = useState(CATEGORIAS_INICIAIS);
   const [categoriaAtiva, setCategoriaAtiva] = useState('cabelo');
   const [showForm, setShowForm] = useState(false);
   
-  // 🔥 ADICIONADO: 'categoria' no estado inicial do novo serviço
   const [novoServico, setNovoServico] = useState({ nome: '', preco: '', duracao: '', pausa: '0', categoria: 'cabelo' });
   
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
   const [showInputCategoria, setShowInputCategoria] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   
-  // Controle do botão de pausa no formulário
   const [habilitarPausa, setHabilitarPausa] = useState(false);
 
-  useEffect(() => { fetchServicos(); }, []);
+  // 🔥 CORREÇÃO 1: Só busca quando o salaoId estiver disponível
+  useEffect(() => { 
+    if (salaoId) fetchServicos(); 
+  }, [salaoId]);
 
   const fetchServicos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('servicos').select('*').order('nome');
+      // 🔥 CORREÇÃO 2: Filtro .eq('salao_id', salaoId) adicionado
+      const { data, error } = await supabase
+        .from('servicos')
+        .select('*')
+        .eq('salao_id', salaoId) // 🛡️ Segurança: não traz dados de outros salões
+        .order('nome');
+
       if (error) throw error;
       setServicos(data || []);
 
       const categoriasExistentes = new Set(categorias.map(c => c.id));
       const novasCats = [];
       (data || []).forEach(s => {
-        const cat = s.categoria.toLowerCase();
-        if (!categoriasExistentes.has(cat)) {
+        const cat = s.categoria?.toLowerCase();
+        if (cat && !categoriasExistentes.has(cat)) {
             novasCats.push({ id: cat, label: s.categoria.toUpperCase(), icon: Tag });
             categoriasExistentes.add(cat);
         }
@@ -60,28 +69,27 @@ export const GestaoServicos = () => {
   const salvarAlteracao = async (id, campo, valor) => {
     const novos = servicos.map(s => s.id === id ? { ...s, [campo]: valor } : s);
     setServicos(novos);
-    await supabase.from('servicos').update({ [campo]: valor }).eq('id', id);
+    // 🔥 CORREÇÃO 3: Adicionado .eq('salao_id', salaoId) para garantir o isolamento no update
+    await supabase
+      .from('servicos')
+      .update({ [campo]: valor })
+      .eq('id', id)
+      .eq('salao_id', salaoId);
   };
 
   const adicionarServico = async () => {
     if (!novoServico.nome || !novoServico.preco) return alert("Preencha nome e preço!");
     try {
-        const { data: { user } } = await supabase.auth.getUser();
-        let salaoId = null;
-        if(user) {
-            const { data } = await supabase.from('usuarios').select('salao_id').eq('id', user.id).maybeSingle();
-            salaoId = data?.salao_id;
-        }
-
+        // 🔥 CORREÇÃO 4: Simplificado para usar o salaoId do Auth diretamente
         const { error } = await supabase.from('servicos').insert([{
             nome: novoServico.nome,
             preco: novoServico.preco,
             duracao: novoServico.duracao,
             pausa: habilitarPausa ? novoServico.pausa : 0,
-            // 🔥 ADICIONADO: Agora ele salva a categoria que você escolheu no select
             categoria: novoServico.categoria,
-            salao_id: salaoId
+            salao_id: salaoId // 🛡️ Salva vinculado ao salão correto
         }]);
+
         if (error) throw error;
         
         fetchServicos();
@@ -93,7 +101,12 @@ export const GestaoServicos = () => {
 
   const deletarServico = async (id) => {
     if (confirm("Excluir serviço?")) {
-        await supabase.from('servicos').delete().eq('id', id);
+        // 🔥 CORREÇÃO 5: Adicionado .eq('salao_id', salaoId) por segurança
+        await supabase
+          .from('servicos')
+          .delete()
+          .eq('id', id)
+          .eq('salao_id', salaoId);
         setServicos(servicos.filter(s => s.id !== id));
     }
   };
@@ -115,7 +128,6 @@ export const GestaoServicos = () => {
 
   const servicosFiltrados = servicos.filter(s => s.categoria === categoriaAtiva);
 
-  // Função para abrir o formulário já com a categoria da aba atual pré-selecionada
   const abrirFormulario = () => {
     setNovoServico({ ...novoServico, categoria: categoriaAtiva });
     setShowForm(true);
@@ -143,7 +155,7 @@ export const GestaoServicos = () => {
         </button>
       </div>
 
-      {/* --- BOTÃO HAMBÚRGUER (MOBILE) + CATEGORIA ATIVA --- */}
+      {/* --- BOTÃO HAMBÚRGUER (MOBILE) --- */}
       <div className="flex items-center gap-3 mb-6 md:hidden">
         <button 
           onClick={() => setMenuAberto(!menuAberto)}
@@ -163,7 +175,7 @@ export const GestaoServicos = () => {
         </div>
       </div>
 
-      {/* --- MENU HAMBÚRGUER (MOBILE) --- */}
+      {/* --- MENU MOBILE --- */}
       {menuAberto && (
         <div className="md:hidden mb-6 bg-[#18181b] border border-white/10 rounded-2xl overflow-hidden animate-in slide-in-from-top-4">
           <div className="p-2 space-y-1">
@@ -254,7 +266,6 @@ export const GestaoServicos = () => {
                 <Plus size={18} className="text-purple-400" /> Adicionar Novo Serviço
             </h3>
             
-            {/* 🔥 ADICIONADO: Grid expandida para lg:grid-cols-6 para caber a categoria */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-5 items-end">
                 <div className="lg:col-span-2">
                     <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Nome do Serviço</label>
@@ -262,7 +273,6 @@ export const GestaoServicos = () => {
                         placeholder="Ex: Corte Bordado" value={novoServico.nome} onChange={e => setNovoServico({...novoServico, nome: e.target.value})} />
                 </div>
 
-                {/* 🔥 ADICIONADO: Caixa de seleção de Categoria */}
                 <div className="lg:col-span-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Categoria</label>
                     <select 
@@ -309,7 +319,7 @@ export const GestaoServicos = () => {
         </div>
       )}
 
-      {/* --- LISTA DE SERVIÇOS (GRID RESPONSIVO) --- */}
+      {/* --- LISTA DE SERVIÇOS --- */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-32 opacity-50">
             <Loader2 className="animate-spin text-purple-500 mb-2" size={40}/>

@@ -1,32 +1,35 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../../../services/supabase';
+import { useAuth } from '../../../contexts/AuthContext'; // 🛡️ Importe de segurança
 import { useEstoque } from './EstoqueHooks';
 import { EstoqueKPIs } from './EstoqueKPIs';
 import { EstoqueFilters } from './EstoqueFilters';
 import { EstoqueTable } from './EstoqueTable';
+import { Loader2 } from 'lucide-react';
 
 export const Estoque = ({ onAbrirModal }) => {
-  // Dados brutos da lista (para a tabela)
+  const { salaoId } = useAuth(); // Identifica o salão logado
   const { produtos, loading: produtosLoading } = useEstoque();
   
-  // Estado para os KPIs (Cards do topo)
   const [kpis, setKpis] = useState({
     valorTotal: 0,
-    lucroEstimado: 0, // 🚀 ADICIONADO AQUI: Prepara a caixinha para o lucro
+    lucroEstimado: 0, 
     totalItens: 0, 
     qtdCriticos: 0, 
     giroMedio: 0,  
     margemMedia: 0
   });
 
-  // ========== BUSCA DADOS DA VIEW E CALCULA TOTAIS ==========
+  // ========== BUSCA DADOS DA VIEW E CALCULA TOTAIS FILTRADOS ==========
   useEffect(() => {
     const fetchKPIs = async () => {
+      if (!salaoId) return; // Segurança: não busca sem o ID
+
       try {
-        // Busca da view que criamos no SQL (para valores complexos)
         const { data, error } = await supabase
           .from('vw_dashboard_estoque')
           .select('*')
+          .eq('salao_id', salaoId) // 🔥 FILTRO MESTRE: Impede vazamento nos cards do topo
           .maybeSingle(); 
 
         if (error) {
@@ -37,13 +40,8 @@ export const Estoque = ({ onAbrirModal }) => {
         if (data) {
           setKpis({
             valorTotal: Number(data.valor_total || data.valorTotal || 0),
-            
-            // 🚀 A CONEXÃO MÁGICA: Pega o lucro que vem do banco e passa pro Card!
             lucroEstimado: Number(data.lucro_estimado || 0), 
-
-            // Usamos a lista 'produtos' que já carregou para contar quantos itens tem
             totalItens: produtos ? produtos.length : 0, 
-
             qtdCriticos: Number(data.qtd_criticos || data.qtdCriticos || data.estoque_critico || 0),
             giroMedio: Number(data.giro_medio || data.giroMedio || data.giro_estoque || 0),
             margemMedia: Number(data.margem_media || data.margemMedia || 0).toFixed(2) 
@@ -54,9 +52,8 @@ export const Estoque = ({ onAbrirModal }) => {
       }
     };
 
-    // Chama sempre que a lista de produtos mudar (adicionar/remover item)
     fetchKPIs();
-  }, [produtos]); 
+  }, [produtos, salaoId]); 
 
   // ========== FILTROS E BUSCA ==========
   const [filtroStatus, setFiltroStatus] = useState('todos');
@@ -88,6 +85,15 @@ export const Estoque = ({ onAbrirModal }) => {
   const handleEntradaEstoque = (produto = null) => {
     onAbrirModal('entrada-estoque', produto);
   };
+
+  // Trava visual enquanto identifica o salão
+  if (!salaoId && produtosLoading) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../services/supabase';
+import { useAuth } from '../../../contexts/AuthContext'; // 🛡️ Importe de segurança
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend, CartesianGrid 
@@ -30,6 +31,7 @@ const getPrimeiroDiaMes = () => {
 const getHoje = () => new Date().toISOString().split('T')[0];
 
 export const Performance = () => {
+  const { salaoId } = useAuth(); // 🔥 Pegando o ID do salão logado
   const [loading, setLoading] = useState(true);
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
   const [dataFim, setDataFim] = useState(getHoje());
@@ -40,13 +42,18 @@ export const Performance = () => {
   const [dadosServicos, setDadosServicos] = useState([]);
   const [resumo, setResumo] = useState({ faturamento: 0, atendimentos: 0 });
 
+  // 1. BUSCA PROFISSIONAIS (FILTRANDO POR SALÃO)
   useEffect(() => {
     const fetchProfs = async () => {
-      const { data } = await supabase.from('profissionais').select('id, nome');
+      if (!salaoId) return; // Não busca se não tiver o ID
+      const { data } = await supabase
+        .from('profissionais')
+        .select('id, nome')
+        .eq('salao_id', salaoId); // 🔥 Filtra os nomes para não aparecer gente de outro salão
       if (data) setProfissionais(data);
     };
     fetchProfs();
-  }, []);
+  }, [salaoId]);
 
   const aplicarFiltroRapido = (tipo) => {
     const hoje = new Date();
@@ -66,15 +73,19 @@ export const Performance = () => {
     setPeriodoSelecionado(tipo);
   };
 
+  // 2. BUSCA DADOS DE PERFORMANCE (FILTRANDO POR SALÃO)
   useEffect(() => {
     const fetchDados = async () => {
+      if (!salaoId) return; 
       setLoading(true);
       try {
         const inicioQuery = `${dataInicio}T00:00:00`;
         const fimQuery = `${dataFim}T23:59:59`;
+        
         let query = supabase
           .from('agendamentos')
           .select(`id, data, valor, valor_total, servico, profissional_id, status, profissionais (nome)`)
+          .eq('salao_id', salaoId) // 🔥 Trava principal: só busca o faturamento deste salão
           .gte('data', inicioQuery)
           .lte('data', fimQuery)
           .neq('status', 'cancelado'); 
@@ -91,7 +102,7 @@ export const Performance = () => {
       }
     };
     fetchDados();
-  }, [dataInicio, dataFim, profissionalId]);
+  }, [dataInicio, dataFim, profissionalId, salaoId]);
 
   const processarDados = (dados) => {
     const getValor = (item) => Number(item.valor_total) || Number(item.valor) || 0;
@@ -151,9 +162,8 @@ export const Performance = () => {
         
         <div className="h-[1px] bg-white/5 w-full"></div>
         
-        {/* ✅ FILTROS - LAYOUT RESPONSIVO MELHORADO */}
+        {/* FILTROS */}
         <div className="flex flex-col gap-3">
-          {/* Filtros Rápidos */}
           <div className={`bg-[#0f0f12] p-1 rounded-xl border border-white/10 flex overflow-x-auto scrollbar-hide`}>
             {['hoje', 'semana', 'mes', 'ano'].map((p) => (
               <button
@@ -168,28 +178,15 @@ export const Performance = () => {
             ))}
           </div>
 
-          {/* Seletor de Datas */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[#0f0f12] rounded-xl border border-white/10 p-2">
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors flex-1">
               <Calendar className="w-4 h-4 text-purple-500 flex-shrink-0" />
-              <input
-                type="date"
-                value={dataInicio}
-                onChange={(e) => { setDataInicio(e.target.value); setPeriodoSelecionado('custom'); }}
-                className="bg-transparent text-white text-xs font-medium outline-none [color-scheme:dark] cursor-pointer w-full"
-              />
+              <input type="date" value={dataInicio} onChange={(e) => { setDataInicio(e.target.value); setPeriodoSelecionado('custom'); }} className="bg-transparent text-white text-xs font-medium outline-none [color-scheme:dark] cursor-pointer w-full" />
             </div>
-
             <span className="text-gray-600 text-xs font-medium text-center sm:px-2">até</span>
-
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors flex-1">
               <Calendar className="w-4 h-4 text-purple-500 flex-shrink-0" />
-              <input
-                type="date"
-                value={dataFim}
-                onChange={(e) => { setDataFim(e.target.value); setPeriodoSelecionado('custom'); }}
-                className="bg-transparent text-white text-xs font-medium outline-none [color-scheme:dark] cursor-pointer w-full"
-              />
+              <input type="date" value={dataFim} onChange={(e) => { setDataFim(e.target.value); setPeriodoSelecionado('custom'); }} className="bg-transparent text-white text-xs font-medium outline-none [color-scheme:dark] cursor-pointer w-full" />
             </div>
           </div>
         </div>
@@ -217,31 +214,15 @@ export const Performance = () => {
                     <BarChart layout="vertical" data={dadosRanking} margin={{ left: 0, right: 10, top: 10, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="nome" 
-                        type="category" 
-                        width={110} 
-                        tick={{ fill: '#ffffff', fontSize: 11, fontWeight: 'bold' }} 
-                        axisLine={false} 
-                        tickLine={false} 
-                      />
+                      <YAxis dataKey="nome" type="category" width={110} tick={{ fill: '#ffffff', fontSize: 11, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                       <Tooltip 
                         cursor={{ fill: 'transparent' }}
-                        contentStyle={{ 
-                          backgroundColor: '#18181b', 
-                          border: '1px solid #333', 
-                          borderRadius: '12px'
-                        }}
+                        contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '12px' }}
                         labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} 
                         itemStyle={{ color: '#ffffff' }} 
                         formatter={(value) => [formatCurrency(value), 'Faturamento']}
                       />
-                      <Bar 
-                        dataKey="valor" 
-                        radius={[0, 4, 4, 0]} 
-                        barSize={20} 
-                        background={{ fill: '#27272a', radius: [0, 4, 4, 0] }}
-                      >
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20} background={{ fill: '#27272a', radius: [0, 4, 4, 0] }}>
                         {dadosRanking.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
@@ -270,10 +251,7 @@ export const Performance = () => {
                       <Pie data={dadosServicos} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
                         {dadosServicos.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '12px' }}
-                        itemStyle={{ color: '#ffffff' }}
-                      />
+                      <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '12px' }} itemStyle={{ color: '#ffffff' }} />
                       <Legend verticalAlign="bottom" align="center" layout="horizontal" wrapperStyle={{ fontSize: '10px', color: '#9ca3af', paddingTop: '20px' }} />
                     </PieChart>
                   </ResponsiveContainer>
