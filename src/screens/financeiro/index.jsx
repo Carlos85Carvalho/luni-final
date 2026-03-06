@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Scissors,
   Menu,
-  X
+  X,
+  Wallet // ÍCONE NOVO IMPORTADO AQUI
 } from 'lucide-react';
 
 // --- Importação das Telas ---
@@ -24,6 +25,7 @@ import { Metas } from './metas/Metas';
 import { Relatorios } from './relatorios/Relatorios'; 
 import { PDV } from './pdv/PDV'; 
 import { GestaoServicos } from './servicos/GestaoServicos';
+import { ComissoesScreen } from './comissoes/ComissoesScreen'; // TELA NOVA IMPORTADA AQUI
 
 // --- Importação dos Modais ---
 import { DespesaModal } from './despesas/DespesaModal';
@@ -63,12 +65,14 @@ export const FinanceiroModule = ({ onClose }) => {
     setMenuAberto(false);
   };
 
+  // --- ARRAY DE ABAS ATUALIZADO ---
   const tabs = [
     { id: 'visao-geral', label: 'Visão Geral', icon: LayoutDashboard },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
     { id: 'pdv', label: 'PDV', icon: ShoppingCart },
     { id: 'servicos', label: 'Catálogo / Serviços', icon: Scissors },
     { id: 'despesas', label: 'Despesas', icon: Receipt },
+    { id: 'comissoes', label: 'Comissões', icon: Wallet }, // ABA NOVA INSERIDA AQUI
     { id: 'estoque', label: 'Estoque', icon: Package },
     { id: 'fornecedores', label: 'Fornecedores', icon: Users },
     { id: 'metas', label: 'Metas', icon: Target },
@@ -82,6 +86,7 @@ export const FinanceiroModule = ({ onClose }) => {
       case 'pdv': return <PDV />; 
       case 'servicos': return <GestaoServicos />;
       case 'despesas': return <Despesas onAbrirModal={handleAbrirModal} />;
+      case 'comissoes': return <ComissoesScreen />; // ROTA NOVA ADICIONADA AQUI
       case 'estoque': return <Estoque onAbrirModal={handleAbrirModal} />;
       case 'fornecedores': return <Fornecedores onAbrirModal={handleAbrirModal} />;
       case 'metas': return <Metas onAbrirModal={handleAbrirModal} />;
@@ -113,7 +118,6 @@ export const FinanceiroModule = ({ onClose }) => {
       {/* 📱 MODO MOBILE: INDICADOR DE ABA ATIVA + HAMBÚRGUER */}
       {/* ========================================================= */}
       <div className="md:hidden flex items-center gap-3 mb-6 relative z-40">
-        {/* Botão que mostra a aba atual e serve para abrir o menu também */}
         <button 
           onClick={() => setMenuAberto(!menuAberto)}
           className="flex-1 px-4 py-3 rounded-xl bg-purple-600/90 hover:bg-purple-600 text-white border border-purple-500/50 flex items-center gap-3 shadow-lg shadow-purple-900/20 transition-all active:scale-95"
@@ -135,7 +139,6 @@ export const FinanceiroModule = ({ onClose }) => {
       {/* ========================================================= */}
       {/* 📱 MODO MOBILE: MENU DROPDOWN "FLUTUANTE" */}
       {/* ========================================================= */}
-      {/* OVERLAY DE FUNDO DESFOCADO (Para clicar e fechar) */}
       {menuAberto && (
         <div 
           className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity"
@@ -143,7 +146,6 @@ export const FinanceiroModule = ({ onClose }) => {
         />
       )}
 
-      {/* CAIXA DO MENU */}
       <div className={`
         md:hidden absolute top-[140px] left-4 right-4 z-50 bg-[#18181b] border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 transform origin-top
         ${menuAberto ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0 pointer-events-none'}
